@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Animated, Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import {
   setAudioModeAsync,
   useAudioPlayer,
@@ -66,22 +66,22 @@ export function AudioPlayer({ uri, durationMs }: AudioPlayerProps) {
   }, [currentMs, isPlaying, totalMs]);
 
   return (
-    <View style={styles.wrap}>
-      <View style={styles.controls}>
+    <View style={[styles.wrap, { backgroundColor: colors.surfaceMuted }]}>
+      <View style={styles.row}>
         <Pressable
           onPress={() => skipBy(-PLAYBACK_SKIP_SECONDS)}
           hitSlop={space.sm}
-          style={({ pressed }) => [styles.skipBtn, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
           accessibilityLabel={`Skip back ${PLAYBACK_SKIP_SECONDS} seconds`}
         >
-          <Feather name="rotate-ccw" size={metrics.iconSm} color={colors.textSecondary} />
+          <Feather name="rotate-ccw" size={15} color={colors.textSecondary} />
         </Pressable>
 
         <Pressable
           onPress={togglePlayback}
           style={({ pressed }) => [
             styles.playBtn,
-            { borderColor: colors.line, backgroundColor: colors.surfaceMuted },
+            { backgroundColor: colors.marker },
             pressed && styles.pressed,
           ]}
           accessibilityLabel={isPlaying ? "Pause audio" : "Play audio"}
@@ -89,36 +89,36 @@ export function AudioPlayer({ uri, durationMs }: AudioPlayerProps) {
           <Feather
             name={isPlaying ? "pause" : "play"}
             size={metrics.iconSm}
-            color={colors.text}
+            color={colors.background}
           />
         </Pressable>
 
         <Pressable
           onPress={() => skipBy(PLAYBACK_SKIP_SECONDS)}
           hitSlop={space.sm}
-          style={({ pressed }) => [styles.skipBtn, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
           accessibilityLabel={`Skip forward ${PLAYBACK_SKIP_SECONDS} seconds`}
         >
-          <Feather name="rotate-cw" size={metrics.iconSm} color={colors.textSecondary} />
+          <Feather name="rotate-cw" size={15} color={colors.textSecondary} />
         </Pressable>
+
+        <Pressable
+          onPress={(event) => {
+            if (!trackWidth) return;
+            seekToRatio(event.nativeEvent.locationX / trackWidth);
+          }}
+          onLayout={(event) => setTrackWidth(event.nativeEvent.layout.width)}
+          style={styles.trackPress}
+          accessibilityLabel="Seek audio"
+          accessibilityRole="adjustable"
+        >
+          <AudioWaveform seed={uri} progress={progress} height={26} />
+        </Pressable>
+
+        <ThemedText style={[typography.caption, styles.time, { color: colors.textSecondary }]}>
+          {timeLabel}
+        </ThemedText>
       </View>
-
-      <Pressable
-        onPress={(event) => {
-          if (!trackWidth) return;
-          seekToRatio(event.nativeEvent.locationX / trackWidth);
-        }}
-        onLayout={(event) => setTrackWidth(event.nativeEvent.layout.width)}
-        style={styles.trackPress}
-        accessibilityLabel="Seek audio"
-        accessibilityRole="adjustable"
-      >
-        <AudioWaveform seed={uri} progress={progress} height={28} />
-      </Pressable>
-
-      <ThemedText style={[typography.caption, styles.time, { color: colors.textSecondary }]}>
-        {timeLabel}
-      </ThemedText>
     </View>
   );
 }
@@ -126,34 +126,37 @@ export function AudioPlayer({ uri, durationMs }: AudioPlayerProps) {
 const styles = StyleSheet.create({
   wrap: {
     marginTop: space.sm,
-    paddingVertical: space.xs,
-    gap: space.sm,
+    borderRadius: space.md,
+    paddingHorizontal: space.sm,
+    paddingVertical: space.sm,
   },
-  controls: {
+  row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: space.md,
+    gap: space.sm,
   },
-  skipBtn: {
-    width: 32,
-    height: 32,
+  iconBtn: {
+    width: 28,
+    height: 28,
     alignItems: "center",
     justifyContent: "center",
   },
   playBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: StyleSheet.hairlineWidth,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
   },
   trackPress: {
-    width: "100%",
+    flex: 1,
+    minWidth: 0,
     paddingVertical: space.xs,
   },
   time: {
+    minWidth: 52,
     textAlign: "right",
+    fontVariant: ["tabular-nums"],
   },
   pressed: {
     opacity: 0.65,

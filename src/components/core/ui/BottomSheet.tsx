@@ -37,6 +37,7 @@ export function BottomSheet({
 
   const resolvedAnimation = animationType ?? (variant === "center" ? "fade" : "slide");
   const bottomPad = paddingBottom ?? insets.bottom + space.lg;
+  const isBottom = variant === "bottom";
 
   return (
     <Modal
@@ -44,6 +45,9 @@ export function BottomSheet({
       transparent
       animationType={resolvedAnimation}
       onRequestClose={onClose}
+      presentationStyle="overFullScreen"
+      statusBarTranslucent
+      navigationBarTranslucent
     >
       <View
         style={[
@@ -55,18 +59,17 @@ export function BottomSheet({
 
         <View
           style={[
-            variant === "bottom" ? styles.sheetBottom : styles.sheetCenter,
-            {
-              backgroundColor: colors.surface,
-              paddingBottom: variant === "bottom" ? bottomPad : space.lg,
-            },
+            isBottom ? styles.sheetBottom : styles.sheetCenter,
+            { backgroundColor: colors.surface },
+            !isBottom && { paddingBottom: space.lg },
             sheetStyle,
           ]}
         >
-          {variant === "bottom" ? (
+          {isBottom ? (
             <View style={[styles.handle, { backgroundColor: colors.line }]} />
           ) : null}
           {children}
+          {isBottom && bottomPad > 0 ? <View style={{ height: bottomPad }} /> : null}
         </View>
       </View>
     </Modal>
@@ -76,7 +79,6 @@ export function BottomSheet({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    justifyContent: "flex-end",
   },
   overlayCenter: {
     justifyContent: "center",
@@ -87,10 +89,15 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.35)",
   },
   sheetBottom: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: "100%",
     borderTopLeftRadius: space.xl,
     borderTopRightRadius: space.xl,
-    paddingHorizontal: space.xl,
-    paddingTop: space.md,
+    paddingHorizontal: space.lg,
+    paddingTop: space.sm,
   },
   sheetCenter: {
     borderRadius: space.xl,
@@ -102,6 +109,6 @@ const styles = StyleSheet.create({
     width: 36,
     height: space.xs,
     borderRadius: space.xs / 2,
-    marginBottom: space.lg,
+    marginBottom: space.md,
   },
 });

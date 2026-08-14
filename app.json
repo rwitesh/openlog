@@ -11,7 +11,8 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Record voice entries on your timeline."
-      }
+      },
+      "bundleIdentifier": "com.anonymous.kizuna"
     },
     "android": {
       "adaptiveIcon": {
@@ -21,8 +22,15 @@
         "backgroundColor": "#F7F6F3"
       },
       "softwareKeyboardLayoutMode": "resize",
-      "permissions": ["RECORD_AUDIO"],
-      "predictiveBackGestureEnabled": false
+      "permissions": [
+        "RECORD_AUDIO",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+      ],
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anonymous.kizuna"
     },
     "web": {
       "favicon": "./assets/favicon.png",

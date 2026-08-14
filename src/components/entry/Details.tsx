@@ -3,15 +3,10 @@ import { Alert, Pressable, StyleSheet, View } from "react-native";
 import type { Entry } from "@/types/entry";
 import { useTheme } from "@/hooks/useTheme";
 import { space } from "@/theme/spacing";
-import {
-  entryTypeLabel,
-  formatDurationMs,
-  formatEntryDateTime,
-  formatEntryTime,
-} from "@/lib";
+import { formatDateTime, formatDurationMs, typeLabel } from "@/lib";
 import { BottomSheet, ThemedText } from "@/components/core";
 
-interface EntryDetailsModalProps {
+interface DetailsProps {
   entry: Entry;
   visible: boolean;
   onClose: () => void;
@@ -31,12 +26,12 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function EntryDetailsModal({
+export function Details({
   entry,
   visible,
   onClose,
   onDelete,
-}: EntryDetailsModalProps) {
+}: DetailsProps) {
   const { theme } = useTheme();
   const { colors } = theme;
 
@@ -61,35 +56,36 @@ export function EntryDetailsModal({
       </ThemedText>
 
       <View style={[styles.card, { borderColor: colors.separator }]}>
-        <DetailRow label="Written" value={formatEntryDateTime(entry.createdAt)} />
-        <DetailRow label="Time" value={formatEntryTime(entry.createdAt)} />
-        <DetailRow label="Type" value={entryTypeLabel(entry.type)} />
+        <DetailRow label="Written" value={formatDateTime(entry.createdAt)} />
+        <DetailRow label="Type" value={typeLabel(entry.type)} />
         {entry.type === "audio" && entry.durationMs ? (
           <DetailRow label="Length" value={formatDurationMs(entry.durationMs)} />
         ) : null}
       </View>
 
-      <Pressable
-        onPress={onClose}
-        style={({ pressed }) => [
-          styles.button,
-          { backgroundColor: colors.surfaceMuted },
-          pressed && styles.pressed,
-        ]}
-      >
-        <ThemedText weight="medium" style={{ color: colors.text }}>
-          Close
-        </ThemedText>
-      </Pressable>
+      <View style={styles.actions}>
+        <Pressable
+          onPress={onClose}
+          style={({ pressed }) => [
+            styles.button,
+            { backgroundColor: colors.surfaceMuted },
+            pressed && styles.pressed,
+          ]}
+        >
+          <ThemedText weight="medium" style={{ color: colors.text }}>
+            Close
+          </ThemedText>
+        </Pressable>
 
-      <Pressable
-        onPress={confirmDelete}
-        style={({ pressed }) => [styles.button, pressed && styles.pressed]}
-      >
-        <ThemedText weight="medium" style={{ color: colors.destructive }}>
-          Delete entry
-        </ThemedText>
-      </Pressable>
+        <Pressable
+          onPress={confirmDelete}
+          style={({ pressed }) => [styles.button, pressed && styles.pressed]}
+        >
+          <ThemedText weight="medium" style={{ color: colors.destructive }}>
+            Delete entry
+          </ThemedText>
+        </Pressable>
+      </View>
     </BottomSheet>
   );
 }
@@ -97,34 +93,35 @@ export function EntryDetailsModal({
 const styles = StyleSheet.create({
   title: {
     fontSize: 17,
-    marginBottom: space.lg,
+    marginBottom: space.md,
   },
   card: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 14,
-    paddingHorizontal: space.lg,
-    paddingVertical: space.xs,
-    marginBottom: space.lg,
-    gap: space.xs,
+    borderRadius: space.md,
+    paddingHorizontal: space.md,
+    marginBottom: space.md,
   },
   row: {
-    paddingVertical: space.md,
+    paddingVertical: space.sm,
   },
   label: {
     fontSize: 12,
-    marginBottom: space.xs,
+    marginBottom: 2,
     letterSpacing: 0.3,
   },
   value: {
     fontSize: 15,
-    lineHeight: 21,
+    lineHeight: 20,
+  },
+  actions: {
+    gap: space.xs,
+    paddingTop: space.xs,
   },
   button: {
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 14,
-    paddingVertical: space.md,
-    marginBottom: space.sm,
+    borderRadius: space.md,
+    paddingVertical: space.sm + 2,
   },
   pressed: {
     opacity: 0.65,

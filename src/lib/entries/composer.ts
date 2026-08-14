@@ -13,7 +13,7 @@ export function canSaveComposer(result: ComposerResult): boolean {
 }
 
 /** Turn composer output into a database entry input, persisting media when needed. */
-export async function buildEntryInput(result: ComposerResult): Promise<NewEntryInput | null> {
+export async function fromComposer(result: ComposerResult): Promise<NewEntryInput | null> {
   const text = result.text?.trim() || undefined;
 
   if (result.audioUri) {

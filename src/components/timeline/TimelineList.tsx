@@ -4,12 +4,13 @@ import { FlatList, StyleSheet, View, type ListRenderItem } from "react-native";
 import type { Entry } from "@/types/entry";
 import { useTheme } from "@/hooks/useTheme";
 import { space } from "@/theme/spacing";
+import { typography } from "@/theme/typography";
 import { entriesForDay, formatHeaderDate, isSameDay } from "@/lib";
 import { ThemedText } from "@/components/core";
-import { EntryRow } from "@/components/entry";
+import { Row } from "@/components/entry";
 
 export interface TimelineListHandle {
-  scrollToEnd: () => void;
+  scrollToTop: () => void;
 }
 
 interface TimelineListProps {
@@ -32,9 +33,9 @@ export const TimelineList = forwardRef<TimelineListHandle, TimelineListProps>(
     useImperativeHandle(
       ref,
       () => ({
-        scrollToEnd() {
+        scrollToTop() {
           if (!dayEntries.length) return;
-          listRef.current?.scrollToEnd({ animated: true });
+          listRef.current?.scrollToOffset({ offset: 0, animated: true });
         },
       }),
       [dayEntries.length]
@@ -42,10 +43,11 @@ export const TimelineList = forwardRef<TimelineListHandle, TimelineListProps>(
 
     const renderItem: ListRenderItem<Entry> = useCallback(
       ({ item, index }) => (
-        <EntryRow
+        <Row
           entry={item}
+          isFirst={index === 0}
           isLast={index === dayEntries.length - 1}
-          animate={index === dayEntries.length - 1 && isSameDay(item.createdAt, Date.now())}
+          animate={index === 0 && isSameDay(item.createdAt, Date.now())}
         />
       ),
       [dayEntries.length]
@@ -55,9 +57,9 @@ export const TimelineList = forwardRef<TimelineListHandle, TimelineListProps>(
 
     const contentContainerStyle = useMemo(
       () => ({
-        paddingTop: headerHeight + space.xl,
+        paddingTop: headerHeight,
         paddingBottom: bottomInset + space.xxl,
-        paddingHorizontal: space.xxl,
+        paddingHorizontal: space.xl,
       }),
       [bottomInset, headerHeight]
     );
@@ -70,11 +72,14 @@ export const TimelineList = forwardRef<TimelineListHandle, TimelineListProps>(
             { paddingTop: headerHeight + space.xxxl, paddingBottom: bottomInset },
           ]}
         >
-          <ThemedText style={[styles.emptyTitle, { color: theme.colors.textSecondary }]}>
-            Nothing here yet
+          <ThemedText
+            weight="medium"
+            style={[typography.emptyTitle, { color: theme.colors.textSecondary }]}
+          >
+            A quiet day
           </ThemedText>
-          <ThemedText style={[styles.emptyBody, { color: theme.colors.textTertiary }]}>
-            {formatHeaderDate(selectedDate)} is still open. Tap + to add an entry.
+          <ThemedText style={[typography.emptyBody, { color: theme.colors.textTertiary }]}>
+            {formatHeaderDate(selectedDate)} is still open. Tap + to write.
           </ThemedText>
         </View>
       );
@@ -107,16 +112,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: space.xl + space.xl,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    lineHeight: 24,
-    marginBottom: space.md,
-  },
-  emptyBody: {
-    fontSize: 15,
-    textAlign: "center",
-    lineHeight: 23,
+    paddingHorizontal: space.xxxl,
+    gap: space.sm,
   },
 });

@@ -4,11 +4,11 @@ import { Feather } from "@expo/vector-icons";
 import { useTheme } from "@/hooks/useTheme";
 import { space } from "@/theme/spacing";
 
-interface EntryMenuButtonProps {
+interface MenuButtonProps {
   onPress: () => void;
 }
 
-export function EntryMenuButton({ onPress }: EntryMenuButtonProps) {
+export function MenuButton({ onPress }: MenuButtonProps) {
   const { theme } = useTheme();
   const { colors } = theme;
 
@@ -17,7 +17,7 @@ export function EntryMenuButton({ onPress }: EntryMenuButtonProps) {
       onPress={onPress}
       hitSlop={space.md}
       style={({ pressed }) => [styles.btn, pressed && styles.pressed]}
-      accessibilityLabel="Entry options"
+      accessibilityLabel="Options"
     >
       <Feather name="more-vertical" size={17} color={colors.textTertiary} />
     </Pressable>

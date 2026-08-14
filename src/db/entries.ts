@@ -1,7 +1,7 @@
 import { getDatabase } from "./database";
 import type { Entry, EntryType } from "@/types/entry";
 
-interface EntryRow {
+interface EntryRecord {
   id: string;
   type: EntryType;
   created_at: number;
@@ -10,7 +10,7 @@ interface EntryRow {
   duration_ms: number | null;
 }
 
-function toEntry(row: EntryRow): Entry {
+function toEntry(row: EntryRecord): Entry {
   return {
     id: row.id,
     type: row.type,
@@ -24,7 +24,7 @@ function toEntry(row: EntryRow): Entry {
 /** All entries, newest first. */
 export async function getEntries(): Promise<Entry[]> {
   const db = await getDatabase();
-  const rows = await db.getAllAsync<EntryRow>(
+  const rows = await db.getAllAsync<EntryRecord>(
     `SELECT id, type, created_at, text, uri, duration_ms
        FROM entries
       ORDER BY created_at DESC`

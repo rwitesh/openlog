@@ -4,12 +4,12 @@ import { useTheme } from "@/hooks/useTheme";
 import { space } from "@/theme/spacing";
 import { ThemedText } from "@/components/core";
 
-interface SettingsSectionProps extends ViewProps {
+interface SectionProps extends ViewProps {
   title: string;
   children: React.ReactNode;
 }
 
-export function SettingsSection({ title, children, style, ...rest }: SettingsSectionProps) {
+export function Section({ title, children, style, ...rest }: SectionProps) {
   const { theme } = useTheme();
 
   return (

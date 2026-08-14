@@ -1,6 +1,6 @@
 /**
- * Restrained off-white / charcoal palette.
- * No pure black or pure white — everything sits a step away from the extremes.
+ * Warm paper palette inspired by calm journal apps.
+ * Soft neutrals — no harsh black or clinical white.
  */
 
 export interface ThemeColors {
@@ -29,29 +29,29 @@ export interface ThemeColors {
 }
 
 export const lightColors: ThemeColors = {
-  background: "#F7F6F3",
-  surface: "#FFFFFF",
-  surfaceMuted: "#F0EEE9",
-  text: "#2A2A27",
-  textSecondary: "#7A7770",
-  textTertiary: "#ABA69C",
-  line: "#DEDAD1",
-  marker: "#3C3A35",
-  accent: "#2A2A27",
-  destructive: "#9B3B3B",
-  separator: "#E7E4DD",
+  background: "#F3F0E8",
+  surface: "#FBFAF6",
+  surfaceMuted: "#EAE6DC",
+  text: "#2E2D28",
+  textSecondary: "#7A756A",
+  textTertiary: "#A8A093",
+  line: "#D5CFC3",
+  marker: "#3A3832",
+  accent: "#3A3832",
+  destructive: "#9A4545",
+  separator: "#E3DDD2",
 };
 
 export const darkColors: ThemeColors = {
-  background: "#15140F",
-  surface: "#1E1D18",
-  surfaceMuted: "#272521",
-  text: "#ECEAE3",
-  textSecondary: "#9B978D",
-  textTertiary: "#6B685F",
-  line: "#3A382F",
-  marker: "#ECEAE3",
-  accent: "#ECEAE3",
-  destructive: "#D98A8A",
-  separator: "#2E2C26",
+  background: "#141310",
+  surface: "#1C1B17",
+  surfaceMuted: "#25231E",
+  text: "#E9E6DD",
+  textSecondary: "#9C978C",
+  textTertiary: "#6E6A61",
+  line: "#35322C",
+  marker: "#E9E6DD",
+  accent: "#E9E6DD",
+  destructive: "#D48A8A",
+  separator: "#2A2823",
 };
