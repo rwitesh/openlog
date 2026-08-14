@@ -1,5 +1,5 @@
 import type { Entry } from "@/types/entry";
-import { addMonths, DAY_MS, dayOfMonth, isSameMonth, startOfDay, startOfMonth } from "./dates";
+import { addMonths, DAY_MS, dayOfMonth, getMonthEntries, isSameMonth, startOfDay, startOfMonth } from "./dates";
 import { locationPlaceTitle } from "./location";
 
 export interface MonthOverviewStats {
@@ -33,33 +33,10 @@ export interface MonthPulseData {
   endDayLabel: string;
 }
 
-export interface HighlightMoment {
-  entry: Entry;
-  dayTs: number;
-  dateLabel: string;
-}
-
 const MONTH_NAMES_UPPER = [
   "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE",
   "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"
 ];
-
-/**
- * Filter and sort entries for a given month.
- * Default sort is newest-first (descending) within the month.
- */
-export function getMonthEntries(
-  entries: Entry[],
-  monthTs: number,
-  order: "desc" | "asc" = "desc"
-): Entry[] {
-  const start = startOfMonth(monthTs);
-  const end = addMonths(monthTs, 1);
-
-  return entries
-    .filter((entry) => entry.createdAt >= start && entry.createdAt < end)
-    .sort((a, b) => (order === "desc" ? b.createdAt - a.createdAt : a.createdAt - b.createdAt));
-}
 
 /** Count total photos in a list of entries (sum of image uris). */
 export function getMonthPhotoCount(entries: Entry[], monthTs?: number): number {
@@ -206,46 +183,5 @@ export function getMonthPulseData(entries: Entry[], monthTs: number): MonthPulse
     days,
     startDayLabel: "01",
     endDayLabel: String(daysInMonth).padStart(2, "0"),
-  };
-}
-
-/**
- * Deterministically picks the single most meaningful highlight moment of the month
- * based on actual captured content (prioritizing media-rich, location-aware, or thoughtful entries).
- */
-export function getHighlightMoment(
-  entries: Entry[],
-  monthTs: number
-): HighlightMoment | null {
-  const monthEntries = getMonthEntries(entries, monthTs);
-  if (!monthEntries.length) return null;
-
-  const scored = monthEntries.map((entry) => {
-    let score = 0;
-    if (entry.type === "image" && entry.uris.length > 0) {
-      score += 50 + entry.uris.length * 10;
-    }
-    if (entry.type === "audio") {
-      score += 40;
-    }
-    if (entry.text && entry.text.trim().length > 0) {
-      score += Math.min(entry.text.trim().length, 50);
-    }
-    if (entry.location) {
-      score += 20;
-    }
-    return { entry, score };
-  });
-
-  scored.sort((a, b) => b.score - a.score || b.entry.createdAt - a.entry.createdAt);
-  const best = scored[0].entry;
-  const day = startOfDay(best.createdAt);
-  const d = new Date(day);
-  const dateLabel = `${MONTH_NAMES_UPPER[d.getMonth()]} ${d.getDate()}`;
-
-  return {
-    entry: best,
-    dayTs: day,
-    dateLabel,
   };
 }

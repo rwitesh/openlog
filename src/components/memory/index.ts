@@ -1,6 +1,4 @@
-export { MemoryHeader } from "./MemoryHeader";
-export { MonthSnapshotHero } from "./MonthSnapshotHero";
-export { MonthPulseSkyline } from "./MonthPulseSkyline";
-export { MonthStatsLine } from "./MonthStatsLine";
-export { MonthHighlight } from "./MonthHighlight";
-export { ViewMomentsAction } from "./ViewMomentsAction";
+export { MonthHeader } from "./MonthHeader";
+export { MonthHero } from "./MonthHero";
+export { MonthPulse } from "./MonthPulse";
+export { MonthStats } from "./MonthStats";

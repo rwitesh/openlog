@@ -8,29 +8,25 @@ import { metrics, space } from "@/theme/spacing";
 import { press } from "@/theme/motion";
 import { ThemedText } from "@/components/core/ui";
 
-interface MemoryHeaderProps {
+interface MonthHeaderProps {
   monthLabel: string;
-  isTimelineMode?: boolean;
   onBack: () => void;
   onOpenMonthPicker: () => void;
   onPrevMonth?: () => void;
   onNextMonth?: () => void;
-  onToggleMode?: () => void;
   hasPrevMonth?: boolean;
   hasNextMonth?: boolean;
 }
 
-function MemoryHeaderBase({
+function MonthHeaderBase({
   monthLabel,
-  isTimelineMode = false,
   onBack,
   onOpenMonthPicker,
   onPrevMonth,
   onNextMonth,
-  onToggleMode,
   hasPrevMonth = true,
   hasNextMonth = true,
-}: MemoryHeaderProps) {
+}: MonthHeaderProps) {
   const insets = useSafeAreaInsets();
   const { theme, resolvedMode } = useTheme();
   const { colors } = theme;
@@ -122,7 +118,7 @@ function MemoryHeaderBase({
   );
 }
 
-export const MemoryHeader = memo(MemoryHeaderBase);
+export const MonthHeader = memo(MonthHeaderBase);
 
 const styles = StyleSheet.create({
   header: {

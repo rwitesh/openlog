@@ -1,25 +1,22 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
   Animated,
-  Pressable,
   ScrollView,
   StyleSheet,
   View,
 } from "react-native";
-import { Feather } from "@expo/vector-icons";
 import { type NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import type { RootStackParamList } from "@/types/navigation";
 import { useEntries } from "@/entries";
 import { useTheme } from "@/theme/ThemeProvider";
-import { metrics, space } from "@/theme/spacing";
+import { space } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
-import { press } from "@/theme/motion";
 import {
   addMonths,
+  formatMonthName,
   formatMonthYear,
-  getHighlightMoment,
   getMonthEntries,
   getMonthOverview,
   getMonthPulseData,
@@ -27,14 +24,11 @@ import {
   startOfMonth,
 } from "@/lib";
 import { MonthPicker, ThemedText } from "@/components/core";
-import { Timeline as TimelineBody } from "@/components/timeline";
 import {
-  MemoryHeader,
-  MonthHighlight,
-  MonthPulseSkyline,
-  MonthSnapshotHero,
-  MonthStatsLine,
-  ViewMomentsAction,
+  MonthHeader,
+  MonthHero,
+  MonthPulse,
+  MonthStats,
 } from "@/components/memory";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Memory">;
@@ -42,7 +36,6 @@ type Props = NativeStackScreenProps<RootStackParamList, "Memory">;
 export function Memory({ route, navigation }: Props) {
   const initialMonth = route.params?.monthTs ?? Date.now();
   const [currentMonthTs, setCurrentMonthTs] = useState(() => startOfMonth(initialMonth));
-  const [viewMode, setViewMode] = useState<"snapshot" | "timeline">("snapshot");
   const [monthPickerOpen, setMonthPickerOpen] = useState(false);
 
   const insets = useSafeAreaInsets();
@@ -67,11 +60,6 @@ export function Memory({ route, navigation }: Props) {
 
   const pulseData = useMemo(
     () => getMonthPulseData(entries, currentMonthTs),
-    [entries, currentMonthTs]
-  );
-
-  const highlight = useMemo(
-    () => getHighlightMoment(entries, currentMonthTs),
     [entries, currentMonthTs]
   );
 
@@ -118,107 +106,56 @@ export function Memory({ route, navigation }: Props) {
     [navigation]
   );
 
-  const handleBack = useCallback(() => {
-    if (viewMode === "timeline") {
-      setViewMode("snapshot");
-      return;
-    }
-    navigation.goBack();
-  }, [viewMode, navigation]);
-
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <MemoryHeader
+      <MonthHeader
         monthLabel={monthLabel}
-        isTimelineMode={viewMode === "timeline"}
-        onBack={handleBack}
+        onBack={() => navigation.goBack()}
         onOpenMonthPicker={() => setMonthPickerOpen(true)}
         onPrevMonth={() => changeMonth(prevMonthTs)}
         onNextMonth={() => changeMonth(nextMonthTs)}
       />
 
       <Animated.View style={[styles.contentArea, { opacity: fadeAnim }]}>
-        {viewMode === "snapshot" ? (
-          <ScrollView
-            ref={scrollRef}
-            contentContainerStyle={[
-              styles.snapshotScrollContent,
-              { paddingBottom: insets.bottom + space.xxl },
-            ]}
-            showsVerticalScrollIndicator={false}
-          >
-            <MonthSnapshotHero stats={overviewStats} />
+        <ScrollView
+          ref={scrollRef}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: insets.bottom + space.xxl },
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
+          <MonthHero stats={overviewStats} />
 
-            {monthEntries.length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <ThemedText
-                  weight="medium"
-                  style={[typography.emptyTitle, { color: colors.textSecondary }]}
-                >
-                  A quiet month
-                </ThemedText>
-                <ThemedText style={[typography.emptyBody, { color: colors.textTertiary }]}>
-                  Nothing captured in {monthLabel.toLowerCase()}.
-                </ThemedText>
-              </View>
-            ) : (
-              <>
-                <MonthPulseSkyline
-                  data={pulseData}
-                  onOpenDay={openDay}
-                />
-
-                <MonthStatsLine stats={overviewStats} />
-
-                {highlight ? (
-                  <MonthHighlight highlight={highlight} onPressDay={openDay} />
-                ) : null}
-
-                <ViewMomentsAction
-                  momentCount={monthEntries.length}
-                  monthName={monthLabel}
-                  onPress={() => setViewMode("timeline")}
-                />
-              </>
-            )}
-          </ScrollView>
-        ) : (
-          <View style={styles.timelineModeContainer}>
-            <View style={[styles.timelineModeHeader, { borderBottomColor: colors.separator }]}>
-              <Pressable
-                onPress={() => setViewMode("snapshot")}
-                hitSlop={space.sm}
-                style={({ pressed }) => [styles.modeSwitchBtn, pressed && press]}
-                accessibilityLabel="Back to month snapshot"
-                accessibilityRole="button"
+          {monthEntries.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <ThemedText
+                weight="medium"
+                style={[typography.emptyTitle, { color: colors.textSecondary }]}
               >
-                <Feather name="chevron-left" size={metrics.iconSm} color={colors.textSecondary} />
-                <ThemedText
-                  weight="medium"
-                  style={[styles.modeSwitchText, { color: colors.textSecondary }]}
-                >
-                  Month snapshot
-                </ThemedText>
-              </Pressable>
+                A quiet month
+              </ThemedText>
+              <ThemedText style={[typography.emptyBody, { color: colors.textTertiary }]}>
+                Nothing captured in {monthLabel.toLowerCase()}.
+              </ThemedText>
             </View>
+          ) : (
+            <>
+              <MonthPulse
+                data={pulseData}
+                onOpenDay={openDay}
+              />
 
-            <TimelineBody
-              entries={monthEntries}
-              showDates
-              paddingTop={space.sm}
-              bottomInset={insets.bottom + space.xl}
-              emptyTitle="A quiet month"
-              emptyBody={`Nothing written in ${monthLabel.toLowerCase()}.`}
-              onOpenDay={openDay}
-            />
-          </View>
-        )}
+              <MonthStats stats={overviewStats} />
+            </>
+          )}
+        </ScrollView>
       </Animated.View>
 
       <MonthPicker
         visible={monthPickerOpen}
         selectedMonth={currentMonthTs}
-        top={insets.top + metrics.headerRowHeight + space.sm}
+        top={insets.top + space.xxl}
         entryMonths={entryMonths}
         onSelect={(selected) => {
           changeMonth(selected);
@@ -237,7 +174,7 @@ const styles = StyleSheet.create({
   contentArea: {
     flex: 1,
   },
-  snapshotScrollContent: {
+  scrollContent: {
     paddingHorizontal: space.xl,
     paddingTop: space.sm,
   },
@@ -246,24 +183,5 @@ const styles = StyleSheet.create({
     paddingBottom: space.xxxl,
     alignItems: "flex-start",
     gap: space.xs + 2,
-  },
-  timelineModeContainer: {
-    flex: 1,
-  },
-  timelineModeHeader: {
-    paddingHorizontal: space.lg,
-    paddingVertical: space.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  modeSwitchBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: space.xs,
-    alignSelf: "flex-start",
-    paddingVertical: space.xs,
-  },
-  modeSwitchText: {
-    fontSize: 14,
-    lineHeight: 18,
   },
 });
