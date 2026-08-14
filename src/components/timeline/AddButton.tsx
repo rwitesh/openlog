@@ -14,11 +14,17 @@ interface AddButtonProps {
 export function AddButton({ onPress }: AddButtonProps) {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
-  const { colors } = theme;
-  const scale = useRef(new Animated.Value(0.85)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
+  const { colors, motion } = theme;
+  const scale = useRef(new Animated.Value(motion.level === "reduced" ? 1 : 0.85)).current;
+  const opacity = useRef(new Animated.Value(motion.level === "reduced" ? 1 : 0)).current;
 
   useEffect(() => {
+    if (motion.level === "reduced") {
+      scale.setValue(1);
+      opacity.setValue(1);
+      return;
+    }
+
     Animated.parallel([
       Animated.spring(scale, {
         toValue: 1,
@@ -32,9 +38,10 @@ export function AddButton({ onPress }: AddButtonProps) {
         useNativeDriver: true,
       }),
     ]).start();
-  }, [opacity, scale]);
+  }, [opacity, scale, motion]);
 
   const handlePressIn = () => {
+    if (motion.level === "reduced") return;
     Animated.spring(scale, {
       toValue: 0.92,
       ...motion.spring,
@@ -43,6 +50,7 @@ export function AddButton({ onPress }: AddButtonProps) {
   };
 
   const handlePressOut = () => {
+    if (motion.level === "reduced") return;
     Animated.spring(scale, {
       toValue: 1,
       ...motion.spring,
@@ -93,6 +101,10 @@ const styles = StyleSheet.create({
     borderRadius: metrics.fabSize / 2,
     alignItems: "center",
     justifyContent: "center",
-    boxShadow: "0 4px 8px rgba(0, 0, 0, 0.12)",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 4,
   },
 });

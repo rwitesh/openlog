@@ -1,9 +1,8 @@
 import { type RefObject } from "react";
 import { ScrollView, StyleSheet, TextInput } from "react-native";
 
-import { useTheme } from "@/theme/ThemeProvider";
+import { useTheme, useWritingPreferences } from "@/theme/ThemeProvider";
 import { space } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
 
 interface EditorProps {
   inputRef: RefObject<TextInput | null>;
@@ -12,7 +11,19 @@ interface EditorProps {
 }
 
 export function Editor({ inputRef, value, onChangeText }: EditorProps) {
-  const { colors } = useTheme().theme;
+  const { theme } = useTheme();
+  const { editorTextSize } = useWritingPreferences();
+  const { colors, typography } = theme;
+
+  const editorStyle =
+    editorTextSize === "large"
+      ? {
+          fontFamily: typography.composerText.fontFamily,
+          fontSize: 20,
+          lineHeight: 30,
+          letterSpacing: 0.05,
+        }
+      : typography.composerText;
 
   return (
     <ScrollView
@@ -33,7 +44,7 @@ export function Editor({ inputRef, value, onChangeText }: EditorProps) {
         autoFocus
         blurOnSubmit={false}
         textAlignVertical="top"
-        style={[styles.input, typography.composerText, { color: colors.text }]}
+        style={[styles.input, editorStyle, { color: colors.text }]}
       />
     </ScrollView>
   );

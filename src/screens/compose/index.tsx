@@ -12,6 +12,8 @@ import { Layout, useKeepFocus } from "@/layout";
 import { CalendarPicker, TimePicker } from "@/components/core";
 import { useLocation } from "@/hooks";
 
+import { useTheme, useWritingPreferences } from "@/theme/ThemeProvider";
+
 import { Attachments, MAX_IMAGES } from "./Attachments";
 import { DateTimeBadges } from "./DateTimeBadges";
 import { Editor } from "./Editor";
@@ -29,6 +31,7 @@ function entryImages(entry: Entry): string[] {
 }
 
 export function Compose({ navigation, route }: Props) {
+  const { autoLocation } = useWritingPreferences();
   const entryId = route.params?.entryId;
   const { entries, addEntry, patchEntry } = useEntries();
   const existing = entryId ? entries.find((entry) => entry.id === entryId) : undefined;
@@ -46,7 +49,7 @@ export function Compose({ navigation, route }: Props) {
   const inputRef = useRef<TextInput>(null);
   const recording = useRecording();
   const keepFocus = useKeepFocus(inputRef);
-  const location = useLocation(text, existing?.location);
+  const location = useLocation(text, existing?.location, !isEditing && autoLocation);
 
   useEffect(() => {
     if (!entryId) return;

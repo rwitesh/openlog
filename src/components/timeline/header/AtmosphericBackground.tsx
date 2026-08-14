@@ -2,6 +2,7 @@ import { type ReactNode } from "react";
 import { type StyleProp, type ViewStyle } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
+import { useTheme } from "@/theme/ThemeProvider";
 import { CloudLayer } from "./CloudLayer";
 import { headerGradient, screenGradient } from "./gradient";
 
@@ -20,11 +21,19 @@ export function AtmosphericBackground({
   style,
   children,
 }: AtmosphericBackgroundProps) {
-  const gradient = variant === "header" ? headerGradient(mode, background) : screenGradient(mode, background);
+  const { theme } = useTheme();
+  const intensity = theme.atmosphere;
+
+  const gradient =
+    variant === "header"
+      ? headerGradient(mode, background, intensity)
+      : screenGradient(mode, background, intensity);
 
   return (
     <LinearGradient {...gradient} style={style}>
-      {variant === "header" ? <CloudLayer dark={mode === "dark"} /> : null}
+      {variant === "header" && intensity !== "off" ? (
+        <CloudLayer dark={mode === "dark"} />
+      ) : null}
       {children}
     </LinearGradient>
   );

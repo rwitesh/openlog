@@ -7,7 +7,7 @@ import { metrics, space } from "@/theme/spacing";
 import { radius } from "@/theme/theme";
 import { press } from "@/theme/motion";
 import { typography } from "@/theme/typography";
-import { clampRatio, PLAYBACK_SKIP_SECONDS, usePlayback } from "@/lib";
+import { clampRatio, usePlayback } from "@/lib";
 import { ThemedText } from "@/components/core/ui";
 import { AudioWaveform } from "./AudioWaveform";
 
@@ -24,12 +24,6 @@ export function AudioPlayer({ uri, durationMs }: AudioPlayerProps) {
   );
   const [trackWidth, setTrackWidth] = useState(0);
 
-  const skipBy = (deltaSec: number) => {
-    if (!status.isLoaded) return;
-    const next = Math.min(Math.max(0, (status.currentTime || 0) + deltaSec), totalMs / 1000);
-    player.seekTo(next);
-  };
-
   const seekToRatio = (ratio: number) => {
     if (!status.isLoaded || totalMs <= 0) return;
     player.seekTo(clampRatio(ratio) * (totalMs / 1000));
@@ -38,15 +32,6 @@ export function AudioPlayer({ uri, durationMs }: AudioPlayerProps) {
   return (
     <View style={[styles.wrap, { backgroundColor: colors.surfaceMuted }]}>
       <View style={styles.row}>
-        <Pressable
-          onPress={() => skipBy(-PLAYBACK_SKIP_SECONDS)}
-          hitSlop={space.sm}
-          style={({ pressed }) => [styles.iconBtn, pressed && press]}
-          accessibilityLabel={`Skip back ${PLAYBACK_SKIP_SECONDS} seconds`}
-        >
-          <Feather name="rotate-ccw" size={metrics.iconSm} color={colors.textSecondary} />
-        </Pressable>
-
         <Pressable
           onPress={toggle}
           style={({ pressed }) => [
@@ -64,15 +49,6 @@ export function AudioPlayer({ uri, durationMs }: AudioPlayerProps) {
         </Pressable>
 
         <Pressable
-          onPress={() => skipBy(PLAYBACK_SKIP_SECONDS)}
-          hitSlop={space.sm}
-          style={({ pressed }) => [styles.iconBtn, pressed && press]}
-          accessibilityLabel={`Skip forward ${PLAYBACK_SKIP_SECONDS} seconds`}
-        >
-          <Feather name="rotate-cw" size={metrics.iconSm} color={colors.textSecondary} />
-        </Pressable>
-
-        <Pressable
           onPress={(event) => {
             if (!trackWidth) return;
             seekToRatio(event.nativeEvent.locationX / trackWidth);
@@ -82,7 +58,7 @@ export function AudioPlayer({ uri, durationMs }: AudioPlayerProps) {
           accessibilityLabel="Seek audio"
           accessibilityRole="adjustable"
         >
-          <AudioWaveform seed={uri} progress={progress} height={26} />
+          <AudioWaveform seed={uri} progress={progress} height={24} />
         </Pressable>
 
         <ThemedText style={[typography.caption, styles.time, { color: colors.textSecondary }]}>
@@ -97,24 +73,18 @@ const styles = StyleSheet.create({
   wrap: {
     marginTop: space.sm,
     borderRadius: radius.md,
-    paddingHorizontal: space.sm,
+    paddingHorizontal: space.md,
     paddingVertical: space.sm,
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: space.sm,
-  },
-  iconBtn: {
-    width: metrics.btnSm,
-    height: metrics.btnSm,
-    alignItems: "center",
-    justifyContent: "center",
+    gap: space.md,
   },
   playBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -124,8 +94,9 @@ const styles = StyleSheet.create({
     paddingVertical: space.xs,
   },
   time: {
-    minWidth: 52,
+    minWidth: 48,
     textAlign: "right",
     fontVariant: ["tabular-nums"],
+    fontSize: typography.timestamp.fontSize,
   },
 });

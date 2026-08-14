@@ -7,13 +7,17 @@ import { useDebouncedCallback } from "./useDebouncedCallback";
 
 const TYPING_REFRESH_MS = 3000;
 
-export function useLocation(text: string, initialLocation?: EntryLocation) {
-  const [on, setOn] = useState(Boolean(initialLocation));
+export function useLocation(
+  text: string,
+  initialLocation?: EntryLocation,
+  autoEnable = false
+) {
+  const [on, setOn] = useState(Boolean(initialLocation) || autoEnable);
   const [place, setPlace] = useState<EntryLocation | null>(initialLocation ?? null);
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
 
-  const wantsRef = useRef(Boolean(initialLocation));
+  const wantsRef = useRef(Boolean(initialLocation) || autoEnable);
   const placeRef = useRef<EntryLocation | null>(initialLocation ?? null);
   const fetchGenRef = useRef(0);
   const cancelledRef = useRef(false);
@@ -84,6 +88,12 @@ export function useLocation(text: string, initialLocation?: EntryLocation) {
     if (!text.trim()) return;
     refreshWhileOn();
   }, [text, refreshWhileOn]);
+
+  useEffect(() => {
+    if (autoEnable && !initialLocation) {
+      void activate(true);
+    }
+  }, [autoEnable, initialLocation, activate]);
 
   const toggle = useCallback(async () => {
     if (loading) {

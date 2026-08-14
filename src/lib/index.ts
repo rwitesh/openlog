@@ -7,3 +7,4 @@ export * from "./share";
 export * from "./devLog";
 export * from "./audio";
 export * from "./entries";
+export * from "./memory";

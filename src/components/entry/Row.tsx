@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef, useState } from "react";
-import { Alert, Animated, Dimensions, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Alert, Animated, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Image } from "expo-image";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -7,12 +7,12 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { Entry } from "@/types/entry";
 import type { RootStackParamList } from "@/types/navigation";
 import { useEntries } from "@/entries";
-import { useTheme } from "@/theme/ThemeProvider";
-import { motion } from "@/theme/motion";
+import { useJournalPreferences, useTheme } from "@/theme/ThemeProvider";
+import { motion, press } from "@/theme/motion";
 import { space } from "@/theme/spacing";
 import { radius } from "@/theme/theme";
 import { typography } from "@/theme/typography";
-import { formatTime } from "@/lib";
+import { formatTime, locationPlaceTitle } from "@/lib";
 import { AudioPlayer } from "@/components/core/audio";
 import { ThemedText } from "@/components/core/ui";
 import { Details } from "./Details";
@@ -24,21 +24,23 @@ interface RowProps {
   animate?: boolean;
 }
 
-const THUMB_WIDTH = Math.round(Dimensions.get("window").width * 0.58);
-
 function RowBase({ entry, animate }: RowProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { theme } = useTheme();
   const { removeEntry, removeImage } = useEntries();
-  const { colors } = theme;
-  const opacity = useRef(new Animated.Value(animate ? 0 : 1)).current;
-  const translateY = useRef(new Animated.Value(animate ? 10 : 0)).current;
+  const { colors, motion } = theme;
+  const opacity = useRef(new Animated.Value(animate && motion.level !== "reduced" ? 0 : 1)).current;
+  const translateY = useRef(new Animated.Value(animate && motion.level !== "reduced" ? 10 : 0)).current;
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
   const [imageViewerIndex, setImageViewerIndex] = useState(0);
 
   useEffect(() => {
-    if (!animate) return;
+    if (!animate || motion.level === "reduced") {
+      opacity.setValue(1);
+      translateY.setValue(0);
+      return;
+    }
     Animated.parallel([
       Animated.timing(opacity, {
         toValue: 1,
@@ -53,7 +55,7 @@ function RowBase({ entry, animate }: RowProps) {
         useNativeDriver: true,
       }),
     ]).start();
-  }, [animate, opacity, translateY]);
+  }, [animate, opacity, translateY, motion]);
 
   const handleEdit = () => {
     navigation.navigate("Compose", { entryId: entry.id });
@@ -71,6 +73,7 @@ function RowBase({ entry, animate }: RowProps) {
   const hasImages = images.length > 0;
   const hasAudio = entry.type === "audio";
   const hasText = Boolean(bodyText);
+  const locationName = entry.location ? locationPlaceTitle(entry.location) : undefined;
 
   const openImage = (index: number) => {
     setImageViewerIndex(index);
@@ -91,46 +94,93 @@ function RowBase({ entry, animate }: RowProps) {
       });
   };
 
+  const { showTimestamp, showLocation } = useJournalPreferences();
+  const showTime = showTimestamp;
+  const showLoc = showLocation && Boolean(locationName);
+  const showMeta = showTime || showLoc;
+
   return (
     <>
       <Animated.View style={{ opacity, transform: [{ translateY }] }}>
         <View style={styles.headerRow}>
-          <View style={[styles.timeBadge, { backgroundColor: colors.surfaceMuted }]}>
-            <ThemedText style={[typography.timestamp, { color: colors.textSecondary }]}>
-              {formatTime(entry.createdAt)}
-            </ThemedText>
+          <View style={styles.meta}>
+            {showTime ? (
+              <ThemedText
+                weight="medium"
+                style={[styles.metaText, { color: colors.textSecondary }]}
+              >
+                {formatTime(entry.createdAt)}
+              </ThemedText>
+            ) : null}
+            {showTime && showLoc ? (
+              <ThemedText style={[styles.metaDot, { color: colors.textTertiary }]}>
+                ·
+              </ThemedText>
+            ) : null}
+            {showLoc ? (
+              <ThemedText
+                style={[styles.locationText, { color: colors.textSecondary }]}
+                numberOfLines={1}
+              >
+                {locationName}
+              </ThemedText>
+            ) : null}
           </View>
           <MenuButton onPress={() => setDetailsOpen(true)} />
         </View>
 
         {hasText ? (
-          <ThemedText style={[typography.entryText, { color: colors.text }]}>
+          <ThemedText style={[theme.typography.entryText, { color: colors.text }]}>
             {bodyText}
           </ThemedText>
         ) : null}
 
         {hasImages ? (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={[
-              styles.imageRow,
-              hasText ? styles.imageAfterText : undefined,
-            ]}
-          >
-            {images.map((uri, index) => (
-              <Pressable key={`${uri}-${index}`} onPress={() => openImage(index)}>
-                <Image
-                  source={{ uri }}
-                  style={[styles.thumbnail, { backgroundColor: colors.surfaceMuted }]}
-                  contentFit="cover"
-                  transition={motion.normal}
-                  recyclingKey={`${entry.id}-${index}`}
-                  accessibilityLabel={`Image ${index + 1} of ${images.length}`}
-                />
-              </Pressable>
-            ))}
-          </ScrollView>
+          images.length === 1 ? (
+            <Pressable
+              onPress={() => openImage(0)}
+              style={({ pressed }) => [
+                styles.singleImageWrap,
+                hasText ? styles.imageAfterText : undefined,
+                pressed && press,
+              ]}
+            >
+              <Image
+                source={{ uri: images[0] }}
+                style={[styles.singleImage, { backgroundColor: colors.surfaceMuted }]}
+                contentFit="cover"
+                transition={motion.normal}
+                recyclingKey={`${entry.id}-0`}
+                accessibilityLabel="Entry photo"
+              />
+            </Pressable>
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={[
+                styles.imageRow,
+                hasText ? styles.imageAfterText : undefined,
+              ]}
+            >
+              {images.map((uri, index) => (
+                <Pressable
+                  key={`${uri}-${index}`}
+                  onPress={() => openImage(index)}
+                  style={({ pressed }) => [styles.thumbnailWrap, pressed && press]}
+                >
+                  <Image
+                    source={{ uri }}
+                    style={[styles.thumbnail, { backgroundColor: colors.surfaceMuted }]}
+                    contentFit="cover"
+                    transition={motion.normal}
+                    recyclingKey={`${entry.id}-${index}`}
+                    accessibilityLabel={`Image ${index + 1} of ${images.length}`}
+                  />
+                </Pressable>
+              ))}
+            </ScrollView>
+          )
         ) : null}
 
         {hasAudio ? (
@@ -168,12 +218,29 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: space.sm,
+    marginBottom: space.xs + 2,
+    minHeight: 28,
   },
-  timeBadge: {
-    paddingHorizontal: space.sm,
-    paddingVertical: space.xs,
-    borderRadius: radius.sm,
+  meta: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    marginRight: space.sm,
+    gap: space.xs + 2,
+  },
+  metaText: {
+    fontSize: typography.timestamp.fontSize,
+    lineHeight: typography.timestamp.lineHeight,
+    letterSpacing: typography.timestamp.letterSpacing,
+  },
+  metaDot: {
+    fontSize: typography.timestamp.fontSize,
+    lineHeight: typography.timestamp.lineHeight,
+  },
+  locationText: {
+    fontSize: typography.timestamp.fontSize,
+    lineHeight: typography.timestamp.lineHeight,
+    flexShrink: 1,
   },
   imageAfterText: {
     marginTop: space.md,
@@ -181,12 +248,26 @@ const styles = StyleSheet.create({
   audioAfterContent: {
     marginTop: space.md,
   },
+  singleImageWrap: {
+    width: "100%",
+    borderRadius: radius.md,
+    overflow: "hidden",
+  },
+  singleImage: {
+    width: "100%",
+    aspectRatio: 16 / 10,
+    borderRadius: radius.md,
+  },
   imageRow: {
     flexDirection: "row",
     gap: space.sm,
   },
+  thumbnailWrap: {
+    borderRadius: radius.md,
+    overflow: "hidden",
+  },
   thumbnail: {
-    width: THUMB_WIDTH,
+    width: 172,
     aspectRatio: 4 / 3,
     borderRadius: radius.md,
   },

@@ -8,24 +8,24 @@ import {
   useFonts,
 } from "@expo-google-fonts/source-sans-3";
 
-import { getThemeMode, getUserName } from "@/db/settings";
+import { getAllUserPreferences } from "@/db/settings";
 import { loadEntries } from "@/entries";
-import { resolveThemeMode, themeFor } from "@/theme/theme";
-import type { ThemeMode } from "@/types/entry";
+import { resolveTheme, resolveThemeMode } from "@/theme/theme";
+import { DEFAULT_PREFERENCES, type UserPreferences } from "@/theme/preferences";
 import { logDevWarning } from "@/lib";
 
 export interface AppBootstrapState {
   ready: boolean;
-  themeMode: ThemeMode;
+  preferences: UserPreferences;
   resolvedMode: "light" | "dark";
   backgroundColor: string;
   userName: string | null;
 }
 
-/** Loads fonts, theme, and profile before the first interactive screen. */
+/** Loads fonts, preferences, and profile before the first interactive screen. */
 export function useAppBootstrap(): AppBootstrapState {
   const systemScheme = useColorScheme();
-  const [themeMode, setThemeMode] = useState<ThemeMode | null>(null);
+  const [preferences, setPreferences] = useState<UserPreferences | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [fontsLoaded, fontError] = useFonts({
@@ -37,18 +37,16 @@ export function useAppBootstrap(): AppBootstrapState {
   useEffect(() => {
     let active = true;
 
-    Promise.allSettled([getThemeMode(), getUserName()])
-      .then(([themeResult, nameResult]) => {
+    getAllUserPreferences()
+      .then((data) => {
         if (!active) return;
-        setThemeMode(
-          themeResult.status === "fulfilled" ? themeResult.value : "system"
-        );
-        if (themeResult.status === "rejected") {
-          logDevWarning("bootstrap:getThemeMode", themeResult.reason);
-        }
-        setUserName(nameResult.status === "fulfilled" ? nameResult.value : null);
-        if (nameResult.status === "rejected") {
-          logDevWarning("bootstrap:getUserName", nameResult.reason);
+        setUserName(data.userName);
+        setPreferences(data.preferences);
+      })
+      .catch((error) => {
+        logDevWarning("bootstrap:getAllUserPreferences", error);
+        if (active) {
+          setPreferences(DEFAULT_PREFERENCES);
         }
       })
       .finally(() => {
@@ -64,11 +62,16 @@ export function useAppBootstrap(): AppBootstrapState {
     };
   }, []);
 
-  const effectiveMode = themeMode ?? "system";
-  const resolvedMode = resolveThemeMode(effectiveMode, systemScheme);
-  const backgroundColor = themeFor(resolvedMode).colors.background;
+  const effectivePreferences = preferences ?? DEFAULT_PREFERENCES;
+  const resolvedMode = resolveThemeMode(effectivePreferences.appearance.mode, systemScheme);
+  const theme = resolveTheme(
+    effectivePreferences.appearance,
+    effectivePreferences.accessibility.motionLevel,
+    systemScheme
+  );
+  const backgroundColor = theme.colors.background;
   const fontsReady = fontsLoaded || Boolean(fontError);
-  const ready = fontsReady && themeMode !== null && profileLoaded;
+  const ready = fontsReady && preferences !== null && profileLoaded;
 
   useEffect(() => {
     if (!ready) return;
@@ -79,7 +82,7 @@ export function useAppBootstrap(): AppBootstrapState {
 
   return {
     ready,
-    themeMode: effectiveMode,
+    preferences: effectivePreferences,
     resolvedMode,
     backgroundColor,
     userName,

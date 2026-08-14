@@ -101,7 +101,7 @@ function AppContent({ showWelcome }: { showWelcome: boolean }) {
 }
 
 export default function App() {
-  const { ready, themeMode, backgroundColor, userName } = useAppBootstrap();
+  const { ready, preferences, backgroundColor, userName } = useAppBootstrap();
 
   if (!ready) {
     return <View style={{ flex: 1, backgroundColor }} />;
@@ -110,7 +110,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <Layout>
-        <ThemeProvider initialMode={themeMode}>
+        <ThemeProvider initialPreferences={preferences}>
           <ProfileProvider initialName={userName}>
             <AppContent showWelcome={!userName} />
           </ProfileProvider>
