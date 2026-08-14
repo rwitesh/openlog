@@ -7,11 +7,11 @@ import { space } from "@/theme/spacing";
 import { fontFamily } from "@/theme/typography";
 import { ThemedText } from "@/components/core/ui";
 
-interface MonthSnapshotHeroProps {
+interface MonthHeroProps {
   stats: MonthOverviewStats;
 }
 
-function MonthSnapshotHeroBase({ stats }: MonthSnapshotHeroProps) {
+function MonthHeroBase({ stats }: MonthHeroProps) {
   const { theme } = useTheme();
   const { colors } = theme;
   const { preferences } = usePreferences();
@@ -52,7 +52,7 @@ function MonthSnapshotHeroBase({ stats }: MonthSnapshotHeroProps) {
   );
 }
 
-export const MonthSnapshotHero = memo(MonthSnapshotHeroBase);
+export const MonthHero = memo(MonthHeroBase);
 
 const styles = StyleSheet.create({
   container: {

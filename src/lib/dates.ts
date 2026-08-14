@@ -201,3 +201,19 @@ export function entryDaysInMonth(
 
   return days;
 }
+
+export function formatMonthName(ts: number): string {
+  const d = new Date(ts);
+  return MONTHS_LONG[d.getMonth()];
+}
+
+/** Canonical helper to retrieve all entries within a specific calendar month. */
+export function getMonthEntries<T extends { createdAt: number }>(
+  entries: T[],
+  monthTs: number
+): T[] {
+  const start = startOfMonth(monthTs);
+  const end = addMonths(monthTs, 1);
+  return entries.filter((e) => e.createdAt >= start && e.createdAt < end);
+}
+

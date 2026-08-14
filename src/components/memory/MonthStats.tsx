@@ -6,11 +6,11 @@ import { useTheme } from "@/theme/ThemeProvider";
 import { space } from "@/theme/spacing";
 import { ThemedText } from "@/components/core/ui";
 
-interface MonthStatsLineProps {
+interface MonthStatsProps {
   stats: MonthOverviewStats;
 }
 
-function MonthStatsLineBase({ stats }: MonthStatsLineProps) {
+function MonthStatsBase({ stats }: MonthStatsProps) {
   const { theme } = useTheme();
   const { colors } = theme;
 
@@ -36,7 +36,7 @@ function MonthStatsLineBase({ stats }: MonthStatsLineProps) {
   );
 }
 
-export const MonthStatsLine = memo(MonthStatsLineBase);
+export const MonthStats = memo(MonthStatsBase);
 
 const styles = StyleSheet.create({
   container: {

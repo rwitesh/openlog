@@ -10,37 +10,23 @@ import { radius } from "@/theme/theme";
 import { press } from "@/theme/motion";
 import { ThemedText } from "@/components/core/ui";
 
-const SKYLINE_HEIGHT = 72;
+const SKYLINE_HEIGHT = 74;
 const MIN_BAR_HEIGHT = 6;
 
-interface MonthPulseSkylineProps {
+interface MonthPulseProps {
   data: MonthPulseData;
   onOpenDay: (dayTs: number) => void;
 }
 
-function MonthPulseSkylineBase({ data, onOpenDay }: MonthPulseSkylineProps) {
+function MonthPulseBase({ data, onOpenDay }: MonthPulseProps) {
   const { theme, resolvedMode } = useTheme();
   const { colors } = theme;
   const dark = resolvedMode === "dark";
 
-  // Default to first active day with moments, or first day
+  // Default to first active day with moments, or first day of month
   const defaultSelected =
     data.days.find((d) => d.momentCount > 0) ?? data.days[0] ?? null;
   const [selectedDay, setSelectedDay] = useState<PulseDay | null>(defaultSelected);
-
-  const getBarColor = (count: number, heightFactor: number, isSelected: boolean) => {
-    if (count === 0) {
-      return dark ? "rgba(255, 255, 255, 0.12)" : colors.surfaceMuted;
-    }
-    if (isSelected) {
-      return colors.accent;
-    }
-    const opacity = Math.min(1, Math.max(0.42, 0.3 + heightFactor * 0.7));
-    const hexAlpha = Math.round(opacity * 255)
-      .toString(16)
-      .padStart(2, "0");
-    return colors.accent + hexAlpha;
-  };
 
   return (
     <View style={styles.container}>
@@ -49,11 +35,22 @@ function MonthPulseSkylineBase({ data, onOpenDay }: MonthPulseSkylineProps) {
           {data.days.map((day) => {
             const isSelected = selectedDay?.dayNumber === day.dayNumber;
             const hasMedia = day.photoCount > 0 || day.audioCount > 0;
+            const count = day.momentCount;
+
             const barHeight = Math.max(
               MIN_BAR_HEIGHT,
               Math.round(day.heightFactor * SKYLINE_HEIGHT)
             );
-            const barColor = getBarColor(day.momentCount, day.heightFactor, isSelected);
+
+            // Active bar color vs quiet bar color
+            const barColor =
+              count === 0
+                ? dark
+                  ? "rgba(255, 255, 255, 0.12)"
+                  : colors.surfaceMuted
+                : colors.accent;
+
+            const barOpacity = count === 0 ? (dark ? 0.35 : 0.6) : isSelected ? 1.0 : 0.82;
 
             return (
               <Pressable
@@ -61,10 +58,11 @@ function MonthPulseSkylineBase({ data, onOpenDay }: MonthPulseSkylineProps) {
                 onPress={() => setSelectedDay(day)}
                 hitSlop={{ top: 12, bottom: 12, left: 2, right: 2 }}
                 style={styles.barColumn}
-                accessibilityLabel={`Day ${day.dayNumber}, ${day.momentCount} moments`}
+                accessibilityLabel={`Day ${day.dayNumber}, ${count} moments`}
                 accessibilityRole="button"
               >
-                {hasMedia && day.momentCount > 0 ? (
+                {/* Media indicator pip */}
+                {hasMedia && count > 0 ? (
                   <View
                     style={[
                       styles.mediaPip,
@@ -76,19 +74,23 @@ function MonthPulseSkylineBase({ data, onOpenDay }: MonthPulseSkylineProps) {
                   />
                 ) : null}
 
+                {/* Daily Activity Bar */}
                 <View
                   style={[
                     styles.bar,
                     {
                       height: barHeight,
+                      width: isSelected ? "100%" : "78%",
                       backgroundColor: barColor,
-                      width: isSelected ? "100%" : "75%",
+                      opacity: barOpacity,
                     },
-                    isSelected && {
-                      shadowColor: colors.accent,
-                      shadowOpacity: 0.4,
-                      shadowRadius: 4,
-                    },
+                    isSelected &&
+                      count > 0 && {
+                        shadowColor: colors.accent,
+                        shadowOpacity: 0.35,
+                        shadowRadius: 4,
+                        elevation: 2,
+                      },
                   ]}
                 />
               </Pressable>
@@ -130,6 +132,7 @@ function MonthPulseSkylineBase({ data, onOpenDay }: MonthPulseSkylineProps) {
             <ThemedText weight="semibold" style={[styles.calloutTitle, { color: colors.text }]}>
               {formatHeaderDate(selectedDay.dayTs)}
             </ThemedText>
+
             <ThemedText style={[styles.calloutSub, { color: colors.textSecondary }]}>
               {selectedDay.momentCount === 0
                 ? "No moments captured"
@@ -170,7 +173,7 @@ function MonthPulseSkylineBase({ data, onOpenDay }: MonthPulseSkylineProps) {
   );
 }
 
-export const MonthPulseSkyline = memo(MonthPulseSkylineBase);
+export const MonthPulse = memo(MonthPulseBase);
 
 const styles = StyleSheet.create({
   container: {
@@ -191,10 +194,13 @@ const styles = StyleSheet.create({
     height: "100%",
     alignItems: "center",
     justifyContent: "flex-end",
-    marginHorizontal: 1.5,
+    marginHorizontal: 1.2,
   },
   bar: {
-    borderRadius: 3,
+    borderTopLeftRadius: 3,
+    borderTopRightRadius: 3,
+    borderBottomLeftRadius: 1.5,
+    borderBottomRightRadius: 1.5,
     minHeight: MIN_BAR_HEIGHT,
   },
   mediaPip: {
@@ -238,7 +244,7 @@ const styles = StyleSheet.create({
   calloutLeft: {
     flex: 1,
     marginRight: space.sm,
-    gap: 2,
+    gap: 3,
   },
   calloutTitle: {
     fontSize: 14,
