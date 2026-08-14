@@ -28,20 +28,18 @@ function MonthPulseSkylineBase({ data, onOpenDay }: MonthPulseSkylineProps) {
     data.days.find((d) => d.momentCount > 0) ?? data.days[0] ?? null;
   const [selectedDay, setSelectedDay] = useState<PulseDay | null>(defaultSelected);
 
-  const getBarColor = (count: number, isSelected: boolean) => {
+  const getBarColor = (count: number, heightFactor: number, isSelected: boolean) => {
     if (count === 0) {
       return dark ? "rgba(255, 255, 255, 0.12)" : colors.surfaceMuted;
     }
     if (isSelected) {
       return colors.accent;
     }
-    if (count === 1) {
-      return dark ? colors.accent + "55" : colors.accent + "45";
-    }
-    if (count <= 3) {
-      return dark ? colors.accent + "AA" : colors.accent + "90";
-    }
-    return colors.accent;
+    const opacity = Math.min(1, Math.max(0.42, 0.3 + heightFactor * 0.7));
+    const hexAlpha = Math.round(opacity * 255)
+      .toString(16)
+      .padStart(2, "0");
+    return colors.accent + hexAlpha;
   };
 
   return (
@@ -55,7 +53,7 @@ function MonthPulseSkylineBase({ data, onOpenDay }: MonthPulseSkylineProps) {
               MIN_BAR_HEIGHT,
               Math.round(day.heightFactor * SKYLINE_HEIGHT)
             );
-            const barColor = getBarColor(day.momentCount, isSelected);
+            const barColor = getBarColor(day.momentCount, day.heightFactor, isSelected);
 
             return (
               <Pressable
