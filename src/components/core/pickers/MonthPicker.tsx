@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 
-import { useTheme } from "@/hooks/useTheme";
+import { useTheme } from "@/theme/ThemeProvider";
 import { metrics, space } from "@/theme/spacing";
 import { press } from "@/theme/motion";
 import { typography, FONT_SIZE } from "@/theme/typography";

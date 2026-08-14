@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, View, type ViewProps } from "react-native";
 
-import { useTheme } from "@/hooks/useTheme";
+import { useTheme } from "@/theme/ThemeProvider";
 import { space } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
 import { dayOfMonth } from "@/lib";

@@ -9,6 +9,7 @@ import {
 } from "@expo-google-fonts/source-sans-3";
 
 import { getThemeMode } from "@/db/settings";
+import { loadEntries } from "@/entries";
 import { resolveThemeMode, themeFor } from "@/theme/theme";
 import type { ThemeMode } from "@/types/entry";
 import { logDevWarning } from "@/lib";
@@ -44,6 +45,10 @@ export function useAppBootstrap(): AppBootstrapState {
         logDevWarning("bootstrap:getThemeMode", error);
         if (active) setThemeMode("system");
       });
+
+    loadEntries().catch((error) => {
+      logDevWarning("bootstrap:loadEntries", error);
+    });
 
     return () => {
       active = false;

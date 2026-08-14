@@ -61,14 +61,14 @@ export function formatTime(ts: number): string {
   return formatClock(new Date(ts));
 }
 
-/** "August 14" — compose date badge. */
-export function formatComposeDate(ts: number): string {
+/** "August 14" — date chip on the write screen. */
+export function formatBadgeDate(ts: number): string {
   const d = new Date(ts);
   return `${MONTHS_LONG[d.getMonth()]} ${d.getDate()}`;
 }
 
-/** "7:20 PM" — compose time badge. */
-export function formatComposeTime(ts: number): string {
+/** "7:20 PM" — time chip on the write screen. */
+export function formatBadgeTime(ts: number): string {
   return formatClock(new Date(ts));
 }
 

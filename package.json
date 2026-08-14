@@ -10,20 +10,24 @@
     "expo": "~57.0.12",
     "expo-asset": "~57.0.10",
     "expo-audio": "~57.0.3",
+    "expo-build-properties": "~57.0.10",
     "expo-file-system": "~57.0.2",
     "expo-font": "~57.0.1",
     "expo-image": "~57.0.2",
     "expo-image-picker": "~57.0.9",
+    "expo-location": "~57.0.10",
     "expo-sharing": "~57.0.11",
     "expo-splash-screen": "~57.0.6",
     "expo-sqlite": "~57.0.1",
     "expo-status-bar": "~57.0.1",
+    "lodash.debounce": "^4.0.8",
     "react": "19.2.3",
     "react-native": "0.86.2",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0"
   },
   "devDependencies": {
+    "@types/lodash.debounce": "^4.0.9",
     "@types/react": "~19.2.2",
     "babel-preset-expo": "~57.0.0",
     "typescript": "~6.0.3"
@@ -31,10 +35,13 @@
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
+    "android:install": "adb install -r dist/kizuna-release.apk",
+    "android:release": "npm run build:apk:local && npm run android:install",
     "ios": "expo run:ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "build:apk": "eas build --platform android --profile preview"
+    "build:apk": "npx eas-cli@latest build --platform android --profile preview",
+    "build:apk:local": "bash scripts/build-apk-local.sh"
   },
   "private": true
 }

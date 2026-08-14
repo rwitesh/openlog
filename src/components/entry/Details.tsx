@@ -1,12 +1,13 @@
 import { Alert, Pressable, StyleSheet, View } from "react-native";
+import { Feather } from "@expo/vector-icons";
 
 import type { Entry } from "@/types/entry";
-import { useTheme } from "@/hooks/useTheme";
+import { useTheme } from "@/theme/ThemeProvider";
 import { space } from "@/theme/spacing";
 import { radius } from "@/theme/theme";
 import { FONT_SIZE } from "@/theme/typography";
 import { press } from "@/theme/motion";
-import { formatDateTime, formatDurationMs, typeLabel } from "@/lib";
+import { formatDateTime, formatDurationMs, formatLocationCoordinates, formatLocationLabel, typeLabel } from "@/lib";
 import { Sheet, ThemedText } from "@/components/core/ui";
 
 interface DetailsProps {
@@ -64,6 +65,19 @@ export function Details({
         {entry.type === "audio" && entry.durationMs ? (
           <DetailRow label="Length" value={formatDurationMs(entry.durationMs)} />
         ) : null}
+        {entry.location ? (
+          <View style={styles.locationBlock}>
+            <Feather name="map-pin" size={14} color={colors.textSecondary} />
+            <View style={styles.locationText}>
+              <ThemedText style={[styles.value, { color: colors.text }]}>
+                {formatLocationLabel(entry.location)}
+              </ThemedText>
+              <ThemedText style={[styles.coords, { color: colors.textSecondary }]}>
+                {formatLocationCoordinates(entry.location)}
+              </ThemedText>
+            </View>
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.actions}>
@@ -106,6 +120,20 @@ const styles = StyleSheet.create({
   },
   row: {
     paddingVertical: space.sm,
+  },
+  locationBlock: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: space.sm,
+    paddingVertical: space.sm,
+  },
+  locationText: {
+    flex: 1,
+    gap: 2,
+  },
+  coords: {
+    fontSize: FONT_SIZE.xs,
+    lineHeight: 16,
   },
   label: {
     fontSize: FONT_SIZE.xs,

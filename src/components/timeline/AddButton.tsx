@@ -3,7 +3,7 @@ import { Animated, Pressable, StyleSheet } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useTheme } from "@/hooks/useTheme";
+import { useTheme } from "@/theme/ThemeProvider";
 import { motion, press } from "@/theme/motion";
 import { metrics, space } from "@/theme/spacing";
 

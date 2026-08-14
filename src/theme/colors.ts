@@ -24,6 +24,8 @@ export interface ThemeColors {
   accent: string;
   /** Soft destructive color for delete actions. */
   destructive: string;
+  /** Positive confirmation — e.g. location attached. */
+  success: string;
   /** Faint separator between rows. */
   separator: string;
 }
@@ -39,6 +41,7 @@ export const lightColors: ThemeColors = {
   marker: "#3A3832",
   accent: "#3A3832",
   destructive: "#9A4545",
+  success: "#3D6B4F",
   separator: "#E3DDD2",
 };
 
@@ -53,5 +56,6 @@ export const darkColors: ThemeColors = {
   marker: "#E9E6DD",
   accent: "#E9E6DD",
   destructive: "#D48A8A",
+  success: "#6BA87A",
   separator: "#2A2823",
 };
