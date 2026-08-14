@@ -2,12 +2,11 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 
-import { Popover, ThemedText } from "@/components/core/ui";
-import { formatLocationCoordinates, formatLocationLabel } from "@/lib/location";
+import { Popover, LocationDetail } from "@/components/core/ui";
+import { locationAccessibilityLabel } from "@/lib";
 import { press } from "@/theme/motion";
 import { metrics, space } from "@/theme/spacing";
 import { useTheme } from "@/theme/ThemeProvider";
-import { FONT_SIZE } from "@/theme/typography";
 import type { EntryLocation } from "@/types/entry";
 
 import { chip } from "./chipStyles";
@@ -51,7 +50,7 @@ export function LocationChip({
 
   const accessibility =
     state === "ready" && location
-      ? formatLocationLabel(location)
+      ? locationAccessibilityLabel(location)
       : state === "loading"
         ? "…"
         : undefined;
@@ -103,12 +102,7 @@ export function LocationChip({
       {location ? (
         <Popover visible={detailOpen} onClose={() => setDetailOpen(false)}>
           <View style={styles.detailBody}>
-            <ThemedText style={[styles.detailPlace, { color: colors.text }]}>
-              {formatLocationLabel(location)}
-            </ThemedText>
-            <ThemedText style={[styles.detailCoords, { color: colors.textSecondary }]}>
-              {formatLocationCoordinates(location)}
-            </ThemedText>
+            <LocationDetail location={location} />
           </View>
 
           <View style={styles.detailActions}>
@@ -141,17 +135,7 @@ const styles = StyleSheet.create({
     opacity: 0.85,
   },
   detailBody: {
-    gap: space.xs,
     marginBottom: space.md,
-  },
-  detailPlace: {
-    fontSize: FONT_SIZE.md,
-    lineHeight: 20,
-  },
-  detailCoords: {
-    fontSize: FONT_SIZE.xs,
-    lineHeight: 16,
-    letterSpacing: 0.2,
   },
   detailActions: {
     flexDirection: "row",

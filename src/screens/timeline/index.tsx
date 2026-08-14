@@ -19,6 +19,7 @@ import {
   startOfDay,
   startOfMonth,
 } from "@/lib";
+import { timelineContentInset } from "@/theme/spacing";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "Timeline">;
 
@@ -49,7 +50,6 @@ export function Timeline({ navigation }: { navigation: Nav }) {
   return (
     <View style={styles.flex}>
       <TimelineHeader
-        viewMonth={viewMonth}
         onOpenMonthPicker={() => setMonthPickerOpen(true)}
         onOpenCalendar={() => setDayPickerOpen(true)}
         onOpenSettings={() => navigation.navigate("Settings")}
@@ -59,7 +59,7 @@ export function Timeline({ navigation }: { navigation: Nav }) {
       <TimelineBody
         entries={monthEntries}
         showDates
-        paddingTop={headerHeight}
+        paddingTop={timelineContentInset(headerHeight)}
         bottomInset={isCurrentMonth ? FAB_CLEARANCE + insets.bottom : insets.bottom}
         emptyTitle="A quiet month"
         emptyBody={

@@ -12,6 +12,14 @@ export const space = {
   xxxl: 32,
 } as const;
 
+/** Shared vertical rhythm between header lines and before timeline content. */
+export const sectionGap = space.lg;
+
+/** FlatList inset below the absolute timeline header. */
+export function timelineContentInset(headerHeight: number): number {
+  return headerHeight + sectionGap;
+}
+
 /** Non-spacing layout dimensions (widths, fixed row heights). */
 export const metrics = {
   headerRowHeight: 48,

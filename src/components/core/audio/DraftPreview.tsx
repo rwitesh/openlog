@@ -14,7 +14,7 @@ interface DraftPreviewProps {
   uri: string;
   durationMs: number;
   levels?: number[];
-  onRemove: () => void;
+  onRemove?: () => void;
 }
 
 /** Inline preview of a recorded voice note inside the composer. */
@@ -47,14 +47,16 @@ export function DraftPreview({ uri, durationMs, levels, onRemove }: DraftPreview
         </ThemedText>
       </View>
 
-      <Pressable
-        onPress={onRemove}
-        hitSlop={space.sm}
-        style={({ pressed }) => [styles.removeBtn, pressed && press]}
-        accessibilityLabel="Remove voice note"
-      >
-        <Feather name="x" size={metrics.iconSm} color={colors.textTertiary} />
-      </Pressable>
+      {onRemove ? (
+        <Pressable
+          onPress={onRemove}
+          hitSlop={space.sm}
+          style={({ pressed }) => [styles.removeBtn, pressed && press]}
+          accessibilityLabel="Remove voice note"
+        >
+          <Feather name="x" size={metrics.iconSm} color={colors.textTertiary} />
+        </Pressable>
+      ) : null}
     </View>
   );
 }

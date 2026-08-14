@@ -24,9 +24,14 @@ export function formatLocationCoordinates(location: EntryLocation): string {
   return `${location.latitude}, ${location.longitude}`;
 }
 
-export function formatLocationLabel(location: EntryLocation): string {
-  if (location.name) return location.name;
-  return `${location.latitude}, ${location.longitude}`;
+export const LOCATION_UNAVAILABLE = "Not available";
+
+export function locationPlaceTitle(location: EntryLocation): string {
+  return location.name ?? "Location";
+}
+
+export function locationAccessibilityLabel(location: EntryLocation): string {
+  return `${locationPlaceTitle(location)}, ${formatLocationCoordinates(location)}`;
 }
 
 async function sleep(ms: number, isCancelled?: () => boolean): Promise<void> {

@@ -1,14 +1,15 @@
 import { useSyncExternalStore } from "react";
 
 import { deleteMedia, deleteMediaList } from "@/lib";
-import { resetDatabase } from "@/db/database";
 import {
   createEntry,
   deleteAllEntries,
   deleteEntry,
   getEntries,
   removeImageFromEntry,
+  updateEntry,
   type NewEntryInput,
+  type UpdateEntryInput,
 } from "@/db/entries";
 import type { Entry } from "@/types/entry";
 
@@ -28,6 +29,10 @@ function getSnapshot() {
   return entries;
 }
 
+function sortNewestFirst(list: Entry[]): Entry[] {
+  return [...list].sort((a, b) => b.createdAt - a.createdAt);
+}
+
 export async function loadEntries() {
   entries = await getEntries();
   emit();
@@ -36,6 +41,15 @@ export async function loadEntries() {
 export async function addEntry(input: NewEntryInput) {
   const entry = await createEntry(input);
   entries = [entry, ...entries];
+  emit();
+  return entry;
+}
+
+export async function patchEntry(id: string, input: UpdateEntryInput) {
+  const entry = await updateEntry(id, input);
+  entries = sortNewestFirst(
+    entries.map((existing) => (existing.id === id ? entry : existing))
+  );
   emit();
   return entry;
 }
@@ -65,21 +79,14 @@ export async function clearAll() {
   return uris;
 }
 
-export async function resetDb() {
-  const uris = await resetDatabase();
-  entries = [];
-  emit();
-  return uris;
-}
-
 export function useEntries() {
   const list = useSyncExternalStore(subscribe, getSnapshot);
   return {
     entries: list,
     addEntry,
+    patchEntry,
     removeEntry,
     removeImage,
     clearAll,
-    resetDb,
   };
 }

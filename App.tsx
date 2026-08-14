@@ -7,11 +7,13 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ThemeProvider } from "@/theme/ThemeProvider";
 import { useTheme } from "@/theme/ThemeProvider";
+import { ProfileProvider } from "@/profile";
 import { useAppBootstrap } from "@/hooks/useAppBootstrap";
 import { FONT } from "@/theme/typography";
 import type { ThemeColors } from "@/theme/colors";
 import type { RootStackParamList } from "@/types/navigation";
 import { Timeline } from "@/screens/timeline";
+import { Welcome } from "@/screens/welcome";
 import { Day } from "@/screens/day";
 import { Compose } from "@/screens/compose";
 import { Settings } from "@/screens/settings";
@@ -44,18 +46,24 @@ function makeNavTheme(mode: "light" | "dark", colors: ThemeColors): NavTheme {
   };
 }
 
-function AppContent() {
+function AppContent({ showWelcome }: { showWelcome: boolean }) {
   const { theme, resolvedMode } = useTheme();
 
   return (
     <NavigationContainer theme={makeNavTheme(resolvedMode, theme.colors)}>
        <StatusBar style={resolvedMode === "dark" ? "light" : "dark"} />
        <Stack.Navigator
+         initialRouteName={showWelcome ? "Welcome" : "Timeline"}
          screenOptions={{
            contentStyle: { backgroundColor: theme.colors.background },
            animation: "slide_from_right",
          }}
        >
+         <Stack.Screen
+           name="Welcome"
+           component={Welcome}
+           options={{ headerShown: false }}
+         />
          <Stack.Screen
            name="Timeline"
            component={Timeline}
@@ -93,7 +101,7 @@ function AppContent() {
 }
 
 export default function App() {
-  const { ready, themeMode, backgroundColor } = useAppBootstrap();
+  const { ready, themeMode, backgroundColor, userName } = useAppBootstrap();
 
   if (!ready) {
     return <View style={{ flex: 1, backgroundColor }} />;
@@ -103,7 +111,9 @@ export default function App() {
     <SafeAreaProvider>
       <Layout>
         <ThemeProvider initialMode={themeMode}>
-          <AppContent />
+          <ProfileProvider initialName={userName}>
+            <AppContent showWelcome={!userName} />
+          </ProfileProvider>
         </ThemeProvider>
       </Layout>
     </SafeAreaProvider>

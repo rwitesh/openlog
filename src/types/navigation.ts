@@ -1,6 +1,7 @@
 export type RootStackParamList = {
+  Welcome: undefined;
   Timeline: undefined;
   Day: { dayTs: number };
-  Compose: undefined;
+  Compose: { entryId?: string } | undefined;
   Settings: undefined;
 };

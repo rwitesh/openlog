@@ -56,6 +56,24 @@ export const typography = {
     lineHeight: 24,
     letterSpacing: -0.2,
   },
+  headerGreeting: {
+    fontFamily: FONT.semibold,
+    fontSize: 28,
+    lineHeight: 34,
+    letterSpacing: -0.5,
+  },
+  headerSubtitle: {
+    fontFamily: FONT.regular,
+    fontSize: FONT_SIZE.xl,
+    lineHeight: 24,
+    letterSpacing: 0.05,
+  },
+  headerMonth: {
+    fontFamily: FONT.semibold,
+    fontSize: FONT_SIZE.lg,
+    lineHeight: 20,
+    letterSpacing: 0.1,
+  },
   settingLabel: {
     fontFamily: FONT.regular,
     fontSize: FONT_SIZE.md,
