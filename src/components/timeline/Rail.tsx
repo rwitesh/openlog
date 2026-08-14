@@ -1,13 +1,14 @@
 import { Pressable, StyleSheet, View, type ViewProps } from "react-native";
 
-import { useTheme } from "@/theme/ThemeProvider";
+import { useJournalPreferences, useTheme } from "@/theme/ThemeProvider";
 import { space } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
+import { press } from "@/theme/motion";
 import { dayOfMonth } from "@/lib";
 import { ThemedText } from "@/components/core/ui";
 
-const DOT = 7;
-const MARKER = 32;
+const DOT = 6;
+const MARKER = 30;
 
 interface RailProps extends ViewProps {
   dayTs: number;
@@ -28,46 +29,87 @@ export function Rail({
   style,
   ...rest
 }: RailProps) {
-  const { colors } = useTheme().theme;
+  const { theme } = useTheme();
+  const { timelineStyle, timelineDensity } = useJournalPreferences();
+  const { colors } = theme;
 
-  const center = showDate ? MARKER / 2 : space.sm + DOT / 2;
+  const center = showDate ? MARKER / 2 : 9 + DOT / 2;
+  const showLine = timelineStyle !== "clean";
+  const lineOpacity = timelineStyle === "minimal" ? 0.35 : 1;
+  const bottomPadding = timelineDensity === "compact" ? space.md : space.xl;
 
   return (
     <View style={[styles.row, style]} {...rest}>
       <View style={styles.gutter}>
-        <View
-          style={[
-            styles.line,
-            {
-              top: isFirst ? center : 0,
-              bottom: isLast ? center : 0,
-              backgroundColor: colors.line,
-            },
-          ]}
-        />
+        {showLine ? (
+          <View
+            style={[
+              styles.line,
+              {
+                top: isFirst ? center : 0,
+                bottom: isLast ? center : 0,
+                backgroundColor: colors.line,
+                opacity: lineOpacity,
+              },
+            ]}
+          />
+        ) : null}
 
         {showDate ? (
           <Pressable
             onPress={onMarkerPress}
             disabled={!onMarkerPress}
             hitSlop={space.xs}
+            style={({ pressed }) => [pressed && onMarkerPress && press]}
             accessibilityLabel={`Open day ${dayOfMonth(dayTs)}`}
           >
-            <View style={[styles.dateCircle, { backgroundColor: colors.marker }]}>
+            <View
+              style={[
+                styles.dateCircle,
+                {
+                  backgroundColor:
+                    timelineStyle === "clean" ? colors.surfaceMuted : colors.marker,
+                  borderColor:
+                    timelineStyle === "clean" ? colors.separator : colors.marker,
+                  borderWidth: timelineStyle === "clean" ? StyleSheet.hairlineWidth : 0,
+                },
+              ]}
+            >
               <ThemedText
                 weight="semibold"
-                style={[styles.dateNum, { color: colors.background }]}
+                style={[
+                  styles.dateNum,
+                  {
+                    color:
+                      timelineStyle === "clean" ? colors.text : colors.background,
+                  },
+                ]}
               >
                 {dayOfMonth(dayTs)}
               </ThemedText>
             </View>
           </Pressable>
         ) : (
-          <View style={[styles.dot, { backgroundColor: colors.marker }]} />
+          <View
+            style={[
+              styles.dot,
+              {
+                backgroundColor: colors.marker,
+                opacity: timelineStyle === "minimal" ? 0.65 : 1,
+              },
+            ]}
+          />
         )}
       </View>
 
-      <View style={[styles.content, !isLast && styles.contentSpaced]}>{children}</View>
+      <View
+        style={[
+          styles.content,
+          !isLast && { paddingBottom: bottomPadding },
+        ]}
+      >
+        {children}
+      </View>
     </View>
   );
 }
@@ -80,7 +122,7 @@ const styles = StyleSheet.create({
   gutter: {
     width: MARKER,
     alignItems: "center",
-    marginRight: space.xs,
+    marginRight: space.sm,
   },
   line: {
     position: "absolute",
@@ -99,7 +141,7 @@ const styles = StyleSheet.create({
     lineHeight: typography.caption.lineHeight,
   },
   dot: {
-    marginTop: space.sm,
+    marginTop: 9,
     width: DOT,
     height: DOT,
     borderRadius: DOT / 2,
@@ -107,8 +149,5 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     minWidth: 0,
-  },
-  contentSpaced: {
-    paddingBottom: space.lg,
   },
 });

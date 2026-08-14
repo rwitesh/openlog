@@ -94,14 +94,24 @@ export function Details({
         Entry details
       </ThemedText>
 
-      <View style={[styles.card, { borderColor: colors.separator }]}>
+      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.separator }]}>
         <DetailRow label="Created" value={formatDateTime(entry.createdAt)} />
+        <View style={[styles.divider, { backgroundColor: colors.separator }]} />
         <DetailRow label="Updated" value={formatDateTime(entry.updatedAt)} />
+        <View style={[styles.divider, { backgroundColor: colors.separator }]} />
         <DetailRow label="Type" value={typeLabel(entry.type)} />
         {entry.type === "audio" && entry.durationMs ? (
-          <DetailRow label="Length" value={formatDurationMs(entry.durationMs)} />
+          <>
+            <View style={[styles.divider, { backgroundColor: colors.separator }]} />
+            <DetailRow label="Length" value={formatDurationMs(entry.durationMs)} />
+          </>
         ) : null}
-        <LocationDetail location={entry.location} labeled />
+        {entry.location ? (
+          <>
+            <View style={[styles.divider, { backgroundColor: colors.separator }]} />
+            <LocationDetail location={entry.location} labeled />
+          </>
+        ) : null}
       </View>
 
       <View style={styles.actions}>
@@ -146,6 +156,9 @@ const styles = StyleSheet.create({
   value: {
     fontSize: FONT_SIZE.lg,
     lineHeight: 20,
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
   },
   actions: {
     flexDirection: "row",

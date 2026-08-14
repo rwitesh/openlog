@@ -93,14 +93,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingLeft: space.md,
-    paddingRight: space.xl,
+    paddingLeft: space.lg,
+    paddingRight: space.xxl,
   },
   empty: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: space.xxxl,
-    gap: space.sm,
+    gap: space.xs + 2,
   },
 });
