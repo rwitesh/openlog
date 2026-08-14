@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 
-import { useTheme } from "@/hooks/useTheme";
+import { useTheme } from "@/theme/ThemeProvider";
 import { metrics, space } from "@/theme/spacing";
 import { radius } from "@/theme/theme";
 import { press } from "@/theme/motion";
@@ -67,7 +67,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
-    marginBottom: space.md,
   },
   playBtn: {
     width: 36,

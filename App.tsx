@@ -6,9 +6,8 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ThemeProvider } from "@/theme/ThemeProvider";
-import { useTheme } from "@/hooks/useTheme";
+import { useTheme } from "@/theme/ThemeProvider";
 import { useAppBootstrap } from "@/hooks/useAppBootstrap";
-import { EntriesProvider } from "@/hooks/EntriesProvider";
 import { FONT } from "@/theme/typography";
 import type { ThemeColors } from "@/theme/colors";
 import type { RootStackParamList } from "@/types/navigation";
@@ -16,6 +15,7 @@ import { Timeline } from "@/screens/timeline";
 import { Day } from "@/screens/day";
 import { Compose } from "@/screens/compose";
 import { Settings } from "@/screens/settings";
+import { Layout } from "@/layout";
 import { logDevWarning } from "@/lib";
 
 SplashScreen.preventAutoHideAsync().catch((error) => {
@@ -101,11 +101,11 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <ThemeProvider initialMode={themeMode}>
-        <EntriesProvider>
+      <Layout>
+        <ThemeProvider initialMode={themeMode}>
           <AppContent />
-        </EntriesProvider>
-      </ThemeProvider>
+        </ThemeProvider>
+      </Layout>
     </SafeAreaProvider>
   );
 }

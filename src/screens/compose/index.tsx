@@ -1,46 +1,43 @@
 import { useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
-import { Image } from "expo-image";
-import { Feather } from "@expo/vector-icons";
-import * as ImagePicker from "expo-image-picker";
+import { type TextInput } from "react-native";
 import { type NativeStackScreenProps } from "@react-navigation/native-stack";
+import * as ImagePicker from "expo-image-picker";
 
 import type { RootStackParamList } from "@/types/navigation";
-import { useEntries } from "@/hooks/useEntries";
-import { useTheme } from "@/hooks/useTheme";
-import { metrics, space } from "@/theme/spacing";
-import { radius } from "@/theme/theme";
-import { press } from "@/theme/motion";
-import { typography } from "@/theme/typography";
-import { canSaveComposer, fromComposer, useRecording } from "@/lib";
-import { formatComposeDate, formatComposeTime, withTimeOfDay } from "@/lib/dates";
-import { KeyboardLayout, useKeepKeyboard } from "@/keyboard";
-import { CalendarPicker, DraftPreview, RecordingBar, TimePicker, Toolbar } from "@/components/core";
-import { ThemedText } from "@/components/core/ui";
+import { useEntries } from "@/entries";
+import { canSaveDraft, fromDraft, useRecording } from "@/lib";
+import { withTimeOfDay } from "@/lib/dates";
+import { Layout, useKeepFocus } from "@/layout";
+import { CalendarPicker, TimePicker } from "@/components/core";
+import { useLocation } from "@/hooks";
+
+import { Attachments, MAX_IMAGES } from "./Attachments";
+import { DateTimeBadges } from "./DateTimeBadges";
+import { Editor } from "./Editor";
+import { FooterBar } from "./FooterBar";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Compose">;
 
-const MAX_IMAGES = 10;
-
 export function Compose({ navigation }: Props) {
-  const { colors } = useTheme().theme;
   const { addEntry } = useEntries();
 
   const [text, setText] = useState("");
   const [imageUris, setImageUris] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
-  const [composedAt, setComposedAt] = useState(() => Date.now());
+  const [when, setWhen] = useState(() => Date.now());
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [timePickerOpen, setTimePickerOpen] = useState(false);
+
   const inputRef = useRef<TextInput>(null);
   const recording = useRecording();
-  const keepKeyboard = useKeepKeyboard(inputRef);
+  const keepFocus = useKeepFocus(inputRef);
+  const location = useLocation(text);
 
   const audioUri = recording.recordedUri;
   const isRecording = recording.isRecording;
   const hasAudioDraft = Boolean(audioUri && !isRecording);
   const canSave =
-    canSaveComposer({ text, imageUris, audioUri }) && !isRecording && !saving;
+    canSaveDraft({ text, imageUris, audioUri }) && !isRecording && !saving;
 
   const pickImage = async () => {
     if (imageUris.length >= MAX_IMAGES) return;
@@ -60,7 +57,7 @@ export function Compose({ navigation }: Props) {
         ...prev,
         ...result.assets.map((asset) => asset.uri),
       ]);
-      keepKeyboard();
+      keepFocus();
     }
   };
 
@@ -73,12 +70,14 @@ export function Compose({ navigation }: Props) {
 
     setSaving(true);
     try {
-      const input = await fromComposer({
+      const input = await fromDraft({
         text: text.trim() || undefined,
         imageUris: imageUris.length ? imageUris : undefined,
         audioUri,
         durationMs: recording.recordedDurationMs,
-        createdAt: composedAt,
+        createdAt: when,
+        location:
+          location.on && location.place ? location.place : undefined,
       });
       if (input) await addEntry(input);
       navigation.goBack();
@@ -87,255 +86,74 @@ export function Compose({ navigation }: Props) {
     }
   };
 
+  const toggleRecording = async () => {
+    await recording.toggle();
+    keepFocus();
+  };
+
+  const toggleLocation = async () => {
+    await location.toggle();
+    keepFocus();
+  };
+
   return (
-    <KeyboardLayout>
-      <KeyboardLayout.Main>
-        <View style={styles.whenRow}>
-          <Pressable
-            onPress={() => setDatePickerOpen(true)}
-            style={({ pressed }) => [
-              styles.whenBadge,
-              { backgroundColor: colors.surfaceMuted },
-              pressed && press,
-            ]}
-            accessibilityLabel="Change entry date"
-            accessibilityRole="button"
-          >
-            <Feather name="calendar" size={metrics.iconSm} color={colors.text} />
-            <ThemedText weight="medium" style={[typography.caption, { color: colors.text }]}>
-              {formatComposeDate(composedAt)}
-            </ThemedText>
-          </Pressable>
+    <Layout.Screen>
+      <DateTimeBadges
+        when={when}
+        onOpenDate={() => setDatePickerOpen(true)}
+        onOpenTime={() => setTimePickerOpen(true)}
+        location={location.place}
+        locationOn={location.on}
+        locationLoading={location.loading}
+        locationFailed={location.failed}
+        onLocationPress={toggleLocation}
+      />
 
-          <Pressable
-            onPress={() => setTimePickerOpen(true)}
-            style={({ pressed }) => [
-              styles.whenBadge,
-              { backgroundColor: colors.surfaceMuted },
-              pressed && press,
-            ]}
-            accessibilityLabel="Change entry time"
-            accessibilityRole="button"
-          >
-            <Feather name="clock" size={metrics.iconSm} color={colors.text} />
-            <ThemedText weight="medium" style={[typography.caption, { color: colors.text }]}>
-              {formatComposeTime(composedAt)}
-            </ThemedText>
-          </Pressable>
-        </View>
-        <TextInput
-          ref={inputRef}
-          value={text}
-          onChangeText={setText}
-          placeholder="Write something…"
-          placeholderTextColor={colors.textTertiary}
-          multiline
-          maxLength={2000}
-          autoFocus
-          blurOnSubmit={false}
-          textAlignVertical="top"
-          style={[styles.input, typography.composerText, { color: colors.text }]}
-        />
-      </KeyboardLayout.Main>
-
-      <KeyboardLayout.Avoiding>
-      {imageUris.length > 0 ? (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.previewScroll}
-          keyboardShouldPersistTaps="handled"
-        >
-          {imageUris.map((uri, index) => (
-            <View key={`${uri}-${index}`} style={styles.previewRow}>
-              <Image source={{ uri }} style={styles.preview} contentFit="cover" />
-              <Pressable
-                onPress={() => removeImage(index)}
-                hitSlop={space.sm}
-                style={[styles.removeBadge, { backgroundColor: colors.surface }]}
-                accessibilityLabel="Remove image"
-              >
-                <Feather name="x" size={metrics.iconXs} color={colors.textSecondary} />
-              </Pressable>
-            </View>
-          ))}
-        </ScrollView>
-      ) : null}
-
-      {hasAudioDraft && audioUri ? (
-        <View style={styles.mediaWrap}>
-          <DraftPreview
-            uri={audioUri}
-            durationMs={recording.recordedDurationMs ?? 0}
-            levels={recording.recordedLevels}
-            onRemove={recording.clear}
+      <Layout.Screen.Body>
+        <Layout.Screen.Main>
+          <Editor
+            inputRef={inputRef}
+            value={text}
+            onChangeText={setText}
           />
-        </View>
-      ) : null}
+        </Layout.Screen.Main>
 
-      <KeyboardLayout.Footer>
-        <Toolbar>
-        {!isRecording ? (
-          <Pressable
-            onPress={pickImage}
-            disabled={imageUris.length >= MAX_IMAGES}
-            hitSlop={space.sm}
-            style={({ pressed }) => [
-              styles.toolBtn,
-              imageUris.length >= MAX_IMAGES && styles.toolBtnDisabled,
-              pressed && press,
-            ]}
-            accessibilityLabel="Add photo"
-          >
-            <Feather
-              name="image"
-              size={metrics.iconMd}
-              color={
-                imageUris.length >= MAX_IMAGES ? colors.textTertiary : colors.textSecondary
-              }
-            />
-          </Pressable>
-        ) : null}
-
-        <Pressable
-          onPress={async () => {
-            await recording.toggle();
-            keepKeyboard();
-          }}
-          hitSlop={space.sm}
-          style={({ pressed }) => [
-            styles.toolBtn,
-            isRecording && { backgroundColor: colors.destructive },
-            pressed && press,
-          ]}
-          accessibilityLabel={isRecording ? "Stop recording" : "Record audio"}
-        >
-          <Feather
-            name={isRecording ? "square" : "mic"}
-            size={metrics.iconMd}
-            color={isRecording ? colors.background : colors.textSecondary}
+        <Layout.Screen.Footer>
+          <Attachments
+            imageUris={imageUris}
+            onRemoveImage={removeImage}
+            audioUri={hasAudioDraft ? audioUri : undefined}
+            audioDurationMs={recording.recordedDurationMs ?? 0}
+            audioLevels={recording.recordedLevels}
+            onRemoveAudio={recording.clear}
           />
-        </Pressable>
 
-        {isRecording ? (
-          <View style={styles.recTool}>
-            <RecordingBar
-              isRecording={isRecording}
-              durationMs={recording.durationMs}
-              levels={recording.liveLevels}
-            />
-          </View>
-        ) : (
-          <View style={styles.spacer} />
-        )}
-
-        <Pressable
-          onPress={handleSave}
-          disabled={!canSave}
-          hitSlop={space.sm}
-          style={({ pressed }) => [
-            styles.sendBtn,
-            canSave && { backgroundColor: colors.marker },
-            pressed && canSave && press,
-          ]}
-          accessibilityLabel="Save entry"
-        >
-          <Feather
-            name="arrow-up"
-            size={metrics.iconMd + 2}
-            color={canSave ? colors.background : colors.textTertiary}
+          <FooterBar
+            imageCount={imageUris.length}
+            isRecording={isRecording}
+            canSave={canSave}
+            recordingDurationMs={recording.durationMs}
+            recordingLevels={recording.liveLevels}
+            onPickImage={pickImage}
+            onToggleRecording={toggleRecording}
+            onSave={handleSave}
           />
-        </Pressable>
-        </Toolbar>
-      </KeyboardLayout.Footer>
-      </KeyboardLayout.Avoiding>
+        </Layout.Screen.Footer>
+      </Layout.Screen.Body>
 
       <CalendarPicker
         visible={datePickerOpen}
-        selectedDate={composedAt}
-        onSelectDate={(dayTs) => setComposedAt((prev) => withTimeOfDay(dayTs, prev))}
+        selectedDate={when}
+        onSelectDate={(dayTs) => setWhen((prev) => withTimeOfDay(dayTs, prev))}
         onClose={() => setDatePickerOpen(false)}
       />
 
       <TimePicker
         visible={timePickerOpen}
-        value={composedAt}
-        onChange={(ts) => setComposedAt(ts)}
+        value={when}
+        onChange={(ts) => setWhen(ts)}
         onClose={() => setTimePickerOpen(false)}
       />
-    </KeyboardLayout>
+    </Layout.Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  whenRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: space.sm,
-    marginTop: space.lg,
-    marginBottom: space.sm,
-    marginHorizontal: space.xxl,
-  },
-  whenBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: space.xs,
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm,
-    borderRadius: radius.sm,
-  },
-  input: {
-    flex: 1,
-    paddingTop: space.sm,
-    paddingHorizontal: space.xxl,
-  },
-  previewScroll: {
-    gap: space.sm,
-    paddingHorizontal: space.xxl,
-    marginBottom: space.sm,
-  },
-  previewRow: {
-    position: "relative",
-  },
-  mediaWrap: {
-    marginHorizontal: space.xxl,
-  },
-  recTool: {
-    flex: 1,
-  },
-  preview: {
-    width: 80,
-    height: 80,
-    borderRadius: radius.md,
-  },
-  removeBadge: {
-    position: "absolute",
-    top: -6,
-    right: -6,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  toolBtn: {
-    width: metrics.fabSize,
-    height: metrics.fabSize,
-    borderRadius: metrics.fabSize / 2,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  toolBtnDisabled: {
-    opacity: 0.45,
-  },
-  sendBtn: {
-    width: metrics.fabSize,
-    height: metrics.fabSize,
-    borderRadius: metrics.fabSize / 2,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  spacer: {
-    flex: 1,
-  },
-});

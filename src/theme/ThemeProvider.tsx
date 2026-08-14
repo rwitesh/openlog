@@ -1,6 +1,7 @@
 import {
   createContext,
   useCallback,
+  useContext,
   useMemo,
   useState,
   type ReactNode,
@@ -50,4 +51,8 @@ export function ThemeProvider({ children, initialMode }: ThemeProviderProps) {
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+}
+
+export function useTheme() {
+  return useContext(ThemeContext);
 }

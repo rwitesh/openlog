@@ -3,8 +3,8 @@ import { Alert, Animated, Dimensions, Pressable, ScrollView, StyleSheet, View } 
 import { Image } from "expo-image";
 
 import type { Entry } from "@/types/entry";
-import { useEntries } from "@/hooks/useEntries";
-import { useTheme } from "@/hooks/useTheme";
+import { useEntries } from "@/entries";
+import { useTheme } from "@/theme/ThemeProvider";
 import { motion } from "@/theme/motion";
 import { space } from "@/theme/spacing";
 import { radius } from "@/theme/theme";

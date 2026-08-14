@@ -1,8 +1,16 @@
 export type EntryType = "text" | "image" | "audio";
 
+export interface EntryLocation {
+  latitude: number;
+  longitude: number;
+  /** City or town, state, country — e.g. "Austin, Texas, United States". */
+  name?: string;
+}
+
 interface EntryBase {
   id: string;
   createdAt: number;
+  location?: EntryLocation;
 }
 
 export type TextEntry = EntryBase & {
@@ -29,6 +37,6 @@ export type NewEntryInput = (
   | { type: "text"; text: string }
   | { type: "image"; text?: string; uris: string[] }
   | { type: "audio"; text?: string; uri: string; durationMs?: number }
-) & { createdAt?: number };
+) & { createdAt?: number; location?: EntryLocation };
 
 export type ThemeMode = "system" | "light" | "dark";

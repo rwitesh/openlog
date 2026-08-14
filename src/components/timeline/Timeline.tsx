@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { FlatList, StyleSheet, View } from "react-native";
 
 import type { Entry } from "@/types/entry";
-import { useTheme } from "@/hooks/useTheme";
+import { useTheme } from "@/theme/ThemeProvider";
 import { space } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
 import { isSameDay, toTimelineItems } from "@/lib";

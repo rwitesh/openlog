@@ -4,7 +4,7 @@ import { type NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import type { RootStackParamList } from "@/types/navigation";
-import { useEntries } from "@/hooks/useEntries";
+import { useEntries } from "@/entries";
 import {
   AddButton,
   FAB_CLEARANCE,
