@@ -3,6 +3,7 @@ import { Animated, StyleSheet, View } from "react-native";
 
 import { useTheme } from "@/hooks/useTheme";
 import { space } from "@/theme/spacing";
+import { radius } from "@/theme/theme";
 import { typography } from "@/theme/typography";
 import { formatDurationMs } from "@/lib";
 import { ThemedText } from "@/components/core/ui";
@@ -60,20 +61,18 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: space.sm,
-    borderRadius: space.md,
+    borderRadius: radius.md,
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
-    marginBottom: space.md,
-    minHeight: 44,
+    minHeight: 36,
   },
   dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: space.sm,
+    height: space.sm,
+    borderRadius: space.xs,
   },
   timer: {
     minWidth: 36,
     fontVariant: ["tabular-nums"],
-    fontSize: 13,
   },
 });

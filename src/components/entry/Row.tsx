@@ -7,22 +7,21 @@ import { useEntries } from "@/hooks/useEntries";
 import { useTheme } from "@/hooks/useTheme";
 import { motion } from "@/theme/motion";
 import { space } from "@/theme/spacing";
+import { radius } from "@/theme/theme";
 import { typography } from "@/theme/typography";
 import { formatTime } from "@/lib";
-import { AudioPlayer, ThemedText } from "@/components/core";
+import { AudioPlayer } from "@/components/core/audio";
+import { ThemedText } from "@/components/core/ui";
 import { Details } from "./Details";
 import { ImageViewer } from "./ImageViewer";
 import { MenuButton } from "./MenuButton";
-import { TimelineRail } from "./TimelineRail";
 
 interface RowProps {
   entry: Entry;
-  isFirst: boolean;
-  isLast: boolean;
   animate?: boolean;
 }
 
-function RowBase({ entry, isFirst, isLast, animate }: RowProps) {
+function RowBase({ entry, animate }: RowProps) {
   const { theme } = useTheme();
   const { removeEntry } = useEntries();
   const { colors } = theme;
@@ -62,40 +61,40 @@ function RowBase({ entry, isFirst, isLast, animate }: RowProps) {
   return (
     <>
       <Animated.View style={{ opacity, transform: [{ translateY }] }}>
-        <TimelineRail isFirst={isFirst} isLast={isLast}>
-          {hasText ? (
-            <ThemedText style={[typography.entryText, { color: colors.text }]}>
-              {entry.text}
-            </ThemedText>
-          ) : null}
+        <View style={styles.headerRow}>
+          <ThemedText style={[typography.timestamp, { color: colors.textTertiary }]}>
+            {formatTime(entry.createdAt)}
+          </ThemedText>
+          <MenuButton onPress={() => setDetailsOpen(true)} />
+        </View>
 
-          {hasImage ? (
-            <Pressable
-              onPress={() => setImageViewerOpen(true)}
-              style={hasText ? styles.imageAfterText : styles.imageOnly}
-            >
-              <Image
-                source={{ uri: entry.uri }}
-                style={[styles.image, { backgroundColor: colors.surfaceMuted }]}
-                contentFit="cover"
-                transition={280}
-                recyclingKey={entry.id}
-                accessibilityLabel="Image"
-              />
-            </Pressable>
-          ) : null}
+        {hasText ? (
+          <ThemedText style={[typography.entryText, { color: colors.text }]}>
+            {entry.text}
+          </ThemedText>
+        ) : null}
 
-          {hasAudio && entry.uri ? (
+        {hasImage ? (
+          <Pressable
+            onPress={() => setImageViewerOpen(true)}
+            style={hasText ? styles.imageAfterText : undefined}
+          >
+            <Image
+              source={{ uri: entry.uri }}
+              style={[styles.image, { backgroundColor: colors.surfaceMuted }]}
+              contentFit="cover"
+              transition={motion.normal}
+              recyclingKey={entry.id}
+              accessibilityLabel="Image"
+            />
+          </Pressable>
+        ) : null}
+
+        {hasAudio && entry.uri ? (
+          <View style={hasText || hasImage ? styles.audioAfterContent : undefined}>
             <AudioPlayer uri={entry.uri} durationMs={entry.durationMs} />
-          ) : null}
-
-          <View style={styles.footerRow}>
-            <ThemedText style={[typography.timestamp, { color: colors.textTertiary }]}>
-              {formatTime(entry.createdAt)}
-            </ThemedText>
-            <MenuButton onPress={() => setDetailsOpen(true)} />
           </View>
-        </TimelineRail>
+        ) : null}
       </Animated.View>
 
       {hasImage && entry.uri ? (
@@ -119,21 +118,21 @@ function RowBase({ entry, isFirst, isLast, animate }: RowProps) {
 export const Row = memo(RowBase);
 
 const styles = StyleSheet.create({
-  footerRow: {
+  headerRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: space.sm,
-  },
-  imageOnly: {
-    marginTop: 0,
+    marginBottom: space.sm,
   },
   imageAfterText: {
+    marginTop: space.md,
+  },
+  audioAfterContent: {
     marginTop: space.md,
   },
   image: {
     width: "100%",
     aspectRatio: 4 / 3,
-    borderRadius: space.md,
+    borderRadius: radius.md,
   },
 });

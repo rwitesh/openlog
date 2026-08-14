@@ -5,7 +5,6 @@ const MONTHS_LONG = [
   "July", "August", "September", "October", "November", "December",
 ];
 
-const WEEKDAYS_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const WEEKDAYS_LONG = [
   "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
 ];
@@ -26,15 +25,17 @@ export function isSameDay(a: number, b: number): boolean {
   return startOfDay(a) === startOfDay(b);
 }
 
-/** "Today", or "Fri 14" for the date strip. */
-export function formatStripDay(ts: number, now = Date.now()): string {
-  if (isSameDay(ts, now)) return "Today";
-
-  const d = new Date(ts);
-  return `${WEEKDAYS_SHORT[d.getDay()]} ${d.getDate()}`;
+export function startOfMonth(ts: number): number {
+  const d = new Date(startOfDay(ts));
+  d.setDate(1);
+  return d.getTime();
 }
 
-/** "Friday, August 14" — header title for the selected day. */
+export function isSameMonth(a: number, b: number): boolean {
+  return startOfMonth(a) === startOfMonth(b);
+}
+
+/** "Today", "Yesterday", or "Friday, August 14" — day label in the month feed. */
 export function formatHeaderDate(ts: number, now = Date.now()): string {
   if (isSameDay(ts, now)) return "Today";
 
@@ -45,32 +46,25 @@ export function formatHeaderDate(ts: number, now = Date.now()): string {
   return `${WEEKDAYS_LONG[d.getDay()]}, ${MONTHS_LONG[d.getMonth()]} ${d.getDate()}`;
 }
 
-/** "10:42 AM" — time beside a timeline item. */
-export function formatTime(ts: number): string {
-  const d = new Date(ts);
-  let hours = d.getHours();
+export function dayOfMonth(ts: number): number {
+  return new Date(ts).getDate();
+}
+
+function formatClock(d: Date): string {
+  const hours = d.getHours() % 12 || 12;
   const minutes = d.getMinutes().toString().padStart(2, "0");
-  const ampm = hours >= 12 ? "PM" : "AM";
-  hours = hours % 12;
-  if (hours === 0) hours = 12;
+  const ampm = d.getHours() >= 12 ? "PM" : "AM";
   return `${hours}:${minutes} ${ampm}`;
+}
+
+export function formatTime(ts: number): string {
+  return formatClock(new Date(ts));
 }
 
 /** Full date and time for detail views. */
 export function formatDateTime(ts: number): string {
   const d = new Date(ts);
-  const weekday = WEEKDAYS_LONG[d.getDay()];
-  const month = MONTHS_LONG[d.getMonth()];
-  const day = d.getDate();
-  const year = d.getFullYear();
-
-  let hours = d.getHours();
-  const minutes = d.getMinutes().toString().padStart(2, "0");
-  const ampm = hours >= 12 ? "PM" : "AM";
-  hours = hours % 12;
-  if (hours === 0) hours = 12;
-
-  return `${weekday}, ${month} ${day}, ${year} at ${hours}:${minutes} ${ampm}`;
+  return `${WEEKDAYS_LONG[d.getDay()]}, ${MONTHS_LONG[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()} at ${formatClock(d)}`;
 }
 
 /** Entries that fall on the given calendar day, newest first. */
@@ -86,28 +80,37 @@ export function entriesForDay<T extends { createdAt: number }>(
     .sort((a, b) => b.createdAt - a.createdAt);
 }
 
-/** Days to show in the horizontal strip (centered on the selected day). */
-export function stripDays(centerTs: number, radius = 30): number[] {
-  const center = startOfDay(centerTs);
-  const days: number[] = [];
+/** Entries in the given month, newest first. */
+export function entriesForMonth<T extends { createdAt: number }>(
+  entries: T[],
+  monthTs: number
+): T[] {
+  const start = startOfMonth(monthTs);
+  const end = addMonths(monthTs, 1);
 
-  for (let offset = -radius; offset <= radius; offset += 1) {
-    days.push(center + offset * DAY_MS);
-  }
-
-  return days;
-}
-
-export function startOfMonth(ts: number): number {
-  const d = new Date(startOfDay(ts));
-  d.setDate(1);
-  return d.getTime();
+  return entries
+    .filter((entry) => entry.createdAt >= start && entry.createdAt < end)
+    .sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export function addMonths(ts: number, months: number): number {
   const d = new Date(startOfMonth(ts));
   d.setMonth(d.getMonth() + months);
   return d.getTime();
+}
+
+/** Month starts between two timestamps, oldest first. */
+export function monthsBetween(aTs: number, bTs: number): number[] {
+  const end = startOfMonth(Math.max(aTs, bTs));
+  const months: number[] = [];
+  let cursor = startOfMonth(Math.min(aTs, bTs));
+
+  while (cursor <= end) {
+    months.push(cursor);
+    cursor = addMonths(cursor, 1);
+  }
+
+  return months;
 }
 
 export function formatMonthYear(ts: number): string {

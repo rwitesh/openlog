@@ -11,22 +11,18 @@ export interface Theme {
   fontSize: typeof FONT_SIZE;
   typography: typeof typography;
   spacing: typeof space;
-  /** Width of the timeline gutter (dot + line live in this fixed column). */
-  gutter: number;
-  radius: {
-    sm: number;
-    md: number;
-    lg: number;
-  };
+  radius: typeof radius;
 }
+
+/** Corner radius scale — cards, sheets, images. */
+export const radius = { sm: 8, md: 12, lg: 20 } as const;
 
 const base = {
   font: FONT,
   fontSize: FONT_SIZE,
   typography,
   spacing: space,
-  gutter: 44,
-  radius: { sm: 8, md: 14, lg: 22 },
+  radius,
 };
 
 export const lightTheme: Theme = { ...base, mode: "light", colors: lightColors };

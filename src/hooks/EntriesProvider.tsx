@@ -19,8 +19,6 @@ import type { Entry } from "@/types/entry";
 
 export interface EntriesContextValue {
   entries: Entry[];
-  loading: boolean;
-  refresh: () => Promise<void>;
   addEntry: (input: NewEntryInput) => Promise<Entry>;
   removeEntry: (id: string) => Promise<void>;
   clearAll: () => Promise<string[]>;
@@ -33,17 +31,10 @@ export const EntriesContext = createContext<EntriesContextValue | null>(null);
 /** Single source of truth for timeline entries. */
 export function EntriesProvider({ children }: { children: ReactNode }) {
   const [entries, setEntries] = useState<Entry[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const refresh = useCallback(async () => {
-    const data = await getEntries();
-    setEntries(data);
-    setLoading(false);
-  }, []);
 
   useEffect(() => {
-    refresh();
-  }, [refresh]);
+    getEntries().then(setEntries);
+  }, []);
 
   const addEntry = useCallback(async (input: NewEntryInput) => {
     const entry = await createEntry(input);
@@ -73,8 +64,6 @@ export function EntriesProvider({ children }: { children: ReactNode }) {
     <EntriesContext.Provider
       value={{
         entries,
-        loading,
-        refresh,
         addEntry,
         removeEntry,
         clearAll,

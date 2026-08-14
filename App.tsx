@@ -10,8 +10,11 @@ import { useTheme } from "@/hooks/useTheme";
 import { useAppBootstrap } from "@/hooks/useAppBootstrap";
 import { EntriesProvider } from "@/hooks/EntriesProvider";
 import { FONT } from "@/theme/typography";
+import type { ThemeColors } from "@/theme/colors";
 import type { RootStackParamList } from "@/types/navigation";
 import { TimelineScreen } from "@/screens/timeline";
+import { DayScreen } from "@/screens/day";
+import { ComposeScreen } from "@/screens/compose";
 import { SettingsScreen } from "@/screens/settings";
 import { logDevWarning } from "@/lib";
 
@@ -21,15 +24,7 @@ SplashScreen.preventAutoHideAsync().catch((error) => {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-function makeNavTheme(
-  mode: "light" | "dark",
-  colors: {
-    background: string;
-    text: string;
-    separator: string;
-    destructive: string;
-  }
-): NavTheme {
+function makeNavTheme(mode: "light" | "dark", colors: ThemeColors): NavTheme {
   return {
     dark: mode === "dark",
     fonts: {
@@ -54,29 +49,47 @@ function AppContent() {
 
   return (
     <NavigationContainer theme={makeNavTheme(resolvedMode, theme.colors)}>
-      <StatusBar style={resolvedMode === "dark" ? "light" : "dark"} />
-      <Stack.Navigator
-        screenOptions={{
-          contentStyle: { backgroundColor: theme.colors.background },
-          animation: "slide_from_right",
-        }}
-      >
-        <Stack.Screen
-          name="Timeline"
-          component={TimelineScreen}
-          options={{ headerShown: false }}
-        />
-        <Stack.Screen
-          name="Settings"
-          component={SettingsScreen}
-          options={{
-            title: "Settings",
-            headerBackTitle: "Back",
-            headerShadowVisible: false,
-          }}
-        />
-      </Stack.Navigator>
-    </NavigationContainer>
+       <StatusBar style={resolvedMode === "dark" ? "light" : "dark"} />
+       <Stack.Navigator
+         screenOptions={{
+           contentStyle: { backgroundColor: theme.colors.background },
+           animation: "slide_from_right",
+         }}
+       >
+         <Stack.Screen
+           name="Timeline"
+           component={TimelineScreen}
+           options={{ headerShown: false }}
+         />
+         <Stack.Screen
+           name="Day"
+           component={DayScreen}
+           options={{
+             headerBackTitle: "Back",
+             headerShadowVisible: false,
+           }}
+         />
+         <Stack.Screen
+           name="Compose"
+           component={ComposeScreen}
+           options={{
+             title: "New entry",
+             headerBackTitle: "Back",
+             headerShadowVisible: false,
+             contentStyle: { flex: 1 },
+           }}
+         />
+         <Stack.Screen
+           name="Settings"
+           component={SettingsScreen}
+           options={{
+             title: "Settings",
+             headerBackTitle: "Back",
+             headerShadowVisible: false,
+           }}
+         />
+       </Stack.Navigator>
+      </NavigationContainer>
   );
 }
 

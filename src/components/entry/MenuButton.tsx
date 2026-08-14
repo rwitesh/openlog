@@ -2,7 +2,8 @@ import { Pressable, StyleSheet } from "react-native";
 import { Feather } from "@expo/vector-icons";
 
 import { useTheme } from "@/hooks/useTheme";
-import { space } from "@/theme/spacing";
+import { metrics, space } from "@/theme/spacing";
+import { press } from "@/theme/motion";
 
 interface MenuButtonProps {
   onPress: () => void;
@@ -16,22 +17,19 @@ export function MenuButton({ onPress }: MenuButtonProps) {
     <Pressable
       onPress={onPress}
       hitSlop={space.md}
-      style={({ pressed }) => [styles.btn, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.btn, pressed && press]}
       accessibilityLabel="Options"
     >
-      <Feather name="more-vertical" size={17} color={colors.textTertiary} />
+      <Feather name="more-vertical" size={metrics.iconSm} color={colors.textTertiary} />
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   btn: {
-    width: 28,
-    height: 28,
+    width: metrics.btnSm,
+    height: metrics.btnSm,
     alignItems: "center",
     justifyContent: "center",
-  },
-  pressed: {
-    opacity: 0.5,
   },
 });

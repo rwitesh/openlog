@@ -1,4 +1,5 @@
 export * from "./dates";
+export * from "./timeline";
 export * from "./duration";
 export * from "./storage";
 export * from "./devLog";

@@ -1,93 +1,96 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
 import { type NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import type { RootStackParamList } from "@/types/navigation";
 import { useEntries } from "@/hooks/useEntries";
-import { fromComposer, isSameDay, startOfDay, type ComposerResult } from "@/lib";
+import { Timeline } from "@/components/core";
+import {
+  entriesForMonth,
+  formatMonthYear,
+  isSameMonth,
+  startOfDay,
+  startOfMonth,
+} from "@/lib";
 import {
   AddButton,
   FAB_CLEARANCE,
   CalendarModal,
+  MonthPicker,
   TimelineHeader,
-  TimelineList,
-  type TimelineListHandle,
 } from "@/components/timeline";
-import { Composer } from "@/components/entry";
 
 type TimelineNav = NativeStackNavigationProp<RootStackParamList, "Timeline">;
 
 export function TimelineScreen({ navigation }: { navigation: TimelineNav }) {
   const insets = useSafeAreaInsets();
-  const { entries, addEntry } = useEntries();
-  const listRef = useRef<TimelineListHandle>(null);
+  const { entries } = useEntries();
 
-  const [selectedDate, setSelectedDate] = useState(() => startOfDay(Date.now()));
+  const [viewMonth, setViewMonth] = useState(() => startOfMonth(Date.now()));
+  const [monthPickerOpen, setMonthPickerOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const [composerOpen, setComposerOpen] = useState(false);
   const [headerHeight, setHeaderHeight] = useState(0);
 
-  const isToday = isSameDay(selectedDate, Date.now());
-  const bottomInset = isToday ? FAB_CLEARANCE + insets.bottom : insets.bottom;
-
-  const handleSave = useCallback(
-    async (result: ComposerResult) => {
-      const input = await fromComposer(result);
-      if (!input) return;
-
-      await addEntry(input);
-      setSelectedDate(startOfDay(Date.now()));
-      requestAnimationFrame(() => listRef.current?.scrollToTop());
-    },
-    [addEntry]
+  const isCurrentMonth = isSameMonth(viewMonth, Date.now());
+  const monthEntries = useMemo(
+    () => entriesForMonth(entries, viewMonth),
+    [entries, viewMonth]
+  );
+  const entryMonths = useMemo(
+    () => new Set(entries.map((entry) => startOfMonth(entry.createdAt))),
+    [entries]
   );
 
-  const openCalendar = () => setCalendarOpen(true);
-
-  const selectDate = (ts: number) => {
-    setSelectedDate(startOfDay(ts));
-  };
-
-  useFocusEffect(
-    useCallback(() => {
-      requestAnimationFrame(() => listRef.current?.scrollToTop());
-    }, [selectedDate])
+  const openDay = useCallback(
+    (ts: number) => navigation.navigate("Day", { dayTs: startOfDay(ts) }),
+    [navigation]
   );
 
   return (
     <View style={styles.flex}>
       <TimelineHeader
-        selectedDate={selectedDate}
-        onSelectDate={selectDate}
-        onOpenCalendar={openCalendar}
+        viewMonth={viewMonth}
+        onOpenMonthPicker={() => setMonthPickerOpen(true)}
+        onOpenCalendar={() => setCalendarOpen(true)}
         onOpenSettings={() => navigation.navigate("Settings")}
         onLayout={setHeaderHeight}
       />
 
-      <TimelineList
-        ref={listRef}
-        entries={entries}
-        selectedDate={selectedDate}
-        headerHeight={headerHeight}
-        bottomInset={bottomInset}
+      <Timeline
+        entries={monthEntries}
+        showDates
+        paddingTop={headerHeight}
+        bottomInset={isCurrentMonth ? FAB_CLEARANCE + insets.bottom : insets.bottom}
+        emptyTitle="A quiet month"
+        emptyBody={
+          isCurrentMonth
+            ? "Tap + to write, or open the calendar."
+            : `Nothing written in ${formatMonthYear(viewMonth).toLowerCase()}.`
+        }
+        animateFirst={isCurrentMonth}
+        onOpenDay={openDay}
       />
 
-      {isToday ? <AddButton onPress={() => setComposerOpen(true)} /> : null}
+      {isCurrentMonth ? (
+        <AddButton onPress={() => navigation.navigate("Compose")} />
+      ) : null}
+
+      <MonthPicker
+        visible={monthPickerOpen}
+        selectedMonth={viewMonth}
+        top={headerHeight}
+        entryMonths={entryMonths}
+        onSelect={setViewMonth}
+        onClose={() => setMonthPickerOpen(false)}
+      />
 
       <CalendarModal
         visible={calendarOpen}
-        selectedDate={selectedDate}
+        selectedDate={startOfDay(Date.now())}
         entries={entries}
-        onSelectDate={selectDate}
+        onSelectDate={openDay}
         onClose={() => setCalendarOpen(false)}
-      />
-
-      <Composer
-        visible={composerOpen}
-        onClose={() => setComposerOpen(false)}
-        onSave={handleSave}
       />
     </View>
   );

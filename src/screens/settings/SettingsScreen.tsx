@@ -5,6 +5,7 @@ import type { ThemeMode } from "@/types/entry";
 import { useTheme } from "@/hooks/useTheme";
 import { useEntries } from "@/hooks/useEntries";
 import { space } from "@/theme/spacing";
+import { press } from "@/theme/motion";
 import { typography } from "@/theme/typography";
 import { deleteMediaList } from "@/lib";
 import { ThemedText } from "@/components/core";
@@ -16,46 +17,38 @@ const APPEARANCE: { mode: ThemeMode; label: string }[] = [
   { mode: "dark", label: "Dark" },
 ];
 
+function confirmDestructive(
+  title: string,
+  message: string,
+  confirmLabel: string,
+  onConfirm: () => Promise<void>
+) {
+  Alert.alert(title, message, [
+    { text: "Cancel", style: "cancel" },
+    { text: confirmLabel, style: "destructive", onPress: () => void onConfirm() },
+  ]);
+}
+
 export function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { theme, mode, setMode } = useTheme();
   const { clearAll, resetDb } = useEntries();
 
-  const confirmDeleteEntries = () => {
-    Alert.alert(
+  const confirmDeleteEntries = () =>
+    confirmDestructive(
       "Delete all entries?",
       "This permanently removes every entry and its attached media. This cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            const uris = await clearAll();
-            await deleteMediaList(uris);
-          },
-        },
-      ]
+      "Delete",
+      async () => deleteMediaList(await clearAll())
     );
-  };
 
-  const confirmResetDatabase = () => {
-    Alert.alert(
+  const confirmResetDatabase = () =>
+    confirmDestructive(
       "Reset database?",
       "Drops and recreates the local database tables. Use this if the schema changed or data looks corrupted. All entries and media will be removed.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Reset",
-          style: "destructive",
-          onPress: async () => {
-            const uris = await resetDb();
-            await deleteMediaList(uris);
-          },
-        },
-      ]
+      "Reset",
+      async () => deleteMediaList(await resetDb())
     );
-  };
 
   return (
     <ScrollView
@@ -67,7 +60,7 @@ export function SettingsScreen() {
           <Pressable
             key={option.mode}
             onPress={() => setMode(option.mode)}
-            style={({ pressed }) => [styles.row, pressed && { opacity: 0.5 }]}
+            style={({ pressed }) => [styles.row, pressed && press]}
           >
             <ThemedText style={[typography.settingLabel, { color: theme.colors.text }]}>
               {option.label}
@@ -90,7 +83,7 @@ export function SettingsScreen() {
       <Section title="Data">
         <Pressable
           onPress={confirmDeleteEntries}
-          style={({ pressed }) => [styles.row, pressed && { opacity: 0.5 }]}
+          style={({ pressed }) => [styles.row, pressed && press]}
         >
           <ThemedText style={[typography.settingLabel, { color: theme.colors.destructive }]}>
             Delete all entries
@@ -99,7 +92,7 @@ export function SettingsScreen() {
 
         <Pressable
           onPress={confirmResetDatabase}
-          style={({ pressed }) => [styles.row, pressed && { opacity: 0.5 }]}
+          style={({ pressed }) => [styles.row, pressed && press]}
         >
           <ThemedText style={[typography.settingLabel, { color: theme.colors.destructive }]}>
             Reset database

@@ -1,16 +1,12 @@
-import { useEffect } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import {
-  setAudioModeAsync,
-  useAudioPlayer,
-  useAudioPlayerStatus,
-} from "expo-audio";
 import { Feather } from "@expo/vector-icons";
 
 import { useTheme } from "@/hooks/useTheme";
 import { metrics, space } from "@/theme/spacing";
+import { radius } from "@/theme/theme";
+import { press } from "@/theme/motion";
 import { typography } from "@/theme/typography";
-import { clampRatio, formatDurationMs, PLAYBACK_POLL_MS } from "@/lib";
+import { usePlayback } from "@/lib";
 import { ThemedText } from "@/components/core/ui";
 import { AudioWaveform } from "./AudioWaveform";
 
@@ -22,45 +18,18 @@ interface DraftPreviewProps {
 }
 
 /** Inline preview of a recorded voice note inside the composer. */
-export function DraftPreview({
-  uri,
-  durationMs,
-  levels,
-  onRemove,
-}: DraftPreviewProps) {
-  const { theme } = useTheme();
-  const { colors } = theme;
-  const player = useAudioPlayer(uri, { updateInterval: PLAYBACK_POLL_MS });
-  const status = useAudioPlayerStatus(player);
-
-  useEffect(() => {
-    setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
-  }, []);
-
-  const totalMs = durationMs || Math.round((status.duration || 0) * 1000);
-  const currentMs = Math.round((status.currentTime || 0) * 1000);
-  const progress = totalMs > 0 ? clampRatio(currentMs / totalMs) : 0;
-  const isPlaying = status.playing;
-
-  const togglePlayback = () => {
-    if (!status.isLoaded) return;
-    if (isPlaying) player.pause();
-    else player.play();
-  };
-
-  const timeLabel =
-    isPlaying || currentMs > 0
-      ? `${formatDurationMs(currentMs)} / ${formatDurationMs(totalMs)}`
-      : formatDurationMs(totalMs);
+export function DraftPreview({ uri, durationMs, levels, onRemove }: DraftPreviewProps) {
+  const { colors } = useTheme().theme;
+  const { progress, isPlaying, toggle, timeLabel } = usePlayback(uri, durationMs);
 
   return (
     <View style={[styles.wrap, { backgroundColor: colors.surfaceMuted }]}>
       <Pressable
-        onPress={togglePlayback}
+        onPress={toggle}
         style={({ pressed }) => [
           styles.playBtn,
           { backgroundColor: colors.marker },
-          pressed && styles.pressed,
+          pressed && press,
         ]}
         accessibilityLabel={isPlaying ? "Pause preview" : "Play preview"}
       >
@@ -81,10 +50,10 @@ export function DraftPreview({
       <Pressable
         onPress={onRemove}
         hitSlop={space.sm}
-        style={({ pressed }) => [styles.removeBtn, pressed && styles.pressed]}
+        style={({ pressed }) => [styles.removeBtn, pressed && press]}
         accessibilityLabel="Remove voice note"
       >
-        <Feather name="x" size={16} color={colors.textTertiary} />
+        <Feather name="x" size={metrics.iconSm} color={colors.textTertiary} />
       </Pressable>
     </View>
   );
@@ -95,7 +64,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: space.md,
-    borderRadius: space.md,
+    borderRadius: radius.md,
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
     marginBottom: space.md,
@@ -113,12 +82,9 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   removeBtn: {
-    width: 28,
-    height: 28,
+    width: metrics.btnSm,
+    height: metrics.btnSm,
     alignItems: "center",
     justifyContent: "center",
-  },
-  pressed: {
-    opacity: 0.65,
   },
 });

@@ -7,4 +7,5 @@ export {
   WAVEFORM_BAR_COUNT,
 } from "./constants";
 export { useRecording } from "./useRecording";
+export { usePlayback } from "./playback";
 export { liveWaveformLevels, meteringToLevel, waveformHeights } from "./waveform";

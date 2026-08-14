@@ -5,6 +5,9 @@ import { Feather } from "@expo/vector-icons";
 import type { Entry } from "@/types/entry";
 import { useTheme } from "@/hooks/useTheme";
 import { metrics, space } from "@/theme/spacing";
+import { radius } from "@/theme/theme";
+import { press } from "@/theme/motion";
+import { FONT_SIZE } from "@/theme/typography";
 import {
   addMonths,
   calendarCells,
@@ -13,7 +16,7 @@ import {
   isSameDay,
   startOfMonth,
 } from "@/lib";
-import { BottomSheet, ThemedText } from "@/components/core";
+import { Sheet, ThemedText } from "@/components/core";
 
 const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
 const CELL_GAP = space.sm;
@@ -49,7 +52,7 @@ function CalendarDay({
           styles.cell,
           selected && { backgroundColor: colors.marker },
           !selected && today && { borderColor: colors.marker, borderWidth: 1 },
-          pressed && styles.pressed,
+          pressed && press,
         ]}
         accessibilityLabel={new Date(dayTs).toDateString()}
         accessibilityState={{ selected }}
@@ -97,12 +100,12 @@ export function CalendarModal({
   };
 
   return (
-    <BottomSheet visible={visible} onClose={onClose} variant="center" animationType="fade">
+    <Sheet visible={visible} onClose={onClose} placement="center" animationType="fade">
       <View style={styles.monthRow}>
         <Pressable
           onPress={() => setViewMonth(addMonths(viewMonth, -1))}
           hitSlop={space.md}
-          style={({ pressed }) => [styles.navBtn, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.navBtn, pressed && press]}
           accessibilityLabel="Previous month"
         >
           <Feather name="chevron-left" size={metrics.iconMd} color={colors.textSecondary} />
@@ -115,7 +118,7 @@ export function CalendarModal({
         <Pressable
           onPress={() => setViewMonth(addMonths(viewMonth, 1))}
           hitSlop={space.md}
-          style={({ pressed }) => [styles.navBtn, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.navBtn, pressed && press]}
           accessibilityLabel="Next month"
         >
           <Feather name="chevron-right" size={metrics.iconMd} color={colors.textSecondary} />
@@ -154,7 +157,7 @@ export function CalendarModal({
           );
         })}
       </View>
-    </BottomSheet>
+    </Sheet>
   );
 }
 
@@ -166,13 +169,13 @@ const styles = StyleSheet.create({
     marginBottom: space.md,
   },
   navBtn: {
-    width: 36,
-    height: 36,
+    width: metrics.btnMd,
+    height: metrics.btnMd,
     alignItems: "center",
     justifyContent: "center",
   },
   monthLabel: {
-    fontSize: 17,
+    fontSize: FONT_SIZE.xl,
     lineHeight: 22,
   },
   weekdayRow: {
@@ -181,7 +184,7 @@ const styles = StyleSheet.create({
   },
   weekday: {
     textAlign: "center",
-    fontSize: 11,
+    fontSize: FONT_SIZE.xs,
     lineHeight: 14,
   },
   grid: {
@@ -197,10 +200,10 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: space.md,
+    borderRadius: radius.md,
   },
   dayNum: {
-    fontSize: 15,
+    fontSize: FONT_SIZE.lg,
     lineHeight: 20,
   },
   dot: {
@@ -209,8 +212,5 @@ const styles = StyleSheet.create({
     width: 4,
     height: 4,
     borderRadius: 2,
-  },
-  pressed: {
-    opacity: 0.65,
   },
 });

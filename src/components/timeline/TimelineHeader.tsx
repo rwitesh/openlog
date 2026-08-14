@@ -1,25 +1,25 @@
-import { Pressable, StyleSheet, View, type LayoutChangeEvent } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTheme } from "@/hooks/useTheme";
 import { metrics, space } from "@/theme/spacing";
+import { press } from "@/theme/motion";
 import { typography } from "@/theme/typography";
-import { formatHeaderDate } from "@/lib";
+import { formatMonthYear } from "@/lib";
 import { ThemedText } from "@/components/core";
-import { DateStrip } from "./DateStrip";
 
 interface TimelineHeaderProps {
-  selectedDate: number;
-  onSelectDate: (ts: number) => void;
+  viewMonth: number;
+  onOpenMonthPicker: () => void;
   onOpenCalendar: () => void;
   onOpenSettings: () => void;
   onLayout: (height: number) => void;
 }
 
 export function TimelineHeader({
-  selectedDate,
-  onSelectDate,
+  viewMonth,
+  onOpenMonthPicker,
   onOpenCalendar,
   onOpenSettings,
   onLayout,
@@ -27,6 +27,7 @@ export function TimelineHeader({
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const { colors } = theme;
+  const label = formatMonthYear(viewMonth);
 
   return (
     <View
@@ -41,36 +42,46 @@ export function TimelineHeader({
     >
       <View style={styles.row}>
         <Pressable
-          onPress={onOpenCalendar}
-          style={({ pressed }) => [styles.titleBtn, pressed && styles.pressed]}
-          accessibilityLabel={formatHeaderDate(selectedDate)}
+          onPress={onOpenMonthPicker}
+          style={({ pressed }) => [styles.titleBtn, pressed && press]}
+          accessibilityLabel={`Month ${label}, pick another month`}
         >
           <ThemedText
             weight="semibold"
             style={[typography.headerDate, styles.title, { color: colors.text }]}
           >
-            {formatHeaderDate(selectedDate)}
+            {label}
           </ThemedText>
           <Feather
             name="chevron-down"
-            size={14}
+            size={metrics.iconXs}
             color={colors.textSecondary}
             style={styles.titleChevron}
           />
         </Pressable>
 
-        <Pressable
-          onPress={onOpenSettings}
-          hitSlop={space.md}
-          style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
-          accessibilityLabel="Settings"
-          accessibilityRole="button"
-        >
-          <Feather name="settings" size={18} color={colors.textSecondary} />
-        </Pressable>
-      </View>
+        <View style={styles.actions}>
+          <Pressable
+            onPress={onOpenCalendar}
+            hitSlop={space.md}
+            style={({ pressed }) => [styles.iconBtn, pressed && press]}
+            accessibilityLabel="Calendar"
+            accessibilityRole="button"
+          >
+            <Feather name="calendar" size={metrics.iconMd} color={colors.textSecondary} />
+          </Pressable>
 
-      <DateStrip selectedDate={selectedDate} onSelectDate={onSelectDate} />
+          <Pressable
+            onPress={onOpenSettings}
+            hitSlop={space.md}
+            style={({ pressed }) => [styles.iconBtn, pressed && press]}
+            accessibilityLabel="Settings"
+            accessibilityRole="button"
+          >
+            <Feather name="settings" size={metrics.iconMd} color={colors.textSecondary} />
+          </Pressable>
+        </View>
+      </View>
     </View>
   );
 }
@@ -90,7 +101,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: space.lg,
-    marginBottom: space.sm,
+    gap: space.sm,
   },
   titleBtn: {
     flexDirection: "row",
@@ -103,13 +114,15 @@ const styles = StyleSheet.create({
   titleChevron: {
     marginTop: 1,
   },
+  actions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.xs,
+  },
   iconBtn: {
-    width: 34,
-    height: 34,
+    width: metrics.btnMd,
+    height: metrics.btnMd,
     alignItems: "center",
     justifyContent: "center",
-  },
-  pressed: {
-    opacity: 0.5,
   },
 });
