@@ -50,7 +50,8 @@ export function Timeline({ navigation }: { navigation: Nav }) {
   return (
     <View style={styles.flex}>
       <TimelineHeader
-        onOpenMonthPicker={() => setMonthPickerOpen(true)}
+        selectedMonth={viewMonth}
+        onOpenMonth={() => navigation.navigate("Memory", { monthTs: viewMonth })}
         onOpenCalendar={() => setDayPickerOpen(true)}
         onOpenSettings={() => navigation.navigate("Settings")}
         onLayout={setHeaderHeight}

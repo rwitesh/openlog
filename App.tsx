@@ -13,6 +13,7 @@ import { FONT } from "@/theme/typography";
 import type { ThemeColors } from "@/theme/colors";
 import type { RootStackParamList } from "@/types/navigation";
 import { Timeline } from "@/screens/timeline";
+import { Memory } from "@/screens/memory";
 import { Welcome } from "@/screens/welcome";
 import { Day } from "@/screens/day";
 import { Compose } from "@/screens/compose";
@@ -50,53 +51,63 @@ function AppContent({ showWelcome }: { showWelcome: boolean }) {
   const { theme, resolvedMode } = useTheme();
 
   return (
-    <NavigationContainer theme={makeNavTheme(resolvedMode, theme.colors)}>
-       <StatusBar style={resolvedMode === "dark" ? "light" : "dark"} />
-       <Stack.Navigator
-         initialRouteName={showWelcome ? "Welcome" : "Timeline"}
-         screenOptions={{
-           contentStyle: { backgroundColor: theme.colors.background },
-           animation: "slide_from_right",
-         }}
-       >
-         <Stack.Screen
-           name="Welcome"
-           component={Welcome}
-           options={{ headerShown: false }}
-         />
-         <Stack.Screen
-           name="Timeline"
-           component={Timeline}
-           options={{ headerShown: false }}
-         />
-         <Stack.Screen
-           name="Day"
-           component={Day}
-           options={{
-             headerBackTitle: "Back",
-             headerShadowVisible: false,
-           }}
-         />
-         <Stack.Screen
-           name="Compose"
-           component={Compose}
-           options={{
-             headerBackTitle: "Back",
-             headerShadowVisible: false,
-             contentStyle: { flex: 1 },
-           }}
-         />
-         <Stack.Screen
-           name="Settings"
-           component={Settings}
-           options={{
-             title: "Settings",
-             headerBackTitle: "Back",
-             headerShadowVisible: false,
-           }}
-         />
-       </Stack.Navigator>
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+      <NavigationContainer theme={makeNavTheme(resolvedMode, theme.colors)}>
+        <StatusBar style={resolvedMode === "dark" ? "light" : "dark"} />
+        <Stack.Navigator
+          initialRouteName={showWelcome ? "Welcome" : "Timeline"}
+          screenOptions={{
+            contentStyle: { backgroundColor: theme.colors.background },
+            animation: "slide_from_right",
+          }}
+        >
+          <Stack.Screen
+            name="Welcome"
+            component={Welcome}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="Timeline"
+            component={Timeline}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="Memory"
+            component={Memory}
+            options={{
+              headerShown: false,
+              animation: "slide_from_right",
+            }}
+          />
+          <Stack.Screen
+            name="Day"
+            component={Day}
+            options={{
+              headerBackTitle: "Back",
+              headerShadowVisible: false,
+            }}
+          />
+          <Stack.Screen
+            name="Compose"
+            component={Compose}
+            options={{
+              headerBackTitle: "Back",
+              headerShadowVisible: false,
+              contentStyle: { flex: 1 },
+            }}
+          />
+          <Stack.Screen
+            name="Settings"
+            component={Settings}
+            options={{
+              title: "Settings",
+              headerBackTitle: "Back",
+              headerShadowVisible: false,
+            }}
+          />
+        </Stack.Navigator>
       </NavigationContainer>
+    </View>
   );
 }
 

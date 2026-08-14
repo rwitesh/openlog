@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Animated, Easing, StyleSheet, View } from "react-native";
+import type { ThemeColors } from "@/theme/colors";
 
 const CLOUDS = [
   {
@@ -7,8 +8,8 @@ const CLOUDS = [
     height: 120,
     top: -36,
     left: -48,
-    light: "rgba(255, 255, 255, 0.92)",
-    dark: "rgba(255, 255, 255, 0.09)",
+    opacityLight: 0.92,
+    opacityDark: 0.09,
     drift: [0, 10] as const,
   },
   {
@@ -16,8 +17,8 @@ const CLOUDS = [
     height: 90,
     top: 8,
     right: -20,
-    light: "rgba(255, 255, 255, 0.6)",
-    dark: "rgba(233, 230, 221, 0.06)",
+    opacityLight: 0.6,
+    opacityDark: 0.06,
     drift: [0, -8] as const,
   },
   {
@@ -25,13 +26,18 @@ const CLOUDS = [
     height: 70,
     top: 52,
     left: 96,
-    light: "rgba(255, 255, 255, 0.38)",
-    dark: "rgba(255, 255, 255, 0.04)",
+    opacityLight: 0.38,
+    opacityDark: 0.04,
     drift: null,
   },
 ] as const;
 
-export function CloudLayer({ dark }: { dark: boolean }) {
+interface CloudLayerProps {
+  dark: boolean;
+  colors?: ThemeColors;
+}
+
+export function CloudLayer({ dark, colors }: CloudLayerProps) {
   const drift = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -58,13 +64,19 @@ export function CloudLayer({ dark }: { dark: boolean }) {
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       {CLOUDS.map((cloud) => {
+        const bg = dark
+          ? colors?.surfaceMuted ?? "rgb(255, 255, 255)"
+          : colors?.surface ?? "rgb(255, 255, 255)";
+        const opacity = dark ? cloud.opacityDark : cloud.opacityLight;
+
         const baseStyle = {
           width: cloud.width,
           height: cloud.height,
           top: cloud.top,
           left: "left" in cloud ? cloud.left : undefined,
           right: "right" in cloud ? cloud.right : undefined,
-          backgroundColor: dark ? cloud.dark : cloud.light,
+          backgroundColor: bg,
+          opacity,
         };
 
         if (!cloud.drift) {

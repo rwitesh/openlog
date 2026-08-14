@@ -13,13 +13,17 @@ import { MonthChip } from "./MonthChip";
 import { useStaggeredEntrance } from "./useStaggeredEntrance";
 
 interface TimelineHeaderProps {
-  onOpenMonthPicker: () => void;
+  selectedMonth?: number;
+  onOpenMonth?: () => void;
+  onOpenMonthPicker?: () => void;
   onOpenCalendar: () => void;
   onOpenSettings: () => void;
   onLayout: (height: number) => void;
 }
 
 export function TimelineHeader({
+  selectedMonth,
+  onOpenMonth,
   onOpenMonthPicker,
   onOpenCalendar,
   onOpenSettings,
@@ -33,7 +37,7 @@ export function TimelineHeader({
   const [greetingStyle, subtitleStyle, monthStyle] = useStaggeredEntrance([16, 12, 10]);
 
   const greeting = name ? `Hi, ${name}` : "Hi there";
-  const currentMonth = formatMonthYear(Date.now());
+  const currentMonth = formatMonthYear(selectedMonth ?? Date.now());
   const topInset = insets.top + space.lg;
 
   return (
@@ -57,14 +61,14 @@ export function TimelineHeader({
           <Animated.View style={greetingStyle}>
             <ThemedText
               weight="semibold"
-              style={[typography.headerGreeting, { color: colors.text }]}
+              style={[theme.typography.headerGreeting, { color: colors.text }]}
             >
               {greeting}
             </ThemedText>
           </Animated.View>
 
           <Animated.View style={[subtitleStyle, styles.subtitleWrap]}>
-            <ThemedText style={[typography.headerSubtitle, { color: colors.textSecondary }]}>
+            <ThemedText style={[theme.typography.headerSubtitle, { color: colors.textSecondary }]}>
               How&apos;s your day going so far?
             </ThemedText>
           </Animated.View>
@@ -74,7 +78,7 @@ export function TimelineHeader({
               label={currentMonth}
               dark={dark}
               colors={colors}
-              onPress={onOpenMonthPicker}
+              onPress={onOpenMonth ?? onOpenMonthPicker ?? (() => {})}
             />
           </Animated.View>
         </View>
