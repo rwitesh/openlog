@@ -11,7 +11,7 @@ import {
   Timeline as TimelineBody,
   TimelineHeader,
 } from "@/components/timeline";
-import { CalendarPicker, MonthPicker } from "@/components/core";
+import { CalendarPicker } from "@/components/core";
 import {
   entriesForMonth,
   formatMonthYear,
@@ -28,7 +28,6 @@ export function Timeline({ navigation }: { navigation: Nav }) {
   const { entries } = useEntries();
 
   const [viewMonth, setViewMonth] = useState(() => startOfMonth(Date.now()));
-  const [monthPickerOpen, setMonthPickerOpen] = useState(false);
   const [dayPickerOpen, setDayPickerOpen] = useState(false);
   const [headerHeight, setHeaderHeight] = useState(0);
 
@@ -36,10 +35,6 @@ export function Timeline({ navigation }: { navigation: Nav }) {
   const monthEntries = useMemo(
     () => entriesForMonth(entries, viewMonth),
     [entries, viewMonth]
-  );
-  const entryMonths = useMemo(
-    () => new Set(entries.map((entry) => startOfMonth(entry.createdAt))),
-    [entries]
   );
 
   const openDay = useCallback(
@@ -75,15 +70,6 @@ export function Timeline({ navigation }: { navigation: Nav }) {
       {isCurrentMonth ? (
         <AddButton onPress={() => navigation.navigate("Compose")} />
       ) : null}
-
-      <MonthPicker
-        visible={monthPickerOpen}
-        selectedMonth={viewMonth}
-        top={headerHeight}
-        entryMonths={entryMonths}
-        onSelect={setViewMonth}
-        onClose={() => setMonthPickerOpen(false)}
-      />
 
       <CalendarPicker
         visible={dayPickerOpen}

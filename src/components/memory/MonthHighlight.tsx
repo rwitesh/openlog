@@ -147,7 +147,7 @@ function MonthHighlightBase({ highlight, onPressDay }: MonthHighlightProps) {
           </View>
         ) : null}
 
-        <View style={styles.footerMeta}>
+        <View style={[styles.footerMeta, { borderTopColor: colors.separator }]}>
           <ThemedText style={[styles.metaText, { color: colors.textSecondary }]}>
             {timeText}
             {locationName ? ` · ${locationName}` : ""}
@@ -248,7 +248,6 @@ const styles = StyleSheet.create({
     marginTop: space.md,
     paddingTop: space.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "rgba(0, 0, 0, 0.05)",
   },
   metaText: {
     fontSize: 13,

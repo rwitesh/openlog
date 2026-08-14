@@ -15,7 +15,6 @@ import { useStaggeredEntrance } from "./useStaggeredEntrance";
 interface TimelineHeaderProps {
   selectedMonth?: number;
   onOpenMonth?: () => void;
-  onOpenMonthPicker?: () => void;
   onOpenCalendar: () => void;
   onOpenSettings: () => void;
   onLayout: (height: number) => void;
@@ -24,7 +23,6 @@ interface TimelineHeaderProps {
 export function TimelineHeader({
   selectedMonth,
   onOpenMonth,
-  onOpenMonthPicker,
   onOpenCalendar,
   onOpenSettings,
   onLayout,
@@ -78,7 +76,7 @@ export function TimelineHeader({
               label={currentMonth}
               dark={dark}
               colors={colors}
-              onPress={onOpenMonth ?? onOpenMonthPicker ?? (() => {})}
+              onPress={onOpenMonth ?? (() => {})}
             />
           </Animated.View>
         </View>

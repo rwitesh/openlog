@@ -184,7 +184,7 @@ export function Memory({ route, navigation }: Props) {
           </ScrollView>
         ) : (
           <View style={styles.timelineModeContainer}>
-            <View style={styles.timelineModeHeader}>
+            <View style={[styles.timelineModeHeader, { borderBottomColor: colors.separator }]}>
               <Pressable
                 onPress={() => setViewMode("snapshot")}
                 hitSlop={space.sm}
@@ -254,7 +254,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.lg,
     paddingVertical: space.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(0, 0, 0, 0.05)",
   },
   modeSwitchBtn: {
     flexDirection: "row",

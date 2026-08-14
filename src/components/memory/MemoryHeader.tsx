@@ -37,7 +37,16 @@ function MemoryHeaderBase({
   const dark = resolvedMode === "dark";
 
   return (
-    <View style={[styles.header, { paddingTop: insets.top + space.sm, backgroundColor: colors.background }]}>
+    <View
+      style={[
+        styles.header,
+        {
+          paddingTop: insets.top + space.sm,
+          backgroundColor: colors.background,
+          borderBottomColor: colors.separator,
+        },
+      ]}
+    >
       <View style={styles.contentRow}>
         <Pressable
           onPress={onBack}
@@ -120,7 +129,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.lg,
     paddingBottom: space.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(0, 0, 0, 0.06)",
     zIndex: 10,
   },
   contentRow: {

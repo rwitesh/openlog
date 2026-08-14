@@ -160,19 +160,31 @@ export function getMonthPulseData(entries: Entry[], monthTs: number): MonthPulse
   }
 
   let maxDayMoments = 0;
+  for (const info of dayMap.values()) {
+    if (info.momentCount > maxDayMoments) {
+      maxDayMoments = info.momentCount;
+    }
+  }
+
   const days: PulseDay[] = [];
 
   for (let day = 1; day <= daysInMonth; day++) {
     const dayTs = first + (day - 1) * DAY_MS;
     const info = dayMap.get(day);
     const count = info?.momentCount ?? 0;
-    if (count > maxDayMoments) maxDayMoments = count;
 
-    let heightFactor = 0.12; // baseline tick for quiet day
-    if (count === 1) heightFactor = 0.38;
-    else if (count === 2) heightFactor = 0.62;
-    else if (count === 3) heightFactor = 0.82;
-    else if (count >= 4) heightFactor = 1.0;
+    let heightFactor = 0.1; // baseline tick for quiet day
+    if (count > 0) {
+      if (maxDayMoments <= 1) {
+        heightFactor = 0.55;
+      } else if (maxDayMoments === 2) {
+        heightFactor = count === 1 ? 0.48 : 0.85;
+      } else {
+        // Sub-linear relative scaling to gracefully balance sparse and outlier days
+        const normalized = Math.sqrt(count) / Math.sqrt(maxDayMoments);
+        heightFactor = 0.28 + normalized * 0.72;
+      }
+    }
 
     days.push({
       dayNumber: day,
@@ -236,68 +248,4 @@ export function getHighlightMoment(
     dayTs: day,
     dateLabel,
   };
-}
-
-/** Find the previous and next months that contain entries. */
-export function getAdjacentMonthsWithEntries(
-  entries: Entry[],
-  currentMonthTs: number
-): { prevMonthTs: number | null; nextMonthTs: number | null } {
-  const current = startOfMonth(currentMonthTs);
-  const allMonths = Array.from(
-    new Set(entries.map((e) => startOfMonth(e.createdAt)))
-  ).sort((a, b) => a - b);
-
-  let prevMonthTs: number | null = null;
-  let nextMonthTs: number | null = null;
-
-  for (const m of allMonths) {
-    if (m < current) {
-      prevMonthTs = m;
-    } else if (m > current && nextMonthTs === null) {
-      nextMonthTs = m;
-      break;
-    }
-  }
-
-  return { prevMonthTs, nextMonthTs };
-}
-
-/** Filter criteria for search/find compatibility. */
-export interface MemorySearchFilter {
-  query?: string;
-  monthTs?: number;
-  hasPhotos?: boolean;
-  hasAudio?: boolean;
-  locationQuery?: string;
-}
-
-/** Filter entries matching query or metadata. */
-export function filterEntries(entries: Entry[], filter: MemorySearchFilter): Entry[] {
-  return entries.filter((entry) => {
-    if (filter.monthTs !== undefined && !isSameMonth(entry.createdAt, filter.monthTs)) {
-      return false;
-    }
-    if (filter.hasPhotos && (entry.type !== "image" || !entry.uris.length)) {
-      return false;
-    }
-    if (filter.hasAudio && entry.type !== "audio") {
-      return false;
-    }
-    if (filter.locationQuery) {
-      const loc = entry.location ? locationPlaceTitle(entry.location).toLowerCase() : "";
-      if (!loc.includes(filter.locationQuery.toLowerCase())) {
-        return false;
-      }
-    }
-    if (filter.query) {
-      const q = filter.query.toLowerCase();
-      const text = entry.text?.toLowerCase() ?? "";
-      const loc = entry.location?.name?.toLowerCase() ?? "";
-      if (!text.includes(q) && !loc.includes(q)) {
-        return false;
-      }
-    }
-    return true;
-  });
 }
