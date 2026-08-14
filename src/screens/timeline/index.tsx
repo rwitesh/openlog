@@ -5,7 +5,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import type { RootStackParamList } from "@/types/navigation";
 import { useEntries } from "@/hooks/useEntries";
-import { Timeline } from "@/components/core";
+import {
+  AddButton,
+  FAB_CLEARANCE,
+  Timeline as TimelineBody,
+  TimelineHeader,
+} from "@/components/timeline";
+import { CalendarPicker, MonthPicker } from "@/components/core";
 import {
   entriesForMonth,
   formatMonthYear,
@@ -13,23 +19,16 @@ import {
   startOfDay,
   startOfMonth,
 } from "@/lib";
-import {
-  AddButton,
-  FAB_CLEARANCE,
-  CalendarModal,
-  MonthPicker,
-  TimelineHeader,
-} from "@/components/timeline";
 
-type TimelineNav = NativeStackNavigationProp<RootStackParamList, "Timeline">;
+type Nav = NativeStackNavigationProp<RootStackParamList, "Timeline">;
 
-export function TimelineScreen({ navigation }: { navigation: TimelineNav }) {
+export function Timeline({ navigation }: { navigation: Nav }) {
   const insets = useSafeAreaInsets();
   const { entries } = useEntries();
 
   const [viewMonth, setViewMonth] = useState(() => startOfMonth(Date.now()));
   const [monthPickerOpen, setMonthPickerOpen] = useState(false);
-  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [dayPickerOpen, setDayPickerOpen] = useState(false);
   const [headerHeight, setHeaderHeight] = useState(0);
 
   const isCurrentMonth = isSameMonth(viewMonth, Date.now());
@@ -52,12 +51,12 @@ export function TimelineScreen({ navigation }: { navigation: TimelineNav }) {
       <TimelineHeader
         viewMonth={viewMonth}
         onOpenMonthPicker={() => setMonthPickerOpen(true)}
-        onOpenCalendar={() => setCalendarOpen(true)}
+        onOpenCalendar={() => setDayPickerOpen(true)}
         onOpenSettings={() => navigation.navigate("Settings")}
         onLayout={setHeaderHeight}
       />
 
-      <Timeline
+      <TimelineBody
         entries={monthEntries}
         showDates
         paddingTop={headerHeight}
@@ -85,12 +84,12 @@ export function TimelineScreen({ navigation }: { navigation: TimelineNav }) {
         onClose={() => setMonthPickerOpen(false)}
       />
 
-      <CalendarModal
-        visible={calendarOpen}
-        selectedDate={startOfDay(Date.now())}
+      <CalendarPicker
+        visible={dayPickerOpen}
+        selectedDate={Date.now()}
         entries={entries}
         onSelectDate={openDay}
-        onClose={() => setCalendarOpen(false)}
+        onClose={() => setDayPickerOpen(false)}
       />
     </View>
   );

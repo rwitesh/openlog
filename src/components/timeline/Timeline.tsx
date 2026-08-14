@@ -18,7 +18,6 @@ interface TimelineProps {
   emptyTitle: string;
   emptyBody: string;
   animateFirst?: boolean;
-  /** Opens a day when its date circle is tapped. */
   onOpenDay?: (dayTs: number) => void;
 }
 

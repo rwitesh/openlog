@@ -8,8 +8,7 @@ import { space } from "@/theme/spacing";
 import { press } from "@/theme/motion";
 import { typography } from "@/theme/typography";
 import { deleteMediaList } from "@/lib";
-import { ThemedText } from "@/components/core";
-import { Section } from "@/components/settings";
+import { Section, ThemedText } from "@/components/core";
 
 const APPEARANCE: { mode: ThemeMode; label: string }[] = [
   { mode: "system", label: "System" },
@@ -29,7 +28,7 @@ function confirmDestructive(
   ]);
 }
 
-export function SettingsScreen() {
+export function Settings() {
   const insets = useSafeAreaInsets();
   const { theme, mode, setMode } = useTheme();
   const { clearAll, resetDb } = useEntries();

@@ -5,14 +5,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import type { RootStackParamList } from "@/types/navigation";
 import { useEntries } from "@/hooks/useEntries";
-import { Timeline } from "@/components/core";
+import { AddButton, FAB_CLEARANCE, Timeline } from "@/components/timeline";
 import { entriesForDay, formatHeaderDate, isSameDay } from "@/lib";
-import { AddButton, FAB_CLEARANCE } from "@/components/timeline";
 import { space } from "@/theme/spacing";
 
-type DayProps = NativeStackScreenProps<RootStackParamList, "Day">;
+type Props = NativeStackScreenProps<RootStackParamList, "Day">;
 
-export function DayScreen({ route, navigation }: DayProps) {
+export function Day({ route, navigation }: Props) {
   const { dayTs } = route.params;
   const insets = useSafeAreaInsets();
   const { entries } = useEntries();

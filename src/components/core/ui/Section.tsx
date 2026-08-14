@@ -4,7 +4,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { space } from "@/theme/spacing";
 import { radius } from "@/theme/theme";
 import { FONT_SIZE } from "@/theme/typography";
-import { ThemedText } from "@/components/core";
+import { ThemedText } from "./ThemedText";
 
 interface SectionProps extends ViewProps {
   title: string;

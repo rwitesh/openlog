@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Pressable, StyleSheet, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { Image } from "expo-image";
 import { Feather } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
@@ -13,19 +13,25 @@ import { radius } from "@/theme/theme";
 import { press } from "@/theme/motion";
 import { typography } from "@/theme/typography";
 import { canSaveComposer, fromComposer, useRecording } from "@/lib";
+import { formatComposeDate, formatComposeTime, withTimeOfDay } from "@/lib/dates";
 import { KeyboardLayout, useKeepKeyboard } from "@/keyboard";
-import { DraftPreview, RecordingBar } from "@/components/core/audio";
-import { Toolbar } from "@/components/compose";
+import { CalendarPicker, DraftPreview, RecordingBar, TimePicker, Toolbar } from "@/components/core";
+import { ThemedText } from "@/components/core/ui";
 
-type ComposeProps = NativeStackScreenProps<RootStackParamList, "Compose">;
+type Props = NativeStackScreenProps<RootStackParamList, "Compose">;
 
-export function ComposeScreen({ navigation }: ComposeProps) {
+const MAX_IMAGES = 10;
+
+export function Compose({ navigation }: Props) {
   const { colors } = useTheme().theme;
   const { addEntry } = useEntries();
 
   const [text, setText] = useState("");
-  const [imageUri, setImageUri] = useState<string | undefined>();
+  const [imageUris, setImageUris] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [composedAt, setComposedAt] = useState(() => Date.now());
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [timePickerOpen, setTimePickerOpen] = useState(false);
   const inputRef = useRef<TextInput>(null);
   const recording = useRecording();
   const keepKeyboard = useKeepKeyboard(inputRef);
@@ -34,20 +40,32 @@ export function ComposeScreen({ navigation }: ComposeProps) {
   const isRecording = recording.isRecording;
   const hasAudioDraft = Boolean(audioUri && !isRecording);
   const canSave =
-    canSaveComposer({ text, imageUri, audioUri }) && !isRecording && !saving;
+    canSaveComposer({ text, imageUris, audioUri }) && !isRecording && !saving;
 
   const pickImage = async () => {
+    if (imageUris.length >= MAX_IMAGES) return;
+
     const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!granted) return;
 
+    const remaining = MAX_IMAGES - imageUris.length;
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: "images",
       quality: 0.85,
+      allowsMultipleSelection: true,
+      selectionLimit: remaining,
     });
     if (!result.canceled) {
-      setImageUri(result.assets[0].uri);
+      setImageUris((prev) => [
+        ...prev,
+        ...result.assets.map((asset) => asset.uri),
+      ]);
       keepKeyboard();
     }
+  };
+
+  const removeImage = (index: number) => {
+    setImageUris((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSave = async () => {
@@ -57,9 +75,10 @@ export function ComposeScreen({ navigation }: ComposeProps) {
     try {
       const input = await fromComposer({
         text: text.trim() || undefined,
-        imageUri,
+        imageUris: imageUris.length ? imageUris : undefined,
         audioUri,
         durationMs: recording.recordedDurationMs,
+        createdAt: composedAt,
       });
       if (input) await addEntry(input);
       navigation.goBack();
@@ -71,6 +90,39 @@ export function ComposeScreen({ navigation }: ComposeProps) {
   return (
     <KeyboardLayout>
       <KeyboardLayout.Main>
+        <View style={styles.whenRow}>
+          <Pressable
+            onPress={() => setDatePickerOpen(true)}
+            style={({ pressed }) => [
+              styles.whenBadge,
+              { backgroundColor: colors.surfaceMuted },
+              pressed && press,
+            ]}
+            accessibilityLabel="Change entry date"
+            accessibilityRole="button"
+          >
+            <Feather name="calendar" size={metrics.iconSm} color={colors.text} />
+            <ThemedText weight="medium" style={[typography.caption, { color: colors.text }]}>
+              {formatComposeDate(composedAt)}
+            </ThemedText>
+          </Pressable>
+
+          <Pressable
+            onPress={() => setTimePickerOpen(true)}
+            style={({ pressed }) => [
+              styles.whenBadge,
+              { backgroundColor: colors.surfaceMuted },
+              pressed && press,
+            ]}
+            accessibilityLabel="Change entry time"
+            accessibilityRole="button"
+          >
+            <Feather name="clock" size={metrics.iconSm} color={colors.text} />
+            <ThemedText weight="medium" style={[typography.caption, { color: colors.text }]}>
+              {formatComposeTime(composedAt)}
+            </ThemedText>
+          </Pressable>
+        </View>
         <TextInput
           ref={inputRef}
           value={text}
@@ -87,18 +139,27 @@ export function ComposeScreen({ navigation }: ComposeProps) {
       </KeyboardLayout.Main>
 
       <KeyboardLayout.Avoiding>
-      {imageUri ? (
-        <View style={styles.previewRow}>
-          <Image source={{ uri: imageUri }} style={styles.preview} contentFit="cover" />
-          <Pressable
-            onPress={() => setImageUri(undefined)}
-            hitSlop={space.sm}
-            style={[styles.removeBadge, { backgroundColor: colors.surface }]}
-            accessibilityLabel="Remove image"
-          >
-            <Feather name="x" size={metrics.iconXs} color={colors.textSecondary} />
-          </Pressable>
-        </View>
+      {imageUris.length > 0 ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.previewScroll}
+          keyboardShouldPersistTaps="handled"
+        >
+          {imageUris.map((uri, index) => (
+            <View key={`${uri}-${index}`} style={styles.previewRow}>
+              <Image source={{ uri }} style={styles.preview} contentFit="cover" />
+              <Pressable
+                onPress={() => removeImage(index)}
+                hitSlop={space.sm}
+                style={[styles.removeBadge, { backgroundColor: colors.surface }]}
+                accessibilityLabel="Remove image"
+              >
+                <Feather name="x" size={metrics.iconXs} color={colors.textSecondary} />
+              </Pressable>
+            </View>
+          ))}
+        </ScrollView>
       ) : null}
 
       {hasAudioDraft && audioUri ? (
@@ -117,11 +178,22 @@ export function ComposeScreen({ navigation }: ComposeProps) {
         {!isRecording ? (
           <Pressable
             onPress={pickImage}
+            disabled={imageUris.length >= MAX_IMAGES}
             hitSlop={space.sm}
-            style={({ pressed }) => [styles.toolBtn, pressed && press]}
+            style={({ pressed }) => [
+              styles.toolBtn,
+              imageUris.length >= MAX_IMAGES && styles.toolBtnDisabled,
+              pressed && press,
+            ]}
             accessibilityLabel="Add photo"
           >
-            <Feather name="image" size={metrics.iconMd} color={colors.textSecondary} />
+            <Feather
+              name="image"
+              size={metrics.iconMd}
+              color={
+                imageUris.length >= MAX_IMAGES ? colors.textTertiary : colors.textSecondary
+              }
+            />
           </Pressable>
         ) : null}
 
@@ -177,20 +249,53 @@ export function ComposeScreen({ navigation }: ComposeProps) {
         </Toolbar>
       </KeyboardLayout.Footer>
       </KeyboardLayout.Avoiding>
+
+      <CalendarPicker
+        visible={datePickerOpen}
+        selectedDate={composedAt}
+        onSelectDate={(dayTs) => setComposedAt((prev) => withTimeOfDay(dayTs, prev))}
+        onClose={() => setDatePickerOpen(false)}
+      />
+
+      <TimePicker
+        visible={timePickerOpen}
+        value={composedAt}
+        onChange={(ts) => setComposedAt(ts)}
+        onClose={() => setTimePickerOpen(false)}
+      />
     </KeyboardLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  input: {
-    flex: 1,
-    paddingTop: space.lg,
-    paddingHorizontal: space.xxl,
-  },
-  previewRow: {
-    alignSelf: "flex-start",
+  whenRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: space.sm,
+    marginTop: space.lg,
     marginBottom: space.sm,
     marginHorizontal: space.xxl,
+  },
+  whenBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.xs,
+    paddingHorizontal: space.md,
+    paddingVertical: space.sm,
+    borderRadius: radius.sm,
+  },
+  input: {
+    flex: 1,
+    paddingTop: space.sm,
+    paddingHorizontal: space.xxl,
+  },
+  previewScroll: {
+    gap: space.sm,
+    paddingHorizontal: space.xxl,
+    marginBottom: space.sm,
+  },
+  previewRow: {
+    position: "relative",
   },
   mediaWrap: {
     marginHorizontal: space.xxl,
@@ -219,6 +324,9 @@ const styles = StyleSheet.create({
     borderRadius: metrics.fabSize / 2,
     alignItems: "center",
     justifyContent: "center",
+  },
+  toolBtnDisabled: {
+    opacity: 0.45,
   },
   sendBtn: {
     width: metrics.fabSize,

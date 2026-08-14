@@ -1,31 +1,50 @@
-import { useMemo } from "react";
-import { FlatList, Pressable, StyleSheet, View } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  FlatList,
+  Pressable,
+  StyleSheet,
+  View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from "react-native";
 import { Feather } from "@expo/vector-icons";
 
 import { useTheme } from "@/hooks/useTheme";
 import { metrics, space } from "@/theme/spacing";
 import { press } from "@/theme/motion";
 import { typography, FONT_SIZE } from "@/theme/typography";
-import { formatMonthYear, isSameMonth, monthsBetween, startOfMonth } from "@/lib";
-import { Sheet, ThemedText } from "@/components/core";
+import {
+  addMonths,
+  formatMonthYear,
+  isSameMonth,
+  monthOffset,
+  startOfMonth,
+} from "@/lib";
+import { Sheet, ThemedText } from "../ui";
 
 const ROW_HEIGHT = 44;
 const VISIBLE_ROWS = 6;
-/** Oldest month the list shows. */
-const EARLIEST = startOfMonth(new Date(2026, 0, 1).getTime());
+const BATCH = 36;
+const CENTER = 10_000;
 
 interface MonthPickerProps {
   visible: boolean;
   selectedMonth: number;
-  /** Y position the dropdown hangs from (bottom of the header). */
   top: number;
-  /** Start-of-month timestamps that contain entries. */
-  entryMonths: Set<number>;
+  entryMonths?: Set<number>;
   onSelect: (monthTs: number) => void;
   onClose: () => void;
 }
 
-/** Dropdown month list for jumping the feed to any month. */
+function monthForIndex(anchor: number, index: number): number {
+  return addMonths(anchor, index - CENTER);
+}
+
+function indexForMonth(anchor: number, monthTs: number): number {
+  return CENTER + monthOffset(anchor, monthTs);
+}
+
+/** Month-only list with bidirectional infinite scroll. */
 export function MonthPicker({
   visible,
   selectedMonth,
@@ -35,18 +54,56 @@ export function MonthPicker({
   onClose,
 }: MonthPickerProps) {
   const { colors } = useTheme().theme;
+  const anchor = startOfMonth(Date.now());
+  const listRef = useRef<FlatList<number>>(null);
+  const loadingFuture = useRef(false);
 
-  // Newest first, matching the feed. Current month is always the top row.
-  const months = useMemo(
-    () => monthsBetween(EARLIEST, startOfMonth(Date.now())).reverse(),
-    []
-  );
+  const [range, setRange] = useState({ before: BATCH, after: BATCH });
 
-  const selectedIndex = months.indexOf(startOfMonth(selectedMonth));
+  useEffect(() => {
+    if (!visible) {
+      setRange({ before: BATCH, after: BATCH });
+      return;
+    }
+    const off = monthOffset(anchor, selectedMonth);
+    setRange({
+      after: Math.max(BATCH, off > 0 ? off + BATCH : BATCH),
+      before: Math.max(BATCH, off < 0 ? -off + BATCH : BATCH),
+    });
+  }, [visible, selectedMonth, anchor]);
+
+  const indices = useMemo(() => {
+    const list: number[] = [];
+    for (let i = CENTER + range.after; i >= CENTER - range.before; i -= 1) {
+      list.push(i);
+    }
+    return list;
+  }, [range]);
+
+  const selectedIndex = indices.indexOf(indexForMonth(anchor, selectedMonth));
 
   const pick = (monthTs: number) => {
     onSelect(monthTs);
     onClose();
+  };
+
+  const loadPast = () => {
+    setRange((r) => ({ ...r, before: r.before + BATCH }));
+  };
+
+  const loadFuture = () => {
+    if (loadingFuture.current) return;
+    loadingFuture.current = true;
+    setRange((r) => ({ ...r, after: r.after + BATCH }));
+    requestAnimationFrame(() => {
+      loadingFuture.current = false;
+    });
+  };
+
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (event.nativeEvent.contentOffset.y < ROW_HEIGHT * 2) {
+      loadFuture();
+    }
   };
 
   return (
@@ -62,7 +119,7 @@ export function MonthPicker({
         </ThemedText>
 
         <Pressable
-          onPress={() => pick(startOfMonth(Date.now()))}
+          onPress={() => pick(anchor)}
           hitSlop={space.sm}
           style={({ pressed }) => [styles.resetBtn, pressed && press]}
           accessibilityLabel="Back to current month"
@@ -75,24 +132,33 @@ export function MonthPicker({
       </View>
 
       <FlatList
-        data={months}
-        keyExtractor={(month) => String(month)}
+        ref={listRef}
+        data={indices}
+        keyExtractor={(index) => String(index)}
         getItemLayout={(_, index) => ({
           length: ROW_HEIGHT,
           offset: ROW_HEIGHT * index,
           index,
         })}
-        initialScrollIndex={Math.max(0, selectedIndex)}
+        initialScrollIndex={selectedIndex > 0 ? selectedIndex : undefined}
+        onScrollToIndexFailed={() => {}}
+        maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+        onScroll={handleScroll}
+        scrollEventThrottle={200}
+        onEndReached={loadPast}
+        onEndReachedThreshold={0.4}
         style={styles.list}
         showsVerticalScrollIndicator={false}
-        renderItem={({ item }) => {
-          const selected = isSameMonth(item, selectedMonth);
+        renderItem={({ item: monthIndex }) => {
+          const monthTs = monthForIndex(anchor, monthIndex);
+          const selected = isSameMonth(monthTs, selectedMonth);
+          const hasEntries = entryMonths?.has(monthTs);
 
           return (
             <Pressable
-              onPress={() => pick(item)}
+              onPress={() => pick(monthTs)}
               style={({ pressed }) => [styles.row, pressed && press]}
-              accessibilityLabel={formatMonthYear(item)}
+              accessibilityLabel={formatMonthYear(monthTs)}
               accessibilityState={{ selected }}
             >
               <ThemedText
@@ -102,17 +168,12 @@ export function MonthPicker({
                   { color: selected ? colors.text : colors.textSecondary },
                 ]}
               >
-                {formatMonthYear(item)}
+                {formatMonthYear(monthTs)}
               </ThemedText>
 
-              <View style={styles.rowEnd}>
-                {entryMonths.has(item) ? (
-                  <View style={[styles.dot, { backgroundColor: colors.marker }]} />
-                ) : null}
-                {selected ? (
-                  <Feather name="check" size={metrics.iconSm} color={colors.marker} />
-                ) : null}
-              </View>
+              {hasEntries && !selected ? (
+                <View style={[styles.dot, { backgroundColor: colors.marker }]} />
+              ) : null}
             </Pressable>
           );
         }}
@@ -155,11 +216,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-  },
-  rowEnd: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: space.sm,
   },
   dot: {
     width: 4,

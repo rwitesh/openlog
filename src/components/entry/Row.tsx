@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef, useState } from "react";
-import { Alert, Animated, Pressable, StyleSheet, View } from "react-native";
+import { Alert, Animated, Dimensions, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Image } from "expo-image";
 
 import type { Entry } from "@/types/entry";
@@ -21,14 +21,17 @@ interface RowProps {
   animate?: boolean;
 }
 
+const THUMB_WIDTH = Math.round(Dimensions.get("window").width * 0.58);
+
 function RowBase({ entry, animate }: RowProps) {
   const { theme } = useTheme();
-  const { removeEntry } = useEntries();
+  const { removeEntry, removeImage } = useEntries();
   const { colors } = theme;
   const opacity = useRef(new Animated.Value(animate ? 0 : 1)).current;
   const translateY = useRef(new Animated.Value(animate ? 10 : 0)).current;
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
+  const [imageViewerIndex, setImageViewerIndex] = useState(0);
 
   useEffect(() => {
     if (!animate) return;
@@ -54,54 +57,88 @@ function RowBase({ entry, animate }: RowProps) {
     });
   };
 
-  const hasImage = entry.type === "image" && Boolean(entry.uri);
-  const hasAudio = entry.type === "audio" && Boolean(entry.uri);
-  const hasText = Boolean(entry.text?.trim());
+  const bodyText =
+    entry.type === "text" ? entry.text : entry.text?.trim() ? entry.text : undefined;
+  const images = entry.type === "image" ? entry.uris : [];
+  const hasImages = images.length > 0;
+  const hasAudio = entry.type === "audio";
+  const hasText = Boolean(bodyText);
+
+  const openImage = (index: number) => {
+    setImageViewerIndex(index);
+    setImageViewerOpen(true);
+  };
+
+  const handleDeleteImage = (index: number) => {
+    removeImage(entry.id, index)
+      .then((updated) => {
+        if (!updated || updated.type !== "image" || updated.uris.length === 0) {
+          setImageViewerOpen(false);
+        } else if (index >= updated.uris.length) {
+          setImageViewerIndex(updated.uris.length - 1);
+        }
+      })
+      .catch(() => {
+        Alert.alert("Could not delete", "Please try again.");
+      });
+  };
 
   return (
     <>
       <Animated.View style={{ opacity, transform: [{ translateY }] }}>
         <View style={styles.headerRow}>
-          <ThemedText style={[typography.timestamp, { color: colors.textTertiary }]}>
-            {formatTime(entry.createdAt)}
-          </ThemedText>
+          <View style={[styles.timeBadge, { backgroundColor: colors.surfaceMuted }]}>
+            <ThemedText style={[typography.timestamp, { color: colors.textSecondary }]}>
+              {formatTime(entry.createdAt)}
+            </ThemedText>
+          </View>
           <MenuButton onPress={() => setDetailsOpen(true)} />
         </View>
 
         {hasText ? (
           <ThemedText style={[typography.entryText, { color: colors.text }]}>
-            {entry.text}
+            {bodyText}
           </ThemedText>
         ) : null}
 
-        {hasImage ? (
-          <Pressable
-            onPress={() => setImageViewerOpen(true)}
-            style={hasText ? styles.imageAfterText : undefined}
+        {hasImages ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={[
+              styles.imageRow,
+              hasText ? styles.imageAfterText : undefined,
+            ]}
           >
-            <Image
-              source={{ uri: entry.uri }}
-              style={[styles.image, { backgroundColor: colors.surfaceMuted }]}
-              contentFit="cover"
-              transition={motion.normal}
-              recyclingKey={entry.id}
-              accessibilityLabel="Image"
-            />
-          </Pressable>
+            {images.map((uri, index) => (
+              <Pressable key={`${uri}-${index}`} onPress={() => openImage(index)}>
+                <Image
+                  source={{ uri }}
+                  style={[styles.thumbnail, { backgroundColor: colors.surfaceMuted }]}
+                  contentFit="cover"
+                  transition={motion.normal}
+                  recyclingKey={`${entry.id}-${index}`}
+                  accessibilityLabel={`Image ${index + 1} of ${images.length}`}
+                />
+              </Pressable>
+            ))}
+          </ScrollView>
         ) : null}
 
-        {hasAudio && entry.uri ? (
-          <View style={hasText || hasImage ? styles.audioAfterContent : undefined}>
+        {hasAudio ? (
+          <View style={hasText || hasImages ? styles.audioAfterContent : undefined}>
             <AudioPlayer uri={entry.uri} durationMs={entry.durationMs} />
           </View>
         ) : null}
       </Animated.View>
 
-      {hasImage && entry.uri ? (
+      {hasImages ? (
         <ImageViewer
-          uri={entry.uri}
+          uris={images}
+          initialIndex={imageViewerIndex}
           visible={imageViewerOpen}
           onClose={() => setImageViewerOpen(false)}
+          onDelete={handleDeleteImage}
         />
       ) : null}
 
@@ -124,14 +161,23 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: space.sm,
   },
+  timeBadge: {
+    paddingHorizontal: space.sm,
+    paddingVertical: space.xs,
+    borderRadius: radius.sm,
+  },
   imageAfterText: {
     marginTop: space.md,
   },
   audioAfterContent: {
     marginTop: space.md,
   },
-  image: {
-    width: "100%",
+  imageRow: {
+    flexDirection: "row",
+    gap: space.sm,
+  },
+  thumbnail: {
+    width: THUMB_WIDTH,
     aspectRatio: 4 / 3,
     borderRadius: radius.md,
   },
