@@ -7,6 +7,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { Feather } from "@expo/vector-icons";
 import { type NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -15,7 +16,7 @@ import { AtmosphericBackground } from "@/components/timeline/header";
 import { useProfile } from "@/profile";
 import { useTheme } from "@/theme/ThemeProvider";
 import { ThemedText } from "@/components/core";
-import { space } from "@/theme/spacing";
+import { metrics, space } from "@/theme/spacing";
 import { radius } from "@/theme/theme";
 import { press } from "@/theme/motion";
 import { typography } from "@/theme/typography";
@@ -27,6 +28,7 @@ export function Welcome({ navigation }: Props) {
   const { theme, resolvedMode } = useTheme();
   const { setName } = useProfile();
   const { colors } = theme;
+  const dark = resolvedMode === "dark";
 
   const [value, setValue] = useState("");
   const canContinue = value.trim().length > 0;
@@ -57,16 +59,18 @@ export function Welcome({ navigation }: Props) {
         ]}
       >
         <View style={styles.content}>
-          <ThemedText
-            weight="semibold"
-            style={[typography.headerGreeting, { color: colors.text }]}
-          >
-            Welcome
-          </ThemedText>
+          <View style={styles.headerBlock}>
+            <ThemedText
+              weight="semibold"
+              style={[typography.headerGreeting, { color: colors.text }]}
+            >
+              Welcome
+            </ThemedText>
 
-          <ThemedText style={[typography.headerSubtitle, { color: colors.textSecondary }]}>
-            What should we call you?
-          </ThemedText>
+            <ThemedText style={[typography.headerSubtitle, { color: colors.textSecondary }]}>
+              What should we call you?
+            </ThemedText>
+          </View>
 
           <TextInput
             value={value}
@@ -89,30 +93,39 @@ export function Welcome({ navigation }: Props) {
             ]}
           />
 
-          <Pressable
-            onPress={continueToTimeline}
-            disabled={!canContinue}
-            style={({ pressed }) => [
-              styles.button,
-              {
-                backgroundColor: canContinue ? colors.marker : colors.line,
-                opacity: canContinue ? 1 : 0.5,
-              },
-              pressed && canContinue && press,
-            ]}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: !canContinue }}
-          >
-            <ThemedText
-              weight="medium"
-              style={[
-                typography.settingLabel,
-                { color: resolvedMode === "dark" ? colors.background : colors.surface },
+          <View style={styles.actionRow}>
+            <Pressable
+              onPress={continueToTimeline}
+              disabled={!canContinue}
+              style={({ pressed }) => [
+                styles.arrowButton,
+                {
+                  backgroundColor: canContinue
+                    ? colors.accent
+                    : dark
+                      ? "rgba(255, 255, 255, 0.08)"
+                      : colors.surfaceMuted,
+                  borderColor: canContinue ? colors.accent : colors.separator,
+                },
+                pressed && canContinue && press,
               ]}
+              accessibilityLabel="Continue to timeline"
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !canContinue }}
             >
-              Continue
-            </ThemedText>
-          </Pressable>
+              <Feather
+                name="arrow-right"
+                size={metrics.iconMd}
+                color={
+                  canContinue
+                    ? dark
+                      ? colors.background
+                      : colors.surface
+                    : colors.textTertiary
+                }
+              />
+            </Pressable>
+          </View>
         </View>
       </AtmosphericBackground>
     </KeyboardAvoidingView>
@@ -130,16 +143,25 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: space.lg,
   },
+  headerBlock: {
+    gap: space.xs,
+  },
   input: {
     borderRadius: radius.md,
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: space.lg,
     paddingVertical: space.md + 2,
   },
-  button: {
-    alignSelf: "flex-start",
-    paddingHorizontal: space.xxl,
-    paddingVertical: space.md,
-    borderRadius: radius.md,
+  actionRow: {
+    alignItems: "flex-end",
+    marginTop: space.xs,
+  },
+  arrowButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
