@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 import { useColorScheme } from "react-native";
 import * as SplashScreen from "expo-splash-screen";
 import {
-  useFonts,
   SourceSans3_400Regular,
   SourceSans3_500Medium,
   SourceSans3_600SemiBold,
+  useFonts,
 } from "@expo-google-fonts/source-sans-3";
 
 import { getThemeMode } from "@/db/settings";

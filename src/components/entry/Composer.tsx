@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -16,23 +17,18 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/hooks/useTheme";
 import { metrics, space } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
-import {
-  canSaveComposer,
-  formatDurationMs,
-  useAudioRecording,
-  type ComposerResult,
-} from "@/lib";
-import { AudioRecordingBar, ThemedText } from "@/components/core";
+import { canSaveComposer, useRecording, type ComposerResult } from "@/lib";
+import { DraftPreview, RecordingBar } from "@/components/core";
 
 export type { ComposerResult };
 
-interface EntryComposerModalProps {
+interface ComposerProps {
   visible: boolean;
   onClose: () => void;
   onSave: (result: ComposerResult) => Promise<void>;
 }
 
-export function EntryComposerModal({ visible, onClose, onSave }: EntryComposerModalProps) {
+export function Composer({ visible, onClose, onSave }: ComposerProps) {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const { colors } = theme;
@@ -40,8 +36,9 @@ export function EntryComposerModal({ visible, onClose, onSave }: EntryComposerMo
   const [text, setText] = useState("");
   const [imageUri, setImageUri] = useState<string | undefined>();
   const [saving, setSaving] = useState(false);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
 
-  const recording = useAudioRecording();
+  const recording = useRecording();
   const audioUri = recording.recordedUri;
   const audioDurationMs = recording.recordedDurationMs;
 
@@ -56,6 +53,23 @@ export function EntryComposerModal({ visible, onClose, onSave }: EntryComposerMo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
+  useEffect(() => {
+    if (!visible) {
+      setKeyboardOpen(false);
+      return;
+    }
+
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showSub = Keyboard.addListener(showEvent, () => setKeyboardOpen(true));
+    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardOpen(false));
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [visible]);
+
   const draft: ComposerResult = {
     text,
     imageUri,
@@ -63,6 +77,9 @@ export function EntryComposerModal({ visible, onClose, onSave }: EntryComposerMo
     durationMs: audioDurationMs,
   };
   const canSave = canSaveComposer(draft);
+  const isRecording = recording.isRecording;
+  const hasAudioDraft = Boolean(audioUri && !isRecording);
+  const sheetPaddingBottom = keyboardOpen ? space.xs : insets.bottom + space.md;
 
   const pickImage = async () => {
     const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -111,24 +128,32 @@ export function EntryComposerModal({ visible, onClose, onSave }: EntryComposerMo
               styles.sheet,
               {
                 backgroundColor: colors.surface,
-                paddingBottom: insets.bottom + space.xl,
+                paddingBottom: sheetPaddingBottom,
               },
             ]}
           >
             <View style={[styles.handle, { backgroundColor: colors.line }]} />
 
-            <TextInput
-              value={text}
-              onChangeText={setText}
-              placeholderTextColor={colors.textTertiary}
-              multiline
-              maxLength={2000}
-              autoFocus
-              textAlignVertical="top"
-              style={[styles.input, typography.composerText, { color: colors.text }]}
-            />
+            {!isRecording ? (
+              <TextInput
+                value={text}
+                onChangeText={setText}
+                placeholder="Write something…"
+                placeholderTextColor={colors.textTertiary}
+                multiline
+                maxLength={2000}
+                autoFocus
+                textAlignVertical="top"
+                style={[
+                  styles.input,
+                  typography.composerText,
+                  { color: colors.text },
+                  hasAudioDraft && styles.inputCompact,
+                ]}
+              />
+            ) : null}
 
-            {imageUri ? (
+            {imageUri && !isRecording ? (
               <View style={styles.previewRow}>
                 <Image source={{ uri: imageUri }} style={styles.preview} contentFit="cover" />
                 <Pressable
@@ -142,48 +167,47 @@ export function EntryComposerModal({ visible, onClose, onSave }: EntryComposerMo
               </View>
             ) : null}
 
-            <AudioRecordingBar
-              isRecording={recording.isRecording}
+            <RecordingBar
+              isRecording={isRecording}
               durationMs={recording.durationMs}
-              metering={recording.metering}
+              levels={recording.liveLevels}
             />
 
-            {audioUri && !recording.isRecording ? (
-              <View style={styles.audioRow}>
-                <Feather name="mic" size={metrics.iconSm} color={colors.textSecondary} />
-                <ThemedText style={[typography.caption, { color: colors.textSecondary, flex: 1 }]}>
-                  Voice note · {formatDurationMs(audioDurationMs ?? 0)}
-                </ThemedText>
-                <Pressable onPress={recording.clear} hitSlop={space.sm}>
-                  <Feather name="x" size={16} color={colors.textTertiary} />
-                </Pressable>
-              </View>
+            {hasAudioDraft && audioUri ? (
+              <DraftPreview
+                uri={audioUri}
+                durationMs={audioDurationMs ?? 0}
+                levels={recording.recordedLevels}
+                onRemove={recording.clear}
+              />
             ) : null}
 
             <View style={styles.toolbar}>
-              <Pressable
-                onPress={pickImage}
-                hitSlop={space.sm}
-                style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
-                accessibilityLabel="Add photo"
-              >
-                <Feather name="image" size={metrics.iconMd} color={colors.textSecondary} />
-              </Pressable>
+              {!isRecording ? (
+                <Pressable
+                  onPress={pickImage}
+                  hitSlop={space.sm}
+                  style={({ pressed }) => [styles.toolBtn, pressed && styles.pressed]}
+                  accessibilityLabel="Add photo"
+                >
+                  <Feather name="image" size={metrics.iconMd} color={colors.textSecondary} />
+                </Pressable>
+              ) : null}
 
               <Pressable
                 onPress={recording.toggle}
                 hitSlop={space.sm}
                 style={({ pressed }) => [
-                  styles.iconBtn,
-                  recording.isRecording && { backgroundColor: colors.destructive },
+                  styles.toolBtn,
+                  isRecording && { backgroundColor: colors.destructive },
                   pressed && styles.pressed,
                 ]}
-                accessibilityLabel={recording.isRecording ? "Stop recording" : "Record audio"}
+                accessibilityLabel={isRecording ? "Stop recording" : "Record audio"}
               >
                 <Feather
-                  name="mic"
+                  name={isRecording ? "square" : "mic"}
                   size={metrics.iconMd}
-                  color={recording.isRecording ? colors.background : colors.textSecondary}
+                  color={isRecording ? colors.background : colors.textSecondary}
                 />
               </Pressable>
 
@@ -191,19 +215,19 @@ export function EntryComposerModal({ visible, onClose, onSave }: EntryComposerMo
 
               <Pressable
                 onPress={handleSave}
-                disabled={!canSave || saving}
+                disabled={!canSave || saving || isRecording}
                 hitSlop={space.sm}
                 style={({ pressed }) => [
-                  styles.iconBtn,
-                  canSave && { backgroundColor: colors.marker },
-                  pressed && canSave && styles.pressed,
+                  styles.sendBtn,
+                  canSave && !isRecording && { backgroundColor: colors.marker },
+                  pressed && canSave && !isRecording && styles.pressed,
                 ]}
-                accessibilityLabel="Save entry"
+                accessibilityLabel="Send entry"
               >
                 <Feather
-                  name="check"
-                  size={metrics.iconMd}
-                  color={canSave ? colors.background : colors.textTertiary}
+                  name="arrow-up"
+                  size={metrics.iconMd + 2}
+                  color={canSave && !isRecording ? colors.background : colors.textTertiary}
                 />
               </Pressable>
             </View>
@@ -237,17 +261,22 @@ const styles = StyleSheet.create({
     width: 32,
     height: 3,
     borderRadius: 2,
-    marginBottom: space.xl,
+    marginBottom: space.lg,
   },
   input: {
-    minHeight: 140,
-    maxHeight: 240,
-    marginBottom: space.lg,
+    minHeight: 80,
+    maxHeight: 200,
+    marginBottom: space.sm,
     paddingTop: 0,
+  },
+  inputCompact: {
+    minHeight: 64,
+    maxHeight: 96,
+    marginBottom: space.sm,
   },
   previewRow: {
     alignSelf: "flex-start",
-    marginBottom: space.lg,
+    marginBottom: space.sm,
   },
   preview: {
     width: 80,
@@ -264,21 +293,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  audioRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: space.sm,
-    marginBottom: space.lg,
-  },
   toolbar: {
     flexDirection: "row",
     alignItems: "center",
     gap: space.md,
   },
-  iconBtn: {
+  toolBtn: {
     width: 44,
     height: 44,
     borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sendBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
   },

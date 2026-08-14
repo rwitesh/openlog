@@ -9,8 +9,11 @@ export const RECORDING_POLL_MS = 100;
 /** Polling interval for playback progress updates (ms). */
 export const PLAYBACK_POLL_MS = 100;
 
-/** Number of bars shown in waveform visualizations. */
-export const WAVEFORM_BAR_COUNT = 28;
+/** Bars in timeline playback waveform. */
+export const WAVEFORM_BAR_COUNT = 24;
+
+/** Bars shown while recording (fewer = less visual noise). */
+export const LIVE_WAVEFORM_BAR_COUNT = 18;
 
 /** Recording preset with metering enabled for live level visualization. */
 export const RECORDING_OPTIONS = {

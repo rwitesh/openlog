@@ -5,9 +5,10 @@ import type { ThemeMode } from "@/types/entry";
 import { useTheme } from "@/hooks/useTheme";
 import { useEntries } from "@/hooks/useEntries";
 import { space } from "@/theme/spacing";
+import { typography } from "@/theme/typography";
 import { deleteMediaList } from "@/lib";
 import { ThemedText } from "@/components/core";
-import { SettingsSection } from "@/components/settings";
+import { Section } from "@/components/settings";
 
 const APPEARANCE: { mode: ThemeMode; label: string }[] = [
   { mode: "system", label: "System" },
@@ -59,16 +60,16 @@ export function SettingsScreen() {
   return (
     <ScrollView
       style={{ backgroundColor: theme.colors.background }}
-      contentContainerStyle={{ paddingTop: space.xxl + space.xs, paddingBottom: insets.bottom + space.xxxl + space.sm }}
+      contentContainerStyle={{ paddingBottom: insets.bottom + space.xxxl }}
     >
-      <SettingsSection title="Appearance">
+      <Section title="Appearance">
         {APPEARANCE.map((option) => (
           <Pressable
             key={option.mode}
             onPress={() => setMode(option.mode)}
             style={({ pressed }) => [styles.row, pressed && { opacity: 0.5 }]}
           >
-            <ThemedText style={[styles.rowLabel, { color: theme.colors.text }]}>
+            <ThemedText style={[typography.settingLabel, { color: theme.colors.text }]}>
               {option.label}
             </ThemedText>
             <View
@@ -84,14 +85,14 @@ export function SettingsScreen() {
             />
           </Pressable>
         ))}
-      </SettingsSection>
+      </Section>
 
-      <SettingsSection title="Data">
+      <Section title="Data">
         <Pressable
           onPress={confirmDeleteEntries}
           style={({ pressed }) => [styles.row, pressed && { opacity: 0.5 }]}
         >
-          <ThemedText style={[styles.rowLabel, { color: theme.colors.destructive }]}>
+          <ThemedText style={[typography.settingLabel, { color: theme.colors.destructive }]}>
             Delete all entries
           </ThemedText>
         </Pressable>
@@ -100,11 +101,11 @@ export function SettingsScreen() {
           onPress={confirmResetDatabase}
           style={({ pressed }) => [styles.row, pressed && { opacity: 0.5 }]}
         >
-          <ThemedText style={[styles.rowLabel, { color: theme.colors.destructive }]}>
+          <ThemedText style={[typography.settingLabel, { color: theme.colors.destructive }]}>
             Reset database
           </ThemedText>
         </Pressable>
-      </SettingsSection>
+      </Section>
     </ScrollView>
   );
 }
@@ -116,9 +117,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingVertical: space.lg,
     paddingHorizontal: space.lg + space.xs,
-  },
-  rowLabel: {
-    fontSize: 16,
   },
   radio: {
     width: 20,

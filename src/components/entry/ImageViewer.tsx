@@ -6,13 +6,13 @@ import { Feather } from "@expo/vector-icons";
 import { useTheme } from "@/hooks/useTheme";
 import { metrics, space } from "@/theme/spacing";
 
-interface EntryImageViewerProps {
+interface ImageViewerProps {
   uri: string;
   visible: boolean;
   onClose: () => void;
 }
 
-export function EntryImageViewer({ uri, visible, onClose }: EntryImageViewerProps) {
+export function ImageViewer({ uri, visible, onClose }: ImageViewerProps) {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const { colors } = theme;

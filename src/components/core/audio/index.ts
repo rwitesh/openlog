@@ -1,3 +1,4 @@
 export { AudioPlayer } from "./AudioPlayer";
-export { AudioRecordingBar } from "./AudioRecordingBar";
+export { DraftPreview } from "./DraftPreview";
+export { RecordingBar } from "./RecordingBar";
 export { AudioWaveform } from "./AudioWaveform";

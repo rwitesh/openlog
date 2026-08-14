@@ -14,9 +14,9 @@ export const space = {
 
 /** Non-spacing layout dimensions (widths, fixed row heights). */
 export const metrics = {
-  headerRowHeight: 44,
-  dateStripHeight: 56,
-  fabSize: 52,
+  headerRowHeight: 48,
+  dateStripHeight: 58,
+  fabSize: 48,
   iconSm: 16,
   iconMd: 20,
 } as const;

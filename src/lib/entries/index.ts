@@ -1,6 +1,6 @@
 export {
-  buildEntryInput,
   canSaveComposer,
+  fromComposer,
   type ComposerResult,
 } from "./composer";
-export { entryTypeLabel } from "./labels";
+export { typeLabel } from "./labels";

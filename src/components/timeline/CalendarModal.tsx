@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Modal, Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 
 import type { Entry } from "@/types/entry";
@@ -16,7 +16,7 @@ import {
 import { BottomSheet, ThemedText } from "@/components/core";
 
 const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
-const CELL_HEIGHT = 40;
+const CELL_GAP = space.sm;
 
 interface CalendarModalProps {
   visible: boolean;
@@ -26,6 +26,48 @@ interface CalendarModalProps {
   onClose: () => void;
 }
 
+function CalendarDay({
+  dayTs,
+  selected,
+  today,
+  showEntryDot,
+  onPress,
+}: {
+  dayTs: number;
+  selected: boolean;
+  today: boolean;
+  showEntryDot: boolean;
+  onPress: () => void;
+}) {
+  const { colors } = useTheme().theme;
+
+  return (
+    <View style={styles.cellSlot}>
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.cell,
+          selected && { backgroundColor: colors.marker },
+          !selected && today && { borderColor: colors.marker, borderWidth: 1 },
+          pressed && styles.pressed,
+        ]}
+        accessibilityLabel={new Date(dayTs).toDateString()}
+        accessibilityState={{ selected }}
+      >
+        <ThemedText
+          style={[styles.dayNum, { color: selected ? colors.background : colors.text }]}
+        >
+          {new Date(dayTs).getDate()}
+        </ThemedText>
+
+        {showEntryDot ? (
+          <View style={[styles.dot, { backgroundColor: colors.marker }]} />
+        ) : null}
+      </Pressable>
+    </View>
+  );
+}
+
 export function CalendarModal({
   visible,
   selectedDate,
@@ -33,8 +75,7 @@ export function CalendarModal({
   onSelectDate,
   onClose,
 }: CalendarModalProps) {
-  const { theme } = useTheme();
-  const { colors } = theme;
+  const { colors } = useTheme().theme;
 
   const [viewMonth, setViewMonth] = useState(() => startOfMonth(selectedDate));
 
@@ -54,8 +95,6 @@ export function CalendarModal({
     onSelectDate(dayTs);
     onClose();
   };
-
-  if (!visible) return null;
 
   return (
     <BottomSheet visible={visible} onClose={onClose} variant="center" animationType="fade">
@@ -85,19 +124,18 @@ export function CalendarModal({
 
       <View style={styles.weekdayRow}>
         {WEEKDAYS.map((label, index) => (
-          <ThemedText
-            key={`${label}-${index}`}
-            style={[styles.weekday, { color: colors.textTertiary }]}
-          >
-            {label}
-          </ThemedText>
+          <View key={`${label}-${index}`} style={styles.cellSlot}>
+            <ThemedText style={[styles.weekday, { color: colors.textTertiary }]}>
+              {label}
+            </ThemedText>
+          </View>
         ))}
       </View>
 
       <View style={styles.grid}>
         {cells.map((dayTs, index) => {
           if (dayTs === null) {
-            return <View key={`blank-${index}`} style={styles.cell} />;
+            return <View key={`blank-${index}`} style={styles.cellSlot} />;
           }
 
           const selected = isSameDay(dayTs, selectedDate);
@@ -105,31 +143,14 @@ export function CalendarModal({
           const showEntryDot = entryDays.has(dayTs) && !selected && !today;
 
           return (
-            <Pressable
+            <CalendarDay
               key={dayTs}
+              dayTs={dayTs}
+              selected={selected}
+              today={today}
+              showEntryDot={showEntryDot}
               onPress={() => pickDay(dayTs)}
-              style={({ pressed }) => [
-                styles.cell,
-                selected && { backgroundColor: colors.marker },
-                !selected && today && { borderColor: colors.marker, borderWidth: 1 },
-                pressed && styles.pressed,
-              ]}
-              accessibilityLabel={new Date(dayTs).toDateString()}
-              accessibilityState={{ selected }}
-            >
-              <ThemedText
-                style={[
-                  styles.dayNum,
-                  { color: selected ? colors.background : colors.text },
-                ]}
-              >
-                {new Date(dayTs).getDate()}
-              </ThemedText>
-
-              {showEntryDot ? (
-                <View style={[styles.dot, { backgroundColor: colors.marker }]} />
-              ) : null}
-            </Pressable>
+            />
           );
         })}
       </View>
@@ -156,10 +177,9 @@ const styles = StyleSheet.create({
   },
   weekdayRow: {
     flexDirection: "row",
-    marginBottom: space.xs,
+    marginBottom: space.sm,
   },
   weekday: {
-    flex: 1,
     textAlign: "center",
     fontSize: 11,
     lineHeight: 14,
@@ -168,12 +188,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
   },
-  cell: {
+  cellSlot: {
     width: `${100 / 7}%`,
-    height: CELL_HEIGHT,
+    aspectRatio: 1,
+    padding: CELL_GAP / 2,
+  },
+  cell: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: space.sm,
+    borderRadius: space.md,
   },
   dayNum: {
     fontSize: 15,
@@ -181,7 +205,7 @@ const styles = StyleSheet.create({
   },
   dot: {
     position: "absolute",
-    bottom: 6,
+    bottom: 4,
     width: 4,
     height: 4,
     borderRadius: 2,

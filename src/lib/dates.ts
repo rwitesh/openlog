@@ -1,10 +1,5 @@
 /** Small, allocation-light date helpers for the timeline. */
 
-const MONTHS_SHORT = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
-
 const MONTHS_LONG = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
@@ -31,12 +26,9 @@ export function isSameDay(a: number, b: number): boolean {
   return startOfDay(a) === startOfDay(b);
 }
 
-/** "Today", "Yesterday", or "Fri 14" for the date strip. */
+/** "Today", or "Fri 14" for the date strip. */
 export function formatStripDay(ts: number, now = Date.now()): string {
   if (isSameDay(ts, now)) return "Today";
-
-  const yesterday = addDays(now, -1);
-  if (isSameDay(ts, yesterday)) return "Yest";
 
   const d = new Date(ts);
   return `${WEEKDAYS_SHORT[d.getDay()]} ${d.getDate()}`;
@@ -53,8 +45,8 @@ export function formatHeaderDate(ts: number, now = Date.now()): string {
   return `${WEEKDAYS_LONG[d.getDay()]}, ${MONTHS_LONG[d.getMonth()]} ${d.getDate()}`;
 }
 
-/** "10:42 AM" — time shown beside each timeline entry. */
-export function formatEntryTime(ts: number): string {
+/** "10:42 AM" — time beside a timeline item. */
+export function formatTime(ts: number): string {
   const d = new Date(ts);
   let hours = d.getHours();
   const minutes = d.getMinutes().toString().padStart(2, "0");
@@ -64,8 +56,8 @@ export function formatEntryTime(ts: number): string {
   return `${hours}:${minutes} ${ampm}`;
 }
 
-/** "Friday, August 14, 2026 at 10:42 AM" — full date for entry details. */
-export function formatEntryDateTime(ts: number): string {
+/** Full date and time for detail views. */
+export function formatDateTime(ts: number): string {
   const d = new Date(ts);
   const weekday = WEEKDAYS_LONG[d.getDay()];
   const month = MONTHS_LONG[d.getMonth()];
@@ -81,7 +73,7 @@ export function formatEntryDateTime(ts: number): string {
   return `${weekday}, ${month} ${day}, ${year} at ${hours}:${minutes} ${ampm}`;
 }
 
-/** Entries that fall on the given calendar day, oldest first. */
+/** Entries that fall on the given calendar day, newest first. */
 export function entriesForDay<T extends { createdAt: number }>(
   entries: T[],
   dayTs: number
@@ -91,7 +83,7 @@ export function entriesForDay<T extends { createdAt: number }>(
 
   return entries
     .filter((entry) => entry.createdAt >= start && entry.createdAt < end)
-    .sort((a, b) => a.createdAt - b.createdAt);
+    .sort((a, b) => b.createdAt - a.createdAt);
 }
 
 /** Days to show in the horizontal strip (centered on the selected day). */

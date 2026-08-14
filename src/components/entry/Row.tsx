@@ -1,42 +1,53 @@
 import { memo, useEffect, useRef, useState } from "react";
-import { Alert, Animated, Easing, Pressable, StyleSheet, View } from "react-native";
+import { Alert, Animated, Pressable, StyleSheet, View } from "react-native";
 import { Image } from "expo-image";
 
 import type { Entry } from "@/types/entry";
 import { useEntries } from "@/hooks/useEntries";
 import { useTheme } from "@/hooks/useTheme";
+import { motion } from "@/theme/motion";
 import { space } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
-import { formatEntryTime } from "@/lib";
+import { formatTime } from "@/lib";
 import { AudioPlayer, ThemedText } from "@/components/core";
-import { EntryDetailsModal } from "./EntryDetailsModal";
-import { EntryImageViewer } from "./EntryImageViewer";
-import { EntryMenuButton } from "./EntryMenuButton";
+import { Details } from "./Details";
+import { ImageViewer } from "./ImageViewer";
+import { MenuButton } from "./MenuButton";
 import { TimelineRail } from "./TimelineRail";
 
-interface EntryRowProps {
+interface RowProps {
   entry: Entry;
+  isFirst: boolean;
   isLast: boolean;
   animate?: boolean;
 }
 
-function EntryRowBase({ entry, isLast, animate }: EntryRowProps) {
+function RowBase({ entry, isFirst, isLast, animate }: RowProps) {
   const { theme } = useTheme();
   const { removeEntry } = useEntries();
   const { colors } = theme;
   const opacity = useRef(new Animated.Value(animate ? 0 : 1)).current;
+  const translateY = useRef(new Animated.Value(animate ? 10 : 0)).current;
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
 
   useEffect(() => {
     if (!animate) return;
-    Animated.timing(opacity, {
-      toValue: 1,
-      duration: 420,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
-  }, [animate, opacity]);
+    Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: motion.slow,
+        easing: motion.easeOut,
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: motion.slow,
+        easing: motion.easeOut,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [animate, opacity, translateY]);
 
   const handleDelete = () => {
     removeEntry(entry.id).catch(() => {
@@ -50,20 +61,10 @@ function EntryRowBase({ entry, isLast, animate }: EntryRowProps) {
 
   return (
     <>
-      <Animated.View style={{ opacity }}>
-        <TimelineRail isLast={isLast}>
-          <View style={styles.headerRow}>
-            <ThemedText style={[typography.timestamp, { color: colors.textTertiary }]}>
-              {formatEntryTime(entry.createdAt)}
-            </ThemedText>
-            <EntryMenuButton onPress={() => setDetailsOpen(true)} />
-          </View>
-
+      <Animated.View style={{ opacity, transform: [{ translateY }] }}>
+        <TimelineRail isFirst={isFirst} isLast={isLast}>
           {hasText ? (
-            <ThemedText
-              weight="regular"
-              style={[typography.entryText, styles.text, { color: colors.text }]}
-            >
+            <ThemedText style={[typography.entryText, { color: colors.text }]}>
               {entry.text}
             </ThemedText>
           ) : null}
@@ -77,9 +78,9 @@ function EntryRowBase({ entry, isLast, animate }: EntryRowProps) {
                 source={{ uri: entry.uri }}
                 style={[styles.image, { backgroundColor: colors.surfaceMuted }]}
                 contentFit="cover"
-                transition={200}
+                transition={280}
                 recyclingKey={entry.id}
-                accessibilityLabel="Entry image"
+                accessibilityLabel="Image"
               />
             </Pressable>
           ) : null}
@@ -87,18 +88,25 @@ function EntryRowBase({ entry, isLast, animate }: EntryRowProps) {
           {hasAudio && entry.uri ? (
             <AudioPlayer uri={entry.uri} durationMs={entry.durationMs} />
           ) : null}
+
+          <View style={styles.footerRow}>
+            <ThemedText style={[typography.timestamp, { color: colors.textTertiary }]}>
+              {formatTime(entry.createdAt)}
+            </ThemedText>
+            <MenuButton onPress={() => setDetailsOpen(true)} />
+          </View>
         </TimelineRail>
       </Animated.View>
 
       {hasImage && entry.uri ? (
-        <EntryImageViewer
+        <ImageViewer
           uri={entry.uri}
           visible={imageViewerOpen}
           onClose={() => setImageViewerOpen(false)}
         />
       ) : null}
 
-      <EntryDetailsModal
+      <Details
         entry={entry}
         visible={detailsOpen}
         onClose={() => setDetailsOpen(false)}
@@ -108,23 +116,20 @@ function EntryRowBase({ entry, isLast, animate }: EntryRowProps) {
   );
 }
 
-export const EntryRow = memo(EntryRowBase);
+export const Row = memo(RowBase);
 
 const styles = StyleSheet.create({
-  headerRow: {
+  footerRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: space.sm,
-  },
-  text: {
-    marginTop: space.xs,
-  },
-  imageOnly: {
     marginTop: space.sm,
   },
+  imageOnly: {
+    marginTop: 0,
+  },
   imageAfterText: {
-    marginTop: space.lg,
+    marginTop: space.md,
   },
   image: {
     width: "100%",

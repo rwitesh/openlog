@@ -1,9 +1,6 @@
 /**
- * Typography built on Source Sans 3.
- *
- * 400 → entry text, 500 → metadata/labels, 600 → emphasis.
- * Each weight is loaded as its own family (see App.tsx) so the correct
- * glyphs render on every platform.
+ * Source Sans 3 — app-wide typeface.
+ * 400 → body, 500 → metadata/labels, 600 → emphasis.
  */
 
 export const FONT = {
@@ -12,14 +9,20 @@ export const FONT = {
   semibold: "SourceSans3_600SemiBold",
 } as const;
 
+export type FontWeight = keyof typeof FONT;
+
+export function fontFamily(weight: FontWeight = "regular"): string {
+  return FONT[weight];
+}
+
 export const FONT_SIZE = {
-  xxs: 11,
-  xs: 13,
-  sm: 14,
-  md: 16,
-  lg: 18,
-  xl: 22,
-  display: 30,
+  xxs: 10,
+  xs: 11,
+  sm: 13,
+  md: 14,
+  lg: 15,
+  xl: 17,
+  display: 22,
 } as const;
 
 /** Named text styles reused across the app. */
@@ -27,31 +30,45 @@ export const typography = {
   timestamp: {
     fontFamily: FONT.medium,
     fontSize: FONT_SIZE.xs,
-    lineHeight: 18,
+    lineHeight: 16,
+    letterSpacing: 0.3,
   },
   entryText: {
     fontFamily: FONT.regular,
     fontSize: FONT_SIZE.lg,
-    lineHeight: 28,
+    lineHeight: 24,
+    letterSpacing: 0.1,
   },
   composerText: {
     fontFamily: FONT.regular,
-    fontSize: FONT_SIZE.lg,
-    lineHeight: 28,
+    fontSize: FONT_SIZE.xl,
+    lineHeight: 26,
+    letterSpacing: 0.05,
   },
   caption: {
     fontFamily: FONT.medium,
     fontSize: FONT_SIZE.sm,
-    lineHeight: 20,
+    lineHeight: 18,
   },
-  navTitle: {
+  headerDate: {
     fontFamily: FONT.semibold,
-    fontSize: FONT_SIZE.lg,
+    fontSize: FONT_SIZE.xl,
     lineHeight: 24,
+    letterSpacing: -0.2,
   },
   settingLabel: {
-    fontFamily: FONT.medium,
+    fontFamily: FONT.regular,
     fontSize: FONT_SIZE.md,
-    lineHeight: 22,
+    lineHeight: 20,
+  },
+  emptyTitle: {
+    fontFamily: FONT.medium,
+    fontSize: FONT_SIZE.xl,
+    lineHeight: 24,
+  },
+  emptyBody: {
+    fontFamily: FONT.regular,
+    fontSize: FONT_SIZE.sm,
+    lineHeight: 20,
   },
 } as const;
