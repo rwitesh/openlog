@@ -3,8 +3,11 @@ import { Alert, Pressable, StyleSheet, View } from "react-native";
 import type { Entry } from "@/types/entry";
 import { useTheme } from "@/hooks/useTheme";
 import { space } from "@/theme/spacing";
+import { radius } from "@/theme/theme";
+import { FONT_SIZE } from "@/theme/typography";
+import { press } from "@/theme/motion";
 import { formatDateTime, formatDurationMs, typeLabel } from "@/lib";
-import { BottomSheet, ThemedText } from "@/components/core";
+import { Sheet, ThemedText } from "@/components/core/ui";
 
 interface DetailsProps {
   entry: Entry;
@@ -50,7 +53,7 @@ export function Details({
   };
 
   return (
-    <BottomSheet visible={visible} onClose={onClose}>
+    <Sheet visible={visible} onClose={onClose}>
       <ThemedText weight="semibold" style={[styles.title, { color: colors.text }]}>
         Entry details
       </ThemedText>
@@ -69,7 +72,7 @@ export function Details({
           style={({ pressed }) => [
             styles.button,
             { backgroundColor: colors.surfaceMuted },
-            pressed && styles.pressed,
+            pressed && press,
           ]}
         >
           <ThemedText weight="medium" style={{ color: colors.text }}>
@@ -79,25 +82,25 @@ export function Details({
 
         <Pressable
           onPress={confirmDelete}
-          style={({ pressed }) => [styles.button, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.button, pressed && press]}
         >
           <ThemedText weight="medium" style={{ color: colors.destructive }}>
             Delete entry
           </ThemedText>
         </Pressable>
       </View>
-    </BottomSheet>
+    </Sheet>
   );
 }
 
 const styles = StyleSheet.create({
   title: {
-    fontSize: 17,
+    fontSize: FONT_SIZE.xl,
     marginBottom: space.md,
   },
   card: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: space.md,
+    borderRadius: radius.md,
     paddingHorizontal: space.md,
     marginBottom: space.md,
   },
@@ -105,12 +108,12 @@ const styles = StyleSheet.create({
     paddingVertical: space.sm,
   },
   label: {
-    fontSize: 12,
+    fontSize: FONT_SIZE.xs,
     marginBottom: 2,
     letterSpacing: 0.3,
   },
   value: {
-    fontSize: 15,
+    fontSize: FONT_SIZE.lg,
     lineHeight: 20,
   },
   actions: {
@@ -120,10 +123,7 @@ const styles = StyleSheet.create({
   button: {
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: space.md,
-    paddingVertical: space.sm + 2,
-  },
-  pressed: {
-    opacity: 0.65,
+    borderRadius: radius.md,
+    paddingVertical: space.md,
   },
 });

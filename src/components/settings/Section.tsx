@@ -2,6 +2,8 @@ import { StyleSheet, View, type ViewProps } from "react-native";
 
 import { useTheme } from "@/hooks/useTheme";
 import { space } from "@/theme/spacing";
+import { radius } from "@/theme/theme";
+import { FONT_SIZE } from "@/theme/typography";
 import { ThemedText } from "@/components/core";
 
 interface SectionProps extends ViewProps {
@@ -38,13 +40,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.xxl,
   },
   sectionTitle: {
-    fontSize: 12,
+    fontSize: FONT_SIZE.sm,
     letterSpacing: 1.2,
     marginBottom: space.md,
     marginLeft: space.xs,
   },
   card: {
-    borderRadius: 16,
+    borderRadius: radius.md,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: "hidden",
   },

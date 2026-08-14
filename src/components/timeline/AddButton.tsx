@@ -4,7 +4,7 @@ import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTheme } from "@/hooks/useTheme";
-import { motion } from "@/theme/motion";
+import { motion, press } from "@/theme/motion";
 import { metrics, space } from "@/theme/spacing";
 
 interface AddButtonProps {
@@ -68,7 +68,7 @@ export function AddButton({ onPress }: AddButtonProps) {
         style={({ pressed }) => [
           styles.btn,
           { backgroundColor: colors.marker },
-          pressed && styles.pressed,
+          pressed && press,
         ]}
         accessibilityLabel="Add entry"
         accessibilityRole="button"
@@ -93,13 +93,6 @@ const styles = StyleSheet.create({
     borderRadius: metrics.fabSize / 2,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  pressed: {
-    opacity: 0.9,
+    boxShadow: "0 4px 8px rgba(0, 0, 0, 0.12)",
   },
 });

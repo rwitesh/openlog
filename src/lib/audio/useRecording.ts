@@ -80,13 +80,10 @@ export function useRecording() {
   return {
     isRecording: recorderState.isRecording,
     durationMs,
-    metering: recorderState.metering,
     liveLevels,
     recordedUri,
     recordedDurationMs,
     recordedLevels,
-    start,
-    stop,
     toggle,
     clear,
   };

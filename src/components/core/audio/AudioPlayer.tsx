@@ -1,21 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import {
-  setAudioModeAsync,
-  useAudioPlayer,
-  useAudioPlayerStatus,
-} from "expo-audio";
 import { Feather } from "@expo/vector-icons";
 
 import { useTheme } from "@/hooks/useTheme";
 import { metrics, space } from "@/theme/spacing";
+import { radius } from "@/theme/theme";
+import { press } from "@/theme/motion";
 import { typography } from "@/theme/typography";
-import {
-  clampRatio,
-  formatDurationMs,
-  PLAYBACK_POLL_MS,
-  PLAYBACK_SKIP_SECONDS,
-} from "@/lib";
+import { clampRatio, PLAYBACK_SKIP_SECONDS, usePlayback } from "@/lib";
 import { ThemedText } from "@/components/core/ui";
 import { AudioWaveform } from "./AudioWaveform";
 
@@ -25,31 +17,16 @@ interface AudioPlayerProps {
 }
 
 export function AudioPlayer({ uri, durationMs }: AudioPlayerProps) {
-  const { theme } = useTheme();
-  const { colors } = theme;
-  const player = useAudioPlayer(uri, { updateInterval: PLAYBACK_POLL_MS });
-  const status = useAudioPlayerStatus(player);
+  const { colors } = useTheme().theme;
+  const { player, status, totalMs, progress, isPlaying, toggle, timeLabel } = usePlayback(
+    uri,
+    durationMs
+  );
   const [trackWidth, setTrackWidth] = useState(0);
-
-  useEffect(() => {
-    setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
-  }, []);
-
-  const totalMs = durationMs ?? Math.round((status.duration || 0) * 1000);
-  const currentMs = Math.round((status.currentTime || 0) * 1000);
-  const progress = totalMs > 0 ? clampRatio(currentMs / totalMs) : 0;
-  const isPlaying = status.playing;
-
-  const togglePlayback = () => {
-    if (!status.isLoaded) return;
-    if (isPlaying) player.pause();
-    else player.play();
-  };
 
   const skipBy = (deltaSec: number) => {
     if (!status.isLoaded) return;
-    const totalSec = totalMs / 1000;
-    const next = Math.min(Math.max(0, (status.currentTime || 0) + deltaSec), totalSec);
+    const next = Math.min(Math.max(0, (status.currentTime || 0) + deltaSec), totalMs / 1000);
     player.seekTo(next);
   };
 
@@ -58,31 +35,24 @@ export function AudioPlayer({ uri, durationMs }: AudioPlayerProps) {
     player.seekTo(clampRatio(ratio) * (totalMs / 1000));
   };
 
-  const timeLabel = useMemo(() => {
-    if (isPlaying || currentMs > 0) {
-      return `${formatDurationMs(currentMs)} / ${formatDurationMs(totalMs)}`;
-    }
-    return formatDurationMs(totalMs);
-  }, [currentMs, isPlaying, totalMs]);
-
   return (
     <View style={[styles.wrap, { backgroundColor: colors.surfaceMuted }]}>
       <View style={styles.row}>
         <Pressable
           onPress={() => skipBy(-PLAYBACK_SKIP_SECONDS)}
           hitSlop={space.sm}
-          style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.iconBtn, pressed && press]}
           accessibilityLabel={`Skip back ${PLAYBACK_SKIP_SECONDS} seconds`}
         >
-          <Feather name="rotate-ccw" size={15} color={colors.textSecondary} />
+          <Feather name="rotate-ccw" size={metrics.iconSm} color={colors.textSecondary} />
         </Pressable>
 
         <Pressable
-          onPress={togglePlayback}
+          onPress={toggle}
           style={({ pressed }) => [
             styles.playBtn,
             { backgroundColor: colors.marker },
-            pressed && styles.pressed,
+            pressed && press,
           ]}
           accessibilityLabel={isPlaying ? "Pause audio" : "Play audio"}
         >
@@ -96,10 +66,10 @@ export function AudioPlayer({ uri, durationMs }: AudioPlayerProps) {
         <Pressable
           onPress={() => skipBy(PLAYBACK_SKIP_SECONDS)}
           hitSlop={space.sm}
-          style={({ pressed }) => [styles.iconBtn, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.iconBtn, pressed && press]}
           accessibilityLabel={`Skip forward ${PLAYBACK_SKIP_SECONDS} seconds`}
         >
-          <Feather name="rotate-cw" size={15} color={colors.textSecondary} />
+          <Feather name="rotate-cw" size={metrics.iconSm} color={colors.textSecondary} />
         </Pressable>
 
         <Pressable
@@ -126,7 +96,7 @@ export function AudioPlayer({ uri, durationMs }: AudioPlayerProps) {
 const styles = StyleSheet.create({
   wrap: {
     marginTop: space.sm,
-    borderRadius: space.md,
+    borderRadius: radius.md,
     paddingHorizontal: space.sm,
     paddingVertical: space.sm,
   },
@@ -136,8 +106,8 @@ const styles = StyleSheet.create({
     gap: space.sm,
   },
   iconBtn: {
-    width: 28,
-    height: 28,
+    width: metrics.btnSm,
+    height: metrics.btnSm,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -157,8 +127,5 @@ const styles = StyleSheet.create({
     minWidth: 52,
     textAlign: "right",
     fontVariant: ["tabular-nums"],
-  },
-  pressed: {
-    opacity: 0.65,
   },
 });

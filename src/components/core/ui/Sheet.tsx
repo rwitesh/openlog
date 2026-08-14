@@ -10,34 +10,36 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTheme } from "@/hooks/useTheme";
 import { space } from "@/theme/spacing";
+import { radius } from "@/theme/theme";
 
-interface BottomSheetProps {
+interface SheetProps {
   visible: boolean;
   onClose: () => void;
   children: React.ReactNode;
-  variant?: "bottom" | "center";
+  /** "bottom" slides up like a drawer; "center" is a dialog card; "top" anchors top-left like a dropdown. */
+  placement?: "bottom" | "center" | "top";
   animationType?: "slide" | "fade";
   paddingBottom?: number;
   sheetStyle?: StyleProp<ViewStyle>;
 }
 
-/** Shared modal sheet with backdrop — bottom drawer or centered card. */
-export function BottomSheet({
+/** Modal surface with a backdrop — a bottom drawer, dialog card, or dropdown. */
+export function Sheet({
   visible,
   onClose,
   children,
-  variant = "bottom",
+  placement = "bottom",
   animationType,
   paddingBottom,
   sheetStyle,
-}: BottomSheetProps) {
+}: SheetProps) {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const { colors } = theme;
+  const isBottom = placement === "bottom";
 
-  const resolvedAnimation = animationType ?? (variant === "center" ? "fade" : "slide");
+  const resolvedAnimation = animationType ?? (isBottom ? "slide" : "fade");
   const bottomPad = paddingBottom ?? insets.bottom + space.lg;
-  const isBottom = variant === "bottom";
 
   return (
     <Modal
@@ -52,22 +54,24 @@ export function BottomSheet({
       <View
         style={[
           styles.overlay,
-          variant === "center" && styles.overlayCenter,
+          placement === "center" && styles.overlayCenter,
+          placement === "top" && styles.overlayTop,
         ]}
       >
         <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Close" />
 
         <View
           style={[
-            isBottom ? styles.sheetBottom : styles.sheetCenter,
+            isBottom
+              ? styles.bottomCard
+              : placement === "top"
+                ? styles.topCard
+                : styles.centerCard,
             { backgroundColor: colors.surface },
-            !isBottom && { paddingBottom: space.lg },
             sheetStyle,
           ]}
         >
-          {isBottom ? (
-            <View style={[styles.handle, { backgroundColor: colors.line }]} />
-          ) : null}
+          {isBottom ? <View style={[styles.handle, { backgroundColor: colors.line }]} /> : null}
           {children}
           {isBottom && bottomPad > 0 ? <View style={{ height: bottomPad }} /> : null}
         </View>
@@ -79,30 +83,38 @@ export function BottomSheet({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
+    justifyContent: "flex-end",
   },
   overlayCenter: {
     justifyContent: "center",
     paddingHorizontal: space.xl,
   },
+  overlayTop: {
+    justifyContent: "flex-start",
+    alignItems: "flex-start",
+  },
   backdrop: {
     ...StyleSheet.absoluteFill,
     backgroundColor: "rgba(0,0,0,0.35)",
   },
-  sheetBottom: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    width: "100%",
-    borderTopLeftRadius: space.xl,
-    borderTopRightRadius: space.xl,
+  bottomCard: {
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
     paddingHorizontal: space.lg,
     paddingTop: space.sm,
   },
-  sheetCenter: {
-    borderRadius: space.xl,
+  centerCard: {
+    borderRadius: radius.lg,
     paddingHorizontal: space.lg,
     paddingTop: space.lg,
+    paddingBottom: space.md,
+  },
+  topCard: {
+    borderRadius: radius.md,
+    borderTopLeftRadius: 0,
+    paddingHorizontal: space.lg,
+    paddingTop: space.xs,
+    paddingBottom: space.sm,
   },
   handle: {
     alignSelf: "center",
