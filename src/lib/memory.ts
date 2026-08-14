@@ -1,21 +1,48 @@
 import type { Entry } from "@/types/entry";
-import { addMonths, dayOfMonth, isSameMonth, startOfDay, startOfMonth } from "./dates";
+import { addMonths, DAY_MS, dayOfMonth, isSameMonth, startOfDay, startOfMonth } from "./dates";
 import { locationPlaceTitle } from "./location";
 
 export interface MonthOverviewStats {
   monthTs: number;
+  monthNameUpper: string;
+  yearNumber: number;
   momentCount: number;
   photoCount: number;
   audioCount: number;
   places: string[];
 }
 
-export interface DayGroup {
-  dayTs: number;
+export interface PulseDay {
   dayNumber: number;
-  dayLabel: string;
-  entries: Entry[];
+  dayTs: number;
+  momentCount: number;
+  photoCount: number;
+  audioCount: number;
+  hasLocation: boolean;
+  places: string[];
+  heightFactor: number;
 }
+
+export interface MonthPulseData {
+  daysInMonth: number;
+  activeDaysCount: number;
+  totalMoments: number;
+  maxDayMoments: number;
+  days: PulseDay[];
+  startDayLabel: string;
+  endDayLabel: string;
+}
+
+export interface HighlightMoment {
+  entry: Entry;
+  dayTs: number;
+  dateLabel: string;
+}
+
+const MONTH_NAMES_UPPER = [
+  "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE",
+  "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"
+];
 
 /**
  * Filter and sort entries for a given month.
@@ -73,8 +100,11 @@ export function getMonthLocations(entries: Entry[], monthTs?: number): string[] 
 /** Aggregate overview stats for a month. */
 export function getMonthOverview(entries: Entry[], monthTs: number): MonthOverviewStats {
   const monthEntries = getMonthEntries(entries, monthTs);
+  const d = new Date(startOfMonth(monthTs));
   return {
     monthTs,
+    monthNameUpper: MONTH_NAMES_UPPER[d.getMonth()],
+    yearNumber: d.getFullYear(),
     momentCount: monthEntries.length,
     photoCount: getMonthPhotoCount(monthEntries),
     audioCount: getMonthAudioCount(monthEntries),
@@ -82,32 +112,130 @@ export function getMonthOverview(entries: Entry[], monthTs: number): MonthOvervi
   };
 }
 
-/** Group entries by calendar day (newest day first, entries within each day newest first). */
-export function groupEntriesByDay(entries: Entry[]): DayGroup[] {
-  if (!entries.length) return [];
+/**
+ * Computes continuous daily activity pulse / skyline across the month (01 .. 31).
+ */
+export function getMonthPulseData(entries: Entry[], monthTs: number): MonthPulseData {
+  const monthEntries = getMonthEntries(entries, monthTs);
+  const first = startOfMonth(monthTs);
+  const d = new Date(first);
+  const year = d.getFullYear();
+  const month = d.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-  const groups: DayGroup[] = [];
-  let currentDayTs: number | null = null;
-  let currentGroup: DayGroup | null = null;
-
-  for (const entry of entries) {
-    const day = startOfDay(entry.createdAt);
-    if (day !== currentDayTs) {
-      currentDayTs = day;
-      const dNum = dayOfMonth(day);
-      currentGroup = {
-        dayTs: day,
-        dayNumber: dNum,
-        dayLabel: String(dNum).padStart(2, "0"),
-        entries: [entry],
-      };
-      groups.push(currentGroup);
-    } else if (currentGroup) {
-      currentGroup.entries.push(entry);
+  const dayMap = new Map<
+    number,
+    {
+      momentCount: number;
+      photoCount: number;
+      audioCount: number;
+      places: Set<string>;
     }
+  >();
+
+  for (const entry of monthEntries) {
+    const day = dayOfMonth(entry.createdAt);
+    const existing = dayMap.get(day) ?? {
+      momentCount: 0,
+      photoCount: 0,
+      audioCount: 0,
+      places: new Set<string>(),
+    };
+
+    existing.momentCount += 1;
+    if (entry.type === "image" && entry.uris?.length) {
+      existing.photoCount += entry.uris.length;
+    }
+    if (entry.type === "audio") {
+      existing.audioCount += 1;
+    }
+    if (entry.location) {
+      const title = locationPlaceTitle(entry.location);
+      if (title && title !== "Location") {
+        existing.places.add(title);
+      }
+    }
+
+    dayMap.set(day, existing);
   }
 
-  return groups;
+  let maxDayMoments = 0;
+  const days: PulseDay[] = [];
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dayTs = first + (day - 1) * DAY_MS;
+    const info = dayMap.get(day);
+    const count = info?.momentCount ?? 0;
+    if (count > maxDayMoments) maxDayMoments = count;
+
+    let heightFactor = 0.12; // baseline tick for quiet day
+    if (count === 1) heightFactor = 0.38;
+    else if (count === 2) heightFactor = 0.62;
+    else if (count === 3) heightFactor = 0.82;
+    else if (count >= 4) heightFactor = 1.0;
+
+    days.push({
+      dayNumber: day,
+      dayTs,
+      momentCount: count,
+      photoCount: info?.photoCount ?? 0,
+      audioCount: info?.audioCount ?? 0,
+      hasLocation: Boolean(info && info.places.size > 0),
+      places: info ? Array.from(info.places) : [],
+      heightFactor,
+    });
+  }
+
+  return {
+    daysInMonth,
+    activeDaysCount: dayMap.size,
+    totalMoments: monthEntries.length,
+    maxDayMoments,
+    days,
+    startDayLabel: "01",
+    endDayLabel: String(daysInMonth).padStart(2, "0"),
+  };
+}
+
+/**
+ * Deterministically picks the single most meaningful highlight moment of the month
+ * based on actual captured content (prioritizing media-rich, location-aware, or thoughtful entries).
+ */
+export function getHighlightMoment(
+  entries: Entry[],
+  monthTs: number
+): HighlightMoment | null {
+  const monthEntries = getMonthEntries(entries, monthTs);
+  if (!monthEntries.length) return null;
+
+  const scored = monthEntries.map((entry) => {
+    let score = 0;
+    if (entry.type === "image" && entry.uris.length > 0) {
+      score += 50 + entry.uris.length * 10;
+    }
+    if (entry.type === "audio") {
+      score += 40;
+    }
+    if (entry.text && entry.text.trim().length > 0) {
+      score += Math.min(entry.text.trim().length, 50);
+    }
+    if (entry.location) {
+      score += 20;
+    }
+    return { entry, score };
+  });
+
+  scored.sort((a, b) => b.score - a.score || b.entry.createdAt - a.entry.createdAt);
+  const best = scored[0].entry;
+  const day = startOfDay(best.createdAt);
+  const d = new Date(day);
+  const dateLabel = `${MONTH_NAMES_UPPER[d.getMonth()]} ${d.getDate()}`;
+
+  return {
+    entry: best,
+    dayTs: day,
+    dateLabel,
+  };
 }
 
 /** Find the previous and next months that contain entries. */

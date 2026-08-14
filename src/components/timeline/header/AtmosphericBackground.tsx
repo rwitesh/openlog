@@ -8,7 +8,7 @@ import { headerGradient, screenGradient } from "./gradient";
 
 interface AtmosphericBackgroundProps {
   mode: "light" | "dark";
-  background: string;
+  background?: string;
   variant?: "header" | "screen";
   style?: StyleProp<ViewStyle>;
   children: ReactNode;
@@ -16,7 +16,6 @@ interface AtmosphericBackgroundProps {
 
 export function AtmosphericBackground({
   mode,
-  background,
   variant = "header",
   style,
   children,
@@ -26,13 +25,13 @@ export function AtmosphericBackground({
 
   const gradient =
     variant === "header"
-      ? headerGradient(mode, background, intensity)
-      : screenGradient(mode, background, intensity);
+      ? headerGradient(mode, theme.colors, intensity)
+      : screenGradient(mode, theme.colors, intensity);
 
   return (
     <LinearGradient {...gradient} style={style}>
       {variant === "header" && intensity !== "off" ? (
-        <CloudLayer dark={mode === "dark"} />
+        <CloudLayer dark={mode === "dark"} colors={theme.colors} />
       ) : null}
       {children}
     </LinearGradient>
