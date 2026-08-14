@@ -17,6 +17,7 @@ interface AttachmentsProps {
   audioDurationMs?: number;
   audioLevels?: number[];
   onRemoveAudio: () => void;
+  readOnly?: boolean;
 }
 
 export function Attachments({
@@ -26,6 +27,7 @@ export function Attachments({
   audioDurationMs = 0,
   audioLevels,
   onRemoveAudio,
+  readOnly = false,
 }: AttachmentsProps) {
   const { colors } = useTheme().theme;
   const hasImages = imageUris.length > 0;
@@ -46,14 +48,16 @@ export function Attachments({
           {imageUris.map((uri, index) => (
             <View key={`${uri}-${index}`} style={styles.previewRow}>
               <Image source={{ uri }} style={styles.preview} contentFit="cover" />
-              <Pressable
-                onPress={() => onRemoveImage(index)}
-                hitSlop={space.sm}
-                style={[styles.removeBadge, { backgroundColor: colors.surface }]}
-                accessibilityLabel="Remove image"
-              >
-                <Feather name="x" size={metrics.iconXs} color={colors.textSecondary} />
-              </Pressable>
+              {!readOnly ? (
+                <Pressable
+                  onPress={() => onRemoveImage(index)}
+                  hitSlop={space.sm}
+                  style={[styles.removeBadge, { backgroundColor: colors.surface }]}
+                  accessibilityLabel="Remove image"
+                >
+                  <Feather name="x" size={metrics.iconXs} color={colors.textSecondary} />
+                </Pressable>
+              ) : null}
             </View>
           ))}
         </ScrollView>
@@ -64,7 +68,7 @@ export function Attachments({
           uri={audioUri!}
           durationMs={audioDurationMs}
           levels={audioLevels}
-          onRemove={onRemoveAudio}
+          onRemove={readOnly ? undefined : onRemoveAudio}
         />
       ) : null}
     </View>

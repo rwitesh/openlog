@@ -17,6 +17,7 @@ interface FooterBarProps {
   onPickImage: () => void;
   onToggleRecording: () => void;
   onSave: () => void;
+  showMediaTools?: boolean;
 }
 
 export function FooterBar({
@@ -28,13 +29,14 @@ export function FooterBar({
   onPickImage,
   onToggleRecording,
   onSave,
+  showMediaTools = true,
 }: FooterBarProps) {
   const { colors } = useTheme().theme;
   const imagesFull = imageCount >= MAX_IMAGES;
 
   return (
     <Toolbar>
-      {!isRecording ? (
+      {showMediaTools && !isRecording ? (
         <Pressable
           onPress={onPickImage}
           disabled={imagesFull}
@@ -54,24 +56,26 @@ export function FooterBar({
         </Pressable>
       ) : null}
 
-      <Pressable
-        onPress={onToggleRecording}
-        hitSlop={space.sm}
-        style={({ pressed }) => [
-          styles.toolBtn,
-          isRecording && { backgroundColor: colors.destructive },
-          pressed && press,
-        ]}
-        accessibilityLabel={isRecording ? "Stop recording" : "Record audio"}
-      >
-        <Feather
-          name={isRecording ? "square" : "mic"}
-          size={metrics.iconMd}
-          color={isRecording ? colors.background : colors.textSecondary}
-        />
-      </Pressable>
+      {showMediaTools ? (
+        <Pressable
+          onPress={onToggleRecording}
+          hitSlop={space.sm}
+          style={({ pressed }) => [
+            styles.toolBtn,
+            isRecording && { backgroundColor: colors.destructive },
+            pressed && press,
+          ]}
+          accessibilityLabel={isRecording ? "Stop recording" : "Record audio"}
+        >
+          <Feather
+            name={isRecording ? "square" : "mic"}
+            size={metrics.iconMd}
+            color={isRecording ? colors.background : colors.textSecondary}
+          />
+        </Pressable>
+      ) : null}
 
-      {isRecording ? (
+      {showMediaTools && isRecording ? (
         <View style={styles.recording}>
           <RecordingBar
             isRecording={isRecording}

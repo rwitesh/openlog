@@ -10,6 +10,7 @@ export interface EntryLocation {
 interface EntryBase {
   id: string;
   createdAt: number;
+  updatedAt: number;
   location?: EntryLocation;
 }
 

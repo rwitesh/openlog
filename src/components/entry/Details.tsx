@@ -1,19 +1,25 @@
 import { Alert, Pressable, StyleSheet, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
+import type { ComponentProps } from "react";
 
 import type { Entry } from "@/types/entry";
 import { useTheme } from "@/theme/ThemeProvider";
-import { space } from "@/theme/spacing";
+import { metrics, space } from "@/theme/spacing";
 import { radius } from "@/theme/theme";
 import { FONT_SIZE } from "@/theme/typography";
 import { press } from "@/theme/motion";
-import { formatDateTime, formatDurationMs, formatLocationCoordinates, formatLocationLabel, typeLabel } from "@/lib";
-import { Sheet, ThemedText } from "@/components/core/ui";
+import {
+  formatDateTime,
+  formatDurationMs,
+  typeLabel,
+} from "@/lib";
+import { LocationDetail, Sheet, ThemedText } from "@/components/core/ui";
 
 interface DetailsProps {
   entry: Entry;
   visible: boolean;
   onClose: () => void;
+  onEdit: () => void;
   onDelete: () => void;
 }
 
@@ -30,10 +36,34 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+interface ActionIconProps {
+  icon: ComponentProps<typeof Feather>["name"];
+  label: string;
+  onPress: () => void;
+  color: string;
+  backgroundColor: string;
+}
+
+function ActionIcon({ icon, label, onPress, color, backgroundColor }: ActionIconProps) {
+  return (
+    <Pressable
+      onPress={onPress}
+      hitSlop={space.sm}
+      style={({ pressed }) => [styles.actionBtn, { backgroundColor }, pressed && press]}
+      accessibilityLabel={label}
+      accessibilityRole="button"
+    >
+      <Feather name={icon} size={metrics.iconMd} color={color} />
+      <ThemedText style={[styles.actionLabel, { color }]}>{label}</ThemedText>
+    </Pressable>
+  );
+}
+
 export function Details({
   entry,
   visible,
   onClose,
+  onEdit,
   onDelete,
 }: DetailsProps) {
   const { theme } = useTheme();
@@ -53,6 +83,11 @@ export function Details({
     ]);
   };
 
+  const handleEdit = () => {
+    onClose();
+    onEdit();
+  };
+
   return (
     <Sheet visible={visible} onClose={onClose}>
       <ThemedText weight="semibold" style={[styles.title, { color: colors.text }]}>
@@ -60,48 +95,30 @@ export function Details({
       </ThemedText>
 
       <View style={[styles.card, { borderColor: colors.separator }]}>
-        <DetailRow label="Written" value={formatDateTime(entry.createdAt)} />
+        <DetailRow label="Created" value={formatDateTime(entry.createdAt)} />
+        <DetailRow label="Updated" value={formatDateTime(entry.updatedAt)} />
         <DetailRow label="Type" value={typeLabel(entry.type)} />
         {entry.type === "audio" && entry.durationMs ? (
           <DetailRow label="Length" value={formatDurationMs(entry.durationMs)} />
         ) : null}
-        {entry.location ? (
-          <View style={styles.locationBlock}>
-            <Feather name="map-pin" size={14} color={colors.textSecondary} />
-            <View style={styles.locationText}>
-              <ThemedText style={[styles.value, { color: colors.text }]}>
-                {formatLocationLabel(entry.location)}
-              </ThemedText>
-              <ThemedText style={[styles.coords, { color: colors.textSecondary }]}>
-                {formatLocationCoordinates(entry.location)}
-              </ThemedText>
-            </View>
-          </View>
-        ) : null}
+        <LocationDetail location={entry.location} labeled />
       </View>
 
       <View style={styles.actions}>
-        <Pressable
-          onPress={onClose}
-          style={({ pressed }) => [
-            styles.button,
-            { backgroundColor: colors.surfaceMuted },
-            pressed && press,
-          ]}
-        >
-          <ThemedText weight="medium" style={{ color: colors.text }}>
-            Close
-          </ThemedText>
-        </Pressable>
-
-        <Pressable
+        <ActionIcon
+          icon="edit-2"
+          label="Edit"
+          onPress={handleEdit}
+          color={colors.text}
+          backgroundColor={colors.surfaceMuted}
+        />
+        <ActionIcon
+          icon="trash-2"
+          label="Delete"
           onPress={confirmDelete}
-          style={({ pressed }) => [styles.button, pressed && press]}
-        >
-          <ThemedText weight="medium" style={{ color: colors.destructive }}>
-            Delete entry
-          </ThemedText>
-        </Pressable>
+          color={colors.destructive}
+          backgroundColor={colors.surfaceMuted}
+        />
       </View>
     </Sheet>
   );
@@ -116,24 +133,10 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: radius.md,
     paddingHorizontal: space.md,
-    marginBottom: space.md,
+    marginBottom: space.lg,
   },
   row: {
     paddingVertical: space.sm,
-  },
-  locationBlock: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: space.sm,
-    paddingVertical: space.sm,
-  },
-  locationText: {
-    flex: 1,
-    gap: 2,
-  },
-  coords: {
-    fontSize: FONT_SIZE.xs,
-    lineHeight: 16,
   },
   label: {
     fontSize: FONT_SIZE.xs,
@@ -145,13 +148,20 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   actions: {
-    gap: space.xs,
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: space.lg,
     paddingTop: space.xs,
   },
-  button: {
+  actionBtn: {
     alignItems: "center",
     justifyContent: "center",
+    width: metrics.fabSize + space.sm,
+    height: metrics.fabSize + space.sm,
     borderRadius: radius.md,
-    paddingVertical: space.md,
+    gap: space.xs,
+  },
+  actionLabel: {
+    fontSize: FONT_SIZE.xs,
   },
 });

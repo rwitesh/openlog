@@ -1,8 +1,11 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { Alert, Animated, Dimensions, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Image } from "expo-image";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
 import type { Entry } from "@/types/entry";
+import type { RootStackParamList } from "@/types/navigation";
 import { useEntries } from "@/entries";
 import { useTheme } from "@/theme/ThemeProvider";
 import { motion } from "@/theme/motion";
@@ -24,6 +27,7 @@ interface RowProps {
 const THUMB_WIDTH = Math.round(Dimensions.get("window").width * 0.58);
 
 function RowBase({ entry, animate }: RowProps) {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { theme } = useTheme();
   const { removeEntry, removeImage } = useEntries();
   const { colors } = theme;
@@ -50,6 +54,10 @@ function RowBase({ entry, animate }: RowProps) {
       }),
     ]).start();
   }, [animate, opacity, translateY]);
+
+  const handleEdit = () => {
+    navigation.navigate("Compose", { entryId: entry.id });
+  };
 
   const handleDelete = () => {
     removeEntry(entry.id).catch(() => {
@@ -146,6 +154,7 @@ function RowBase({ entry, animate }: RowProps) {
         entry={entry}
         visible={detailsOpen}
         onClose={() => setDetailsOpen(false)}
+        onEdit={handleEdit}
         onDelete={handleDelete}
       />
     </>

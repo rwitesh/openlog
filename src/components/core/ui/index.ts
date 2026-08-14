@@ -3,3 +3,4 @@ export { Sheet } from "./Sheet";
 export { Popover } from "./Popover";
 export { Section } from "./Section";
 export { Toolbar } from "./Toolbar";
+export { LocationDetail } from "./LocationDetail";
