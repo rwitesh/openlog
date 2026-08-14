@@ -14,12 +14,10 @@ interface RailProps extends ViewProps {
   showDate: boolean;
   isFirst: boolean;
   isLast: boolean;
-  /** When set, the date circle opens that day. */
   onMarkerPress?: () => void;
   children: React.ReactNode;
 }
 
-/** Timeline row — a marker gutter with one continuous line, plus content. */
 export function Rail({
   dayTs,
   showDate,
@@ -32,9 +30,6 @@ export function Rail({
 }: RailProps) {
   const { colors } = useTheme().theme;
 
-  // The line runs the full gutter height, clipped to the marker's center
-  // on the first and last row. Markers are opaque and cover it, so it reads
-  // as starting and ending at a marker.
   const center = showDate ? MARKER / 2 : space.sm + DOT / 2;
 
   return (

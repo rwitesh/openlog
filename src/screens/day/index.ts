@@ -1,1 +1,0 @@
-export { DayScreen } from "./DayScreen";

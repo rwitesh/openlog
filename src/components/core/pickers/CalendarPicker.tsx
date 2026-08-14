@@ -16,15 +16,15 @@ import {
   isSameDay,
   startOfMonth,
 } from "@/lib";
-import { Sheet, ThemedText } from "@/components/core";
+import { Sheet, ThemedText } from "../ui";
 
 const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
 const CELL_GAP = space.sm;
 
-interface CalendarModalProps {
+interface CalendarPickerProps {
   visible: boolean;
   selectedDate: number;
-  entries: Entry[];
+  entries?: Entry[];
   onSelectDate: (ts: number) => void;
   onClose: () => void;
 }
@@ -71,15 +71,14 @@ function CalendarDay({
   );
 }
 
-export function CalendarModal({
+export function CalendarPicker({
   visible,
   selectedDate,
-  entries,
+  entries = [],
   onSelectDate,
   onClose,
-}: CalendarModalProps) {
+}: CalendarPickerProps) {
   const { colors } = useTheme().theme;
-
   const [viewMonth, setViewMonth] = useState(() => startOfMonth(selectedDate));
 
   useEffect(() => {

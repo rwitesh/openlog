@@ -6,13 +6,14 @@ import {
   type ReactNode,
 } from "react";
 
-import { deleteMedia } from "@/lib";
+import { deleteMedia, deleteMediaList } from "@/lib";
 import { resetDatabase } from "@/db/database";
 import {
   createEntry,
   deleteAllEntries,
   deleteEntry,
   getEntries,
+  removeImageFromEntry,
   type NewEntryInput,
 } from "@/db/entries";
 import type { Entry } from "@/types/entry";
@@ -21,6 +22,7 @@ export interface EntriesContextValue {
   entries: Entry[];
   addEntry: (input: NewEntryInput) => Promise<Entry>;
   removeEntry: (id: string) => Promise<void>;
+  removeImage: (entryId: string, imageIndex: number) => Promise<Entry | null>;
   clearAll: () => Promise<string[]>;
   /** Drops and recreates the database schema; returns media URIs to delete. */
   resetDb: () => Promise<string[]>;
@@ -43,9 +45,19 @@ export function EntriesProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const removeEntry = useCallback(async (id: string) => {
-    const uri = await deleteEntry(id);
-    if (uri) await deleteMedia(uri);
+    const uris = await deleteEntry(id);
+    await deleteMediaList(uris);
     setEntries((prev) => prev.filter((e) => e.id !== id));
+  }, []);
+
+  const removeImage = useCallback(async (entryId: string, imageIndex: number) => {
+    const { entry, removedUri } = await removeImageFromEntry(entryId, imageIndex);
+    await deleteMedia(removedUri);
+    setEntries((prev) => {
+      if (entry === null) return prev.filter((e) => e.id !== entryId);
+      return prev.map((e) => (e.id === entryId ? entry : e));
+    });
+    return entry;
   }, []);
 
   const clearAll = useCallback(async (): Promise<string[]> => {
@@ -66,6 +78,7 @@ export function EntriesProvider({ children }: { children: ReactNode }) {
         entries,
         addEntry,
         removeEntry,
+        removeImage,
         clearAll,
         resetDb,
       }}

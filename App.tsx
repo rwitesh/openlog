@@ -12,10 +12,10 @@ import { EntriesProvider } from "@/hooks/EntriesProvider";
 import { FONT } from "@/theme/typography";
 import type { ThemeColors } from "@/theme/colors";
 import type { RootStackParamList } from "@/types/navigation";
-import { TimelineScreen } from "@/screens/timeline";
-import { DayScreen } from "@/screens/day";
-import { ComposeScreen } from "@/screens/compose";
-import { SettingsScreen } from "@/screens/settings";
+import { Timeline } from "@/screens/timeline";
+import { Day } from "@/screens/day";
+import { Compose } from "@/screens/compose";
+import { Settings } from "@/screens/settings";
 import { logDevWarning } from "@/lib";
 
 SplashScreen.preventAutoHideAsync().catch((error) => {
@@ -58,12 +58,12 @@ function AppContent() {
        >
          <Stack.Screen
            name="Timeline"
-           component={TimelineScreen}
+           component={Timeline}
            options={{ headerShown: false }}
          />
          <Stack.Screen
            name="Day"
-           component={DayScreen}
+           component={Day}
            options={{
              headerBackTitle: "Back",
              headerShadowVisible: false,
@@ -71,9 +71,8 @@ function AppContent() {
          />
          <Stack.Screen
            name="Compose"
-           component={ComposeScreen}
+           component={Compose}
            options={{
-             title: "New entry",
              headerBackTitle: "Back",
              headerShadowVisible: false,
              contentStyle: { flex: 1 },
@@ -81,7 +80,7 @@ function AppContent() {
          />
          <Stack.Screen
            name="Settings"
-           component={SettingsScreen}
+           component={Settings}
            options={{
              title: "Settings",
              headerBackTitle: "Back",

@@ -17,13 +17,8 @@ export async function persistMedia(sourceUri: string, ext: string): Promise<stri
   const name = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
   const dest = new File(dir, name);
 
-  try {
-    await new File(sourceUri).copy(dest);
-    return dest.uri;
-  } catch (error) {
-    logDevWarning("storage:persistMedia", error);
-    return sourceUri;
-  }
+  await new File(sourceUri).copy(dest);
+  return dest.uri;
 }
 
 export async function deleteMedia(uri: string | undefined | null): Promise<void> {

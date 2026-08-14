@@ -61,6 +61,55 @@ export function formatTime(ts: number): string {
   return formatClock(new Date(ts));
 }
 
+/** "August 14" — compose date badge. */
+export function formatComposeDate(ts: number): string {
+  const d = new Date(ts);
+  return `${MONTHS_LONG[d.getMonth()]} ${d.getDate()}`;
+}
+
+/** "7:20 PM" — compose time badge. */
+export function formatComposeTime(ts: number): string {
+  return formatClock(new Date(ts));
+}
+
+/** Keep the clock from `timeTs` on the calendar day from `dayTs`. */
+export function withTimeOfDay(dayTs: number, timeTs: number): number {
+  const day = new Date(startOfDay(dayTs));
+  const time = new Date(timeTs);
+  day.setHours(time.getHours(), time.getMinutes(), time.getSeconds(), time.getMilliseconds());
+  return day.getTime();
+}
+
+/** Set hour/minute on a calendar day (12-hour clock). */
+export function withClock(
+  dayTs: number,
+  hour12: number,
+  minute: number,
+  pm: boolean
+): number {
+  const d = new Date(startOfDay(dayTs));
+  let hour24 = hour12 % 12;
+  if (hour12 === 12) hour24 = pm ? 12 : 0;
+  else if (pm) hour24 += 12;
+  d.setHours(hour24, minute, 0, 0);
+  return d.getTime();
+}
+
+export function clockParts(ts: number): { hour: number; minute: number; pm: boolean } {
+  const d = new Date(ts);
+  const hour24 = d.getHours();
+  return {
+    hour: hour24 % 12 || 12,
+    minute: d.getMinutes(),
+    pm: hour24 >= 12,
+  };
+}
+
+/** "Today · 7:20 PM" or "Friday, August 14 · 7:20 PM". */
+export function formatWhen(ts: number, now = Date.now()): string {
+  return `${formatHeaderDate(ts, now)} · ${formatTime(ts)}`;
+}
+
 /** Full date and time for detail views. */
 export function formatDateTime(ts: number): string {
   const d = new Date(ts);
@@ -99,18 +148,11 @@ export function addMonths(ts: number, months: number): number {
   return d.getTime();
 }
 
-/** Month starts between two timestamps, oldest first. */
-export function monthsBetween(aTs: number, bTs: number): number[] {
-  const end = startOfMonth(Math.max(aTs, bTs));
-  const months: number[] = [];
-  let cursor = startOfMonth(Math.min(aTs, bTs));
-
-  while (cursor <= end) {
-    months.push(cursor);
-    cursor = addMonths(cursor, 1);
-  }
-
-  return months;
+/** Month offset from `from` to `to` (each normalized to start-of-month). */
+export function monthOffset(from: number, to: number): number {
+  const a = new Date(startOfMonth(from));
+  const b = new Date(startOfMonth(to));
+  return (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
 }
 
 export function formatMonthYear(ts: number): string {
