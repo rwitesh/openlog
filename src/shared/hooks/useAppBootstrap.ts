@@ -12,6 +12,7 @@ import { getAllUserPreferences } from "@/services/db/settings";
 import { loadEntries } from "@/features/entry/store/entryStore";
 import { resolveTheme, resolveThemeMode } from "@/theme/theme";
 import { DEFAULT_PREFERENCES, type UserPreferences } from "@/theme/preferences";
+import { fontManager } from "@/services/fonts";
 import { logDevWarning } from "@/shared/utils/devLog";
 
 export interface AppBootstrapState {
@@ -38,10 +39,23 @@ export function useAppBootstrap(): AppBootstrapState {
     let active = true;
 
     getAllUserPreferences()
-      .then((data) => {
+      .then(async (data) => {
         if (!active) return;
         setUserName(data.userName);
         setPreferences(data.preferences);
+
+        const selectedFont = data.preferences.appearance.fontFamily;
+        if (selectedFont && selectedFont !== "Source Sans 3") {
+          // Bounded load attempt on startup so app boots quickly even if offline or slow
+          try {
+            await Promise.race([
+              fontManager.load(selectedFont),
+              new Promise((resolve) => setTimeout(resolve, 2000)),
+            ]);
+          } catch (error) {
+            logDevWarning("bootstrap:fontLoad", error);
+          }
+        }
       })
       .catch((error) => {
         logDevWarning("bootstrap:getAllUserPreferences", error);

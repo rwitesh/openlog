@@ -9,6 +9,7 @@ import { space } from "./spacing";
 import {
   BASE_FONT_SIZE,
   createTypography,
+  DEFAULT_FONT_FAMILY,
   FONT,
 } from "./typography";
 import type {
@@ -40,15 +41,17 @@ export function resolveTheme(
   systemScheme: SystemScheme
 ): Theme {
   const mode = resolveThemeMode(appearance.mode, systemScheme);
+  const activeFont = appearance.fontFamily || appearance.fontChoice || DEFAULT_FONT_FAMILY;
 
   return {
     mode,
     colors: getThemeColors(appearance.palette, mode, appearance.accent),
     font: FONT,
     fontSize: BASE_FONT_SIZE,
-    fontChoice: appearance.fontChoice,
+    fontFamily: activeFont,
+    fontChoice: activeFont,
     textSize: appearance.textSize,
-    typography: createTypography(appearance.textSize, appearance.fontChoice),
+    typography: createTypography(appearance.textSize, activeFont),
     spacing: space,
     radius,
     motion: createMotion(motionLevel),

@@ -13,7 +13,7 @@ export function ThemedText({ style, weight = "regular", ...rest }: ThemedTextPro
   return (
     <Text
       style={[
-        { color: theme.colors.text, fontFamily: fontFamily(weight, theme.fontChoice) },
+        { color: theme.colors.text, fontFamily: fontFamily(weight, theme.fontFamily) },
         style,
       ]}
       {...rest}
