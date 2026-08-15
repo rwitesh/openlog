@@ -116,21 +116,22 @@ export function SettingsScreen() {
         </View>
       </CollapsibleSection>
 
-      <View style={styles.navRowSection}>
+      <View
+        style={[
+          styles.appearanceCard,
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.separator,
+          },
+        ]}
+      >
         <Pressable
           onPress={() => navigation.navigate("Appearance")}
-          style={({ pressed }) => [
-            styles.appearanceNavRow,
-            {
-              backgroundColor: colors.surface,
-              borderColor: colors.separator,
-            },
-            pressed && press,
-          ]}
+          style={({ pressed }) => [styles.appearanceHeader, pressed && press]}
           accessibilityRole="button"
           accessibilityLabel="Appearance settings. Themes, typography & layout. Tap to customize."
         >
-          <View style={styles.appearanceNavLeft}>
+          <View style={styles.appearanceTitleGroup}>
             <ThemedText weight="semibold" style={[styles.navTitle, { color: colors.text }]}>
               Appearance
             </ThemedText>
@@ -139,7 +140,9 @@ export function SettingsScreen() {
             </ThemedText>
           </View>
 
-          <Feather name="chevron-right" size={20} color={colors.textSecondary} />
+          <View style={styles.appearanceIconSlot}>
+            <Feather name="chevron-right" size={18} color={colors.textSecondary} />
+          </View>
         </Pressable>
       </View>
 
@@ -215,58 +218,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  navRowSection: {
-    paddingHorizontal: space.lg,
-    marginVertical: space.xs,
+  appearanceCard: {
+    marginHorizontal: space.xl,
+    marginBottom: space.md,
+    borderRadius: radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: "hidden",
   },
-  appearanceNavRow: {
+  appearanceHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: space.lg,
-    paddingVertical: space.md,
-    borderRadius: radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    paddingVertical: space.md + 2,
   },
-  appearanceNavLeft: {
+  appearanceTitleGroup: {
     flex: 1,
-    gap: 3,
-    paddingRight: space.sm,
+    gap: 2,
+    marginRight: space.md,
   },
   navTitle: {
-    fontSize: 16,
+    fontSize: 15,
     lineHeight: 20,
   },
   navSubtitle: {
-    fontSize: 12,
+    fontSize: typography.caption.fontSize,
     lineHeight: 16,
   },
-  appearanceNavRight: {
-    flexDirection: "row",
+  appearanceIconSlot: {
+    width: 24,
+    height: 24,
     alignItems: "center",
-    gap: space.xs,
-  },
-  palettePill: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-    gap: 5,
-  },
-  paletteDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  palettePillText: {
-    fontSize: 11,
-    lineHeight: 14,
+    justifyContent: "center",
   },
   subheading: {
     fontSize: 11,
