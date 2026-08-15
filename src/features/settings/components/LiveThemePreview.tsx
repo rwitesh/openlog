@@ -134,12 +134,14 @@ export function LiveThemePreview() {
 
 const styles = StyleSheet.create({
   outerContainer: {
+    height: 216,
     borderRadius: radius.md,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: "hidden",
     paddingVertical: space.md,
     paddingLeft: space.md,
     paddingRight: space.lg,
+    justifyContent: "flex-start",
   },
   feedPreview: {
     width: "100%",
