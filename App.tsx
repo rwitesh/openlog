@@ -15,7 +15,7 @@ import { Memory } from "@/screens/memory";
 import { Welcome } from "@/screens/welcome";
 import { Day } from "@/screens/day";
 import { Compose } from "@/screens/compose";
-import { Settings } from "@/screens/settings";
+import { Settings, Appearance } from "@/screens/settings";
 import { Layout } from "@/shared/components/Layout";
 import { logDevWarning } from "@/shared/utils";
 
@@ -81,6 +81,15 @@ function AppContent({ showWelcome }: { showWelcome: boolean }) {
             options={{
               title: "Settings",
               headerBackTitle: "Back",
+              headerShadowVisible: false,
+            }}
+          />
+          <Stack.Screen
+            name="Appearance"
+            component={Appearance}
+            options={{
+              title: "Appearance",
+              headerBackTitle: "Settings",
               headerShadowVisible: false,
             }}
           />

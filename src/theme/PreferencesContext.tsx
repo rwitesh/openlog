@@ -3,8 +3,8 @@
  *
  * Responsibilities (and nothing else):
  *   - Hold `UserPreferences` and expose granular patchers.
- *   - Apply mood presets atomically (state + persistence).
  *   - Persist patches to the settings DB in a single batched write.
+ *   - Reset appearance preferences to defaults when requested.
  *
  * It deliberately knows nothing about colors, typography, or the OS
  * color scheme — visual derivation lives in ThemeContext/resolver.
@@ -27,8 +27,8 @@ import {
   BIOMETRIC_LOCK_KEY,
   EDITOR_TEXT_SIZE_KEY,
   FONT_KEY,
-  MOOD_KEY,
   MOTION_LEVEL_KEY,
+  PALETTE_KEY,
   SHOW_LOCATION_KEY,
   SHOW_TIMESTAMP_KEY,
   TEXT_SIZE_KEY,
@@ -38,10 +38,6 @@ import {
 } from "@/services/db";
 import {
   DEFAULT_PREFERENCES,
-  MOOD_PRESETS,
-  getActiveMoodId,
-  getActiveMoodName,
-  type MoodId,
 } from "./preferences";
 import type {
   AccessibilityPreferences,
@@ -56,7 +52,7 @@ import type {
 /* Persistence mapping: preference field → settings DB key */
 
 const APPEARANCE_KEYS: Record<keyof AppearancePreferences, string> = {
-  palette: MOOD_KEY,
+  palette: PALETTE_KEY,
   accent: ACCENT_KEY,
   mode: THEME_KEY,
   atmosphere: ATMOSPHERE_KEY,
@@ -158,63 +154,50 @@ export function PreferencesProvider({
     persist(toDbEntries(patch, SECURITY_KEYS));
   }, []);
 
-  const applyMood = useCallback((moodId: Exclude<MoodId, "custom">) => {
-    const preset = MOOD_PRESETS.find((p) => p.id === moodId);
-    if (!preset) return;
-
+  const resetAppearanceDefaults = useCallback(() => {
     setPreferences((prev) => ({
       ...prev,
-      appearance: {
-        ...prev.appearance,
-        palette: preset.palette,
-        accent: preset.accent,
-        fontChoice: preset.fontChoice,
-        textSize: preset.textSize,
-        atmosphere: preset.atmosphere,
-      },
-      entry: {
-        ...prev.entry,
-        timelineStyle: preset.timelineStyle,
-        timelineDensity: preset.timelineDensity,
+      appearance: { ...DEFAULT_PREFERENCES.appearance },
+      entry: { ...DEFAULT_PREFERENCES.entry },
+      writing: {
+        ...prev.writing,
+        editorTextSize: DEFAULT_PREFERENCES.writing.editorTextSize,
       },
     }));
 
     persist({
-      [MOOD_KEY]: preset.palette,
-      [ACCENT_KEY]: preset.accent,
-      [FONT_KEY]: preset.fontChoice,
-      [TEXT_SIZE_KEY]: preset.textSize,
-      [ATMOSPHERE_KEY]: preset.atmosphere,
-      [TIMELINE_STYLE_KEY]: preset.timelineStyle,
-      [TIMELINE_DENSITY_KEY]: preset.timelineDensity,
+      [PALETTE_KEY]: DEFAULT_PREFERENCES.appearance.palette,
+      [ACCENT_KEY]: DEFAULT_PREFERENCES.appearance.accent,
+      [THEME_KEY]: DEFAULT_PREFERENCES.appearance.mode,
+      [ATMOSPHERE_KEY]: DEFAULT_PREFERENCES.appearance.atmosphere,
+      [FONT_KEY]: DEFAULT_PREFERENCES.appearance.fontChoice,
+      [TEXT_SIZE_KEY]: DEFAULT_PREFERENCES.appearance.textSize,
+      [TIMELINE_STYLE_KEY]: DEFAULT_PREFERENCES.entry.timelineStyle,
+      [TIMELINE_DENSITY_KEY]: DEFAULT_PREFERENCES.entry.timelineDensity,
+      [SHOW_TIMESTAMP_KEY]: String(DEFAULT_PREFERENCES.entry.showTimestamp),
+      [SHOW_LOCATION_KEY]: String(DEFAULT_PREFERENCES.entry.showLocation),
+      [EDITOR_TEXT_SIZE_KEY]: DEFAULT_PREFERENCES.writing.editorTextSize,
     });
   }, []);
-
-  const activeMoodId = useMemo(() => getActiveMoodId(preferences), [preferences]);
-  const activeMoodName = useMemo(() => getActiveMoodName(preferences), [preferences]);
 
   const value = useMemo<PreferencesContextValue>(
     () => ({
       preferences,
-      activeMoodId,
-      activeMoodName,
       setAppearance,
       setEntry,
       setWriting,
       setAccessibility,
       setSecurity,
-      applyMood,
+      resetAppearanceDefaults,
     }),
     [
       preferences,
-      activeMoodId,
-      activeMoodName,
       setAppearance,
       setEntry,
       setWriting,
       setAccessibility,
       setSecurity,
-      applyMood,
+      resetAppearanceDefaults,
     ]
   );
 
@@ -237,7 +220,7 @@ function usePreferencesContext(): PreferencesContextValue {
   return context;
 }
 
-/** Full preference state + patchers + mood selection. */
+/** Full preference state + patchers. */
 export function usePreferences(): PreferencesContextValue {
   return usePreferencesContext();
 }
