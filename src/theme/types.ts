@@ -17,10 +17,11 @@ import type { ColorSchemeName } from "react-native";
 /* Color tokens */
 export type {
   ThemeColors,
-  PaperMood,
+  ThemePaletteId,
   AccentChoice,
   AccentOption,
-  MoodMeta,
+  ThemeOption,
+  ThemeBackgroundConfig,
 } from "./colors";
 
 /* Typography tokens */
@@ -51,13 +52,11 @@ export type {
   TimelineStyle,
   TimelineDensity,
   EditorTextSize,
-  MoodId,
-  MoodPreset,
 } from "./preferences";
 
 /* Theme */
 
-import type { ThemeColors } from "./colors";
+import type { ThemeColors, ThemeBackgroundConfig } from "./colors";
 import type { TypographyStyles } from "./typography";
 import type { MotionTokens } from "./motion";
 import type { SpacingScale } from "./spacing";
@@ -66,7 +65,6 @@ import type {
   AppearancePreferences,
   AtmosphereIntensity,
   EntryPreferences,
-  MoodId,
   SecurityPreferences,
   UserPreferences,
   WritingPreferences,
@@ -107,6 +105,8 @@ export interface Theme {
   readonly radius: RadiusScale;
   readonly motion: MotionTokens;
   readonly atmosphere: AtmosphereIntensity;
+  /** Optional background image / visual overlay treatment. */
+  readonly backgroundConfig?: ThemeBackgroundConfig;
 }
 
 /** React Navigation theme, derived from resolved semantic tokens. */
@@ -116,14 +116,12 @@ export type NavTheme = NavigationTheme;
 
 export interface PreferencesContextValue {
   readonly preferences: UserPreferences;
-  readonly activeMoodId: MoodId;
-  readonly activeMoodName: string;
   setAppearance: (patch: Partial<AppearancePreferences>) => void;
   setEntry: (patch: Partial<EntryPreferences>) => void;
   setWriting: (patch: Partial<WritingPreferences>) => void;
   setAccessibility: (patch: Partial<AccessibilityPreferences>) => void;
   setSecurity: (patch: Partial<SecurityPreferences>) => void;
-  applyMood: (moodId: Exclude<MoodId, "custom">) => void;
+  resetAppearanceDefaults: () => void;
 }
 
 /** @internal System scheme as reported by the OS. */

@@ -1,135 +1,175 @@
 import { StyleSheet, View } from "react-native";
-import { useEntryPreferences, useTheme } from "@/theme/ThemeProvider";
+import { LinearGradient } from "expo-linear-gradient";
+import { Feather } from "@expo/vector-icons";
+
+import { useEntryPreferences, useTheme } from "@/theme";
 import { space } from "@/theme/spacing";
 import { radius } from "@/theme/theme";
 import { ThemedText } from "@/shared/components/ThemedText";
+import { TimelineRail } from "@/features/timeline/components/TimelineRail";
+
+// Stable mock timestamp for predictable preview rendering (e.g. 15th of the month)
+const MOCK_DAY_TS = 1715767200000;
 
 export function LiveThemePreview() {
-  const { theme } = useTheme();
-  const { timelineStyle, timelineDensity, showTimestamp, showLocation } =
-    useEntryPreferences();
-  const { colors } = theme;
+  const { theme, isDark } = useTheme();
+  const { showTimestamp, showLocation } = useEntryPreferences();
+  const { colors, atmosphere, typography } = theme;
 
-  const showLine = timelineStyle !== "clean";
-  const isMinimal = timelineStyle === "minimal";
+  const hasAtmosphere = atmosphere !== "off";
+  const gradientColors: [string, string, ...string[]] =
+    atmosphere === "soft"
+      ? isDark
+        ? ["rgba(255, 255, 255, 0.03)", "rgba(0, 0, 0, 0.12)"]
+        : ["rgba(255, 255, 255, 0.08)", "rgba(0, 0, 0, 0.02)"]
+      : atmosphere === "muted"
+        ? isDark
+          ? ["rgba(0, 0, 0, 0.15)", "rgba(0, 0, 0, 0.3)"]
+          : ["rgba(0, 0, 0, 0.03)", "rgba(0, 0, 0, 0.06)"]
+        : ["transparent", "transparent"];
 
   return (
     <View
       style={[
-        styles.card,
+        styles.outerContainer,
         {
           backgroundColor: colors.background,
           borderColor: colors.separator,
-          paddingVertical: timelineDensity === "compact" ? space.sm : space.md,
         },
       ]}
+      accessibilityLabel="Live theme preview showing feed appearance"
     >
-      <View style={styles.gutter}>
-        {showLine ? (
-          <View
-            style={[
-              styles.line,
-              {
-                backgroundColor: colors.line,
-                opacity: isMinimal ? 0.35 : 1,
-              },
-            ]}
-          />
-        ) : null}
+      {hasAtmosphere ? (
+        <LinearGradient
+          colors={gradientColors}
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        />
+      ) : null}
 
-        <View
-          style={[
-            styles.marker,
-            {
-              backgroundColor: timelineStyle === "clean" ? colors.surfaceMuted : colors.marker,
-              borderColor: timelineStyle === "clean" ? colors.separator : colors.marker,
-              borderWidth: timelineStyle === "clean" ? StyleSheet.hairlineWidth : 0,
-            },
-          ]}
+      <View style={styles.feedPreview}>
+        {/* Entry 1: Uses actual TimelineRail with date marker */}
+        <TimelineRail
+          dayTs={MOCK_DAY_TS}
+          showDate={true}
+          isFirst={true}
+          isLast={false}
         >
-          <ThemedText
-            weight="semibold"
-            style={[
-              styles.markerNum,
-              { color: timelineStyle === "clean" ? colors.text : colors.background },
-            ]}
-          >
-            15
+          <View style={styles.headerRow}>
+            <View style={styles.meta}>
+              {showTimestamp ? (
+                <ThemedText
+                  weight="medium"
+                  style={[styles.metaText, { color: colors.textSecondary }]}
+                >
+                  10:42 AM
+                </ThemedText>
+              ) : null}
+              {showTimestamp && showLocation ? (
+                <ThemedText style={[styles.metaDot, { color: colors.textTertiary }]}>
+                  ·
+                </ThemedText>
+              ) : null}
+              {showLocation ? (
+                <ThemedText
+                  style={[styles.locationText, { color: colors.textSecondary }]}
+                  numberOfLines={1}
+                >
+                  Kyoto, Japan
+                </ThemedText>
+              ) : null}
+            </View>
+
+            <Feather name="more-vertical" size={16} color={colors.textTertiary} />
+          </View>
+
+          <ThemedText style={[typography.entryText, { color: colors.text }]}>
+            Morning light filters through paper shoji screens. Quiet tea before writing.
           </ThemedText>
-        </View>
-      </View>
+        </TimelineRail>
 
-      <View style={styles.content}>
-        <View style={styles.metaRow}>
-          {showTimestamp ? (
-            <ThemedText style={[styles.metaText, { color: colors.textSecondary }]}>
-              10:42 AM
-            </ThemedText>
-          ) : null}
-          {showTimestamp && showLocation ? (
-            <ThemedText style={[styles.metaDot, { color: colors.textTertiary }]}>·</ThemedText>
-          ) : null}
-          {showLocation ? (
-            <ThemedText style={[styles.metaText, { color: colors.textSecondary }]}>
-              Kyoto
-            </ThemedText>
-          ) : null}
-        </View>
+        {/* Entry 2: Connected on the same day with sub-marker dot */}
+        <TimelineRail
+          dayTs={MOCK_DAY_TS}
+          showDate={false}
+          isFirst={false}
+          isLast={true}
+        >
+          <View style={styles.headerRow}>
+            <View style={styles.meta}>
+              {showTimestamp ? (
+                <ThemedText
+                  weight="medium"
+                  style={[styles.metaText, { color: colors.textSecondary }]}
+                >
+                  03:15 PM
+                </ThemedText>
+              ) : null}
+              {showTimestamp && showLocation ? (
+                <ThemedText style={[styles.metaDot, { color: colors.textTertiary }]}>
+                  ·
+                </ThemedText>
+              ) : null}
+              {showLocation ? (
+                <ThemedText
+                  style={[styles.locationText, { color: colors.textSecondary }]}
+                  numberOfLines={1}
+                >
+                  Kamo River
+                </ThemedText>
+              ) : null}
+            </View>
 
-        <ThemedText style={[theme.typography.entryText, { color: colors.text }]}>
-          Morning light through paper shoji screens. Quiet tea before writing.
-        </ThemedText>
+            <Feather name="more-vertical" size={16} color={colors.textTertiary} />
+          </View>
+
+          <ThemedText style={[typography.entryText, { color: colors.text }]}>
+            Walking along the riverbank as cherry blossoms drift across the water.
+          </ThemedText>
+        </TimelineRail>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    flexDirection: "row",
-    paddingHorizontal: space.md,
+  outerContainer: {
     borderRadius: radius.md,
     borderWidth: StyleSheet.hairlineWidth,
-    marginBottom: space.lg,
+    overflow: "hidden",
+    paddingVertical: space.md,
+    paddingLeft: space.md,
+    paddingRight: space.lg,
   },
-  gutter: {
-    width: 24,
-    alignItems: "center",
-    marginRight: space.sm,
+  feedPreview: {
+    width: "100%",
   },
-  line: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    left: 11,
-    width: 1,
-  },
-  marker: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  markerNum: {
-    fontSize: 11,
-    lineHeight: 14,
-  },
-  content: {
-    flex: 1,
-    gap: space.xs,
-  },
-  metaRow: {
+  headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: space.xs,
+    justifyContent: "space-between",
+    marginBottom: space.xs + 2,
+    minHeight: 28,
+  },
+  meta: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    marginRight: space.sm,
+    gap: space.xs + 2,
   },
   metaText: {
-    fontSize: 11,
-    lineHeight: 14,
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 0.2,
   },
   metaDot: {
-    fontSize: 11,
-    lineHeight: 14,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  locationText: {
+    fontSize: 12,
+    lineHeight: 16,
+    flexShrink: 1,
   },
 });

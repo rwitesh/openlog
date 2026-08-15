@@ -1,6 +1,6 @@
 import { runDb } from "./database";
 import type { ThemeMode } from "@/theme/types";
-import type { AccentChoice, PaperMood } from "@/theme/colors";
+import type { AccentChoice, ThemePaletteId } from "@/theme/colors";
 import type {
   AppearancePreferences,
   AtmosphereIntensity,
@@ -18,7 +18,7 @@ import type { FontChoice, TextSize } from "@/theme/typography";
 import type { MotionLevel } from "@/theme/motion";
 
 const THEME_KEY = "theme";
-const MOOD_KEY = "paper_mood";
+const PALETTE_KEY = "palette";
 const ACCENT_KEY = "accent_choice";
 const ATMOSPHERE_KEY = "atmosphere_intensity";
 const FONT_KEY = "font_choice";
@@ -81,7 +81,7 @@ export async function getAllUserPreferences(): Promise<{
     const userName = map.get(USER_NAME_KEY)?.trim() || null;
 
     const appearance: AppearancePreferences = {
-      palette: (map.get(MOOD_KEY) as PaperMood) || DEFAULT_PREFERENCES.appearance.palette,
+      palette: (map.get(PALETTE_KEY) as ThemePaletteId) || DEFAULT_PREFERENCES.appearance.palette,
       accent: (map.get(ACCENT_KEY) as AccentChoice) || DEFAULT_PREFERENCES.appearance.accent,
       mode: (map.get(THEME_KEY) as ThemeMode) || DEFAULT_PREFERENCES.appearance.mode,
       atmosphere:
@@ -162,7 +162,7 @@ export async function setUserName(name: string): Promise<void> {
 
 export {
   THEME_KEY,
-  MOOD_KEY,
+  PALETTE_KEY,
   ACCENT_KEY,
   ATMOSPHERE_KEY,
   FONT_KEY,
