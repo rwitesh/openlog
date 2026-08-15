@@ -63,7 +63,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   },
   writing: {
     editorTextSize: "regular",
-    autoLocation: true,
+    autoLocation: false,
   },
   accessibility: {
     motionLevel: "subtle",

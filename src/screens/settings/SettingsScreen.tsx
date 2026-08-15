@@ -24,6 +24,7 @@ import type {
   TimelineStyle,
 } from "@/theme/preferences";
 import type { MotionLevel } from "@/theme/motion";
+import * as Location from "expo-location";
 import { deleteMediaList } from "@/services/media";
 import { ThemedText } from "@/shared/components/ThemedText";
 
@@ -141,6 +142,28 @@ export function SettingsScreen() {
       "Delete",
       async () => deleteMediaList(await clearAll())
     );
+
+  /**
+   * Auto-Detect Location asks for permission once, right here — compose
+   * then attaches places silently instead of popping a dialog on open.
+   */
+  const handleAutoLocationToggle = (autoLocation: boolean) => {
+    if (!autoLocation) {
+      setWriting({ autoLocation: false });
+      return;
+    }
+
+    void Location.requestForegroundPermissionsAsync().then(({ status }) => {
+      if (status === "granted") {
+        setWriting({ autoLocation: true });
+      } else {
+        Alert.alert(
+          "Location unavailable",
+          "Allow location access to auto-detect places while writing."
+        );
+      }
+    });
+  };
 
   const { appearance, entry, writing, accessibility, security } = preferences;
 
@@ -288,9 +311,8 @@ export function SettingsScreen() {
       {/* TYPOGRAPHY */}
       <CollapsibleSection
         title="Typography"
-        summary={`${appearance.fontChoice === "serif" ? "Literary Serif" : "Clean Sans"} · ${
-          appearance.textSize.charAt(0).toUpperCase() + appearance.textSize.slice(1)
-        }`}
+        summary={`${appearance.fontChoice === "serif" ? "Literary Serif" : "Clean Sans"} · ${appearance.textSize.charAt(0).toUpperCase() + appearance.textSize.slice(1)
+          }`}
       >
         <ThemedText weight="medium" style={[styles.subheading, { color: colors.textSecondary }]}>
           TYPEFACE
@@ -321,13 +343,12 @@ export function SettingsScreen() {
       {/* TIMELINE */}
       <CollapsibleSection
         title="Timeline"
-        summary={`${
-          entry.timelineStyle === "rail"
+        summary={`${entry.timelineStyle === "rail"
             ? "Continuous Rail"
             : entry.timelineStyle === "minimal"
               ? "Minimal Dots"
               : "Clean Line"
-        } · ${entry.timelineDensity === "compact" ? "Compact" : "Comfortable"}`}
+          } · ${entry.timelineDensity === "compact" ? "Compact" : "Comfortable"}`}
       >
         <ThemedText weight="medium" style={[styles.subheading, { color: colors.textSecondary }]}>
           TIMELINE STYLE
@@ -373,9 +394,8 @@ export function SettingsScreen() {
       {/* WRITING */}
       <CollapsibleSection
         title="Writing"
-        summary={`${
-          writing.editorTextSize === "large" ? "Large Editor" : "Standard"
-        } · ${writing.autoLocation ? "Auto Location" : "Manual Location"}`}
+        summary={`${writing.editorTextSize === "large" ? "Large Editor" : "Standard"
+          } · ${writing.autoLocation ? "Auto Location" : "Manual Location"}`}
       >
         <ThemedText weight="medium" style={[styles.subheading, { color: colors.textSecondary }]}>
           EDITOR TEXT SIZE
@@ -395,7 +415,7 @@ export function SettingsScreen() {
         <ToggleRow
           label="Auto-Detect Location on Compose"
           value={writing.autoLocation}
-          onValueChange={(autoLocation) => setWriting({ autoLocation })}
+          onValueChange={handleAutoLocationToggle}
         />
       </CollapsibleSection>
 

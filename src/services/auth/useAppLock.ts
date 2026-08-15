@@ -1,35 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AppState } from "react-native";
 
 import { authenticate } from "./auth";
-import { APP_NAME } from "@/shared/constants";
 
 const UNLOCK_REASON = "Unlock your entries";
 
 /**
- * Owns the app-lock lifecycle while the lock preference is enabled:
- *   - cold start: locked, prompt immediately
- *   - enabled mid-session: armed silently (the enabling scan already verified)
- *   - background → foreground: re-lock, prompt again
- *   - preference disabled: gate opens and stays open
+ * Owns the app-lock gate:
+ *   - app opens with the lock on: locked, prompt once
+ *   - enabled from Settings mid-session: stays open (that scan just verified)
+ *   - disabled from Settings: gate opens
  *
- * Render-time state only — the lock preference itself lives in PreferencesContext.
+ * There is deliberately no background/foreground re-lock. OS permission
+ * dialogs and pickers also pause the app, so re-locking on AppState made
+ * the lock fire in the middle of normal screens.
  */
 export function useAppLock(enabled: boolean) {
   const [locked, setLocked] = useState(enabled);
   const [prompting, setPrompting] = useState(false);
 
-  const enabledRef = useRef(enabled);
   const lockedRef = useRef(locked);
   const promptingRef = useRef(false);
-  const firstArmRef = useRef(true);
-  enabledRef.current = enabled;
   lockedRef.current = locked;
-
-  const lock = useCallback(() => {
-    if (!enabledRef.current) return;
-    setLocked(true);
-  }, []);
 
   const unlock = useCallback(async () => {
     if (promptingRef.current || !lockedRef.current) return;
@@ -41,43 +32,18 @@ export function useAppLock(enabled: boolean) {
 
     promptingRef.current = false;
     setPrompting(false);
-
-    // A scan that succeeds after the lock was disabled mid-prompt still opens the gate.
-    if (success && enabledRef.current) {
-      setLocked(false);
-    }
+    if (success) setLocked(false);
   }, []);
 
   useEffect(() => {
-    const isFirstArm = firstArmRef.current;
-    firstArmRef.current = false;
-
     if (!enabled) {
-      // Turning the lock off from Settings must clear any pending lock.
-      setLocked(false);
+      setLocked(false); // turning the lock off opens the gate
       return;
     }
-
-    // Cold start with the lock already on: prompt right away. Arming from
-    // Settings stays silent — the enabling scan just verified the owner.
-    if (isFirstArm) {
-      setLocked(true);
-      void unlock();
-    }
+    // Cold start: prompt over the lock screen. Enabling from Settings is
+    // silent — locked is false mid-session, so this is a no-op there.
+    void unlock();
   }, [enabled, unlock]);
-
-  useEffect(() => {
-    const subscription = AppState.addEventListener("change", (state) => {
-      if (state === "background") {
-        // Arm silently; prompt when the user returns.
-        lock();
-      } else if (state === "active") {
-        if (lockedRef.current) void unlock();
-      }
-    });
-
-    return () => subscription.remove();
-  }, [lock, unlock]);
 
   return { locked, prompting, unlock };
 }

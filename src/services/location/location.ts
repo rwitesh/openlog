@@ -8,10 +8,6 @@ const RETRY_DELAY_MS = 1000;
 const LAST_KNOWN_MAX_AGE_MS = 10 * 60 * 1000;
 const LAST_KNOWN_MAX_ACCURACY_M = 2000;
 
-export interface LocationFetchOptions {
-  isCancelled?: () => boolean;
-}
-
 function placeLabel(place: Location.LocationGeocodedAddress): string | undefined {
   const locality = place.city || place.subregion || place.district;
   const parts = [locality, place.region, place.country].filter(Boolean);
@@ -32,17 +28,6 @@ export function locationPlaceTitle(location: EntryLocation): string {
 
 export function locationAccessibilityLabel(location: EntryLocation): string {
   return `${locationPlaceTitle(location)}, ${formatLocationCoordinates(location)}`;
-}
-
-async function sleep(ms: number, isCancelled?: () => boolean): Promise<void> {
-  const step = 200;
-  let elapsed = 0;
-  while (elapsed < ms) {
-    if (isCancelled?.()) return;
-    const wait = Math.min(step, ms - elapsed);
-    await new Promise((resolve) => setTimeout(resolve, wait));
-    elapsed += wait;
-  }
 }
 
 async function reverseGeocode(
@@ -74,41 +59,40 @@ async function readLastKnown(): Promise<Location.LocationObject | null> {
   });
 }
 
-async function readFreshPosition(isCancelled?: () => boolean): Promise<Location.LocationObject | null> {
+async function readFreshPosition(): Promise<Location.LocationObject | null> {
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    if (isCancelled?.()) return null;
-
     try {
       return await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
     } catch {
-      if (attempt < MAX_ATTEMPTS && !isCancelled?.()) {
-        await sleep(RETRY_DELAY_MS, isCancelled);
+      if (attempt < MAX_ATTEMPTS) {
+        await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
       }
     }
   }
-
   return null;
 }
 
 /**
- * Resolves place label from GPS. Uses OS cache first, then a fresh fix if needed.
+ * Resolves place label from GPS. Uses OS cache first, then a fresh fix.
+ *
+ * `prompt: true` may show the OS permission dialog — pass it only for an
+ * explicit user action (tapping the location chip). Automatic fetches
+ * (auto-detect preference, typing refresh) run silently off already-granted
+ * permission and simply return null when it's missing.
  */
-export async function fetchPlace(
-  options: LocationFetchOptions = {}
-): Promise<EntryLocation | null> {
-  const { isCancelled } = options;
+export async function fetchPlace(options: { prompt?: boolean } = {}): Promise<EntryLocation | null> {
+  const { prompt = false } = options;
 
-  const { status } = await Location.requestForegroundPermissionsAsync();
-  if (status !== "granted" || isCancelled?.()) return null;
+  const { status } = prompt
+    ? await Location.requestForegroundPermissionsAsync()
+    : await Location.getForegroundPermissionsAsync();
 
-  let position = await readLastKnown();
-  if (!position && !isCancelled?.()) {
-    position = await readFreshPosition(isCancelled);
-  }
+  if (status !== "granted") return null;
 
-  if (!position || isCancelled?.()) return null;
+  const position = (await readLastKnown()) ?? (await readFreshPosition());
+  if (!position) return null;
 
   return coordsToPlace(position.coords.latitude, position.coords.longitude);
 }
