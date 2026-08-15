@@ -17,7 +17,7 @@ export interface AppearancePreferences {
   textSize: TextSize;
 }
 
-export interface JournalPreferences {
+export interface EntryPreferences {
   timelineStyle: TimelineStyle;
   timelineDensity: TimelineDensity;
   showTimestamp: boolean;
@@ -33,11 +33,17 @@ export interface AccessibilityPreferences {
   motionLevel: MotionLevel;
 }
 
+export interface SecurityPreferences {
+  /** Require biometric / device-credential unlock when the app opens. */
+  biometricLock: boolean;
+}
+
 export interface UserPreferences {
   appearance: AppearancePreferences;
-  journal: JournalPreferences;
+  entry: EntryPreferences;
   writing: WritingPreferences;
   accessibility: AccessibilityPreferences;
+  security: SecurityPreferences;
 }
 
 export const DEFAULT_PREFERENCES: UserPreferences = {
@@ -49,7 +55,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
     fontChoice: "sans",
     textSize: "regular",
   },
-  journal: {
+  entry: {
     timelineStyle: "rail",
     timelineDensity: "comfortable",
     showTimestamp: true,
@@ -61,6 +67,9 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   },
   accessibility: {
     motionLevel: "subtle",
+  },
+  security: {
+    biometricLock: false,
   },
 };
 
@@ -156,8 +165,8 @@ export function getActiveMoodId(preferences: UserPreferences): MoodId {
       p.fontChoice === preferences.appearance.fontChoice &&
       p.textSize === preferences.appearance.textSize &&
       p.atmosphere === preferences.appearance.atmosphere &&
-      p.timelineStyle === preferences.journal.timelineStyle &&
-      p.timelineDensity === preferences.journal.timelineDensity
+      p.timelineStyle === preferences.entry.timelineStyle &&
+      p.timelineDensity === preferences.entry.timelineDensity
   );
   return match ? match.id : "custom";
 }

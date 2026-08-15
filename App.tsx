@@ -7,6 +7,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { AppProviders, useNavigationTheme, useTheme } from "@/theme";
 import { ProfileProvider } from "@/features/profile";
+import { AppLockGate } from "@/features/auth";
 import { useAppBootstrap } from "@/shared/hooks";
 import type { RootStackParamList } from "@/navigation";
 import { Timeline } from "@/screens/timeline";
@@ -101,7 +102,9 @@ export default function App() {
       <Layout>
         <AppProviders initialPreferences={preferences}>
           <ProfileProvider initialName={userName}>
-            <AppContent showWelcome={!userName} />
+            <AppLockGate>
+              <AppContent showWelcome={!userName} />
+            </AppLockGate>
           </ProfileProvider>
         </AppProviders>
       </Layout>

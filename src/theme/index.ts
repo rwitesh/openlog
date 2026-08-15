@@ -17,9 +17,10 @@ export {
   PreferencesProvider,
   usePreferences,
   useAppearancePreferences,
-  useJournalPreferences,
+  useEntryPreferences,
   useWritingPreferences,
   useAccessibilityPreferences,
+  useSecurityPreferences,
 } from "./PreferencesContext";
 
 export {

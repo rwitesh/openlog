@@ -12,7 +12,7 @@
       "deploymentTarget": "15.0",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Record voice entries on your timeline.",
-        "NSLocationWhenInUseUsageDescription": "Attach your current location to journal entries."
+        "NSLocationWhenInUseUsageDescription": "Attach your current location to entries."
       },
       "bundleIdentifier": "com.anonymous.kizuna"
     },
@@ -61,7 +61,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Attach your current location to journal entries."
+          "locationWhenInUsePermission": "Attach your current location to entries."
         }
       ],
       [

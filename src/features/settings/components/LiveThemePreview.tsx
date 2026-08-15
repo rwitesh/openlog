@@ -1,5 +1,5 @@
 import { StyleSheet, View } from "react-native";
-import { useJournalPreferences, useTheme } from "@/theme/ThemeProvider";
+import { useEntryPreferences, useTheme } from "@/theme/ThemeProvider";
 import { space } from "@/theme/spacing";
 import { radius } from "@/theme/theme";
 import { ThemedText } from "@/shared/components/ThemedText";
@@ -7,7 +7,7 @@ import { ThemedText } from "@/shared/components/ThemedText";
 export function LiveThemePreview() {
   const { theme } = useTheme();
   const { timelineStyle, timelineDensity, showTimestamp, showLocation } =
-    useJournalPreferences();
+    useEntryPreferences();
   const { colors } = theme;
 
   const showLine = timelineStyle !== "clean";

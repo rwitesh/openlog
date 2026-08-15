@@ -5,7 +5,8 @@ import type {
   AppearancePreferences,
   AtmosphereIntensity,
   EditorTextSize,
-  JournalPreferences,
+  EntryPreferences,
+  SecurityPreferences,
   TimelineDensity,
   TimelineStyle,
   UserPreferences,
@@ -29,6 +30,7 @@ const SHOW_TIMESTAMP_KEY = "show_timestamp_timeline";
 const EDITOR_TEXT_SIZE_KEY = "editor_text_size";
 const AUTO_LOCATION_KEY = "auto_location";
 const MOTION_LEVEL_KEY = "motion_level";
+const BIOMETRIC_LOCK_KEY = "biometric_lock";
 const USER_NAME_KEY = "user_name";
 
 export async function getSetting(key: string, fallback: string): Promise<string> {
@@ -89,13 +91,13 @@ export async function getAllUserPreferences(): Promise<{
       textSize: (map.get(TEXT_SIZE_KEY) as TextSize) || DEFAULT_PREFERENCES.appearance.textSize,
     };
 
-    const journal: JournalPreferences = {
+    const entry: EntryPreferences = {
       timelineStyle:
         (map.get(TIMELINE_STYLE_KEY) as TimelineStyle) ||
-        DEFAULT_PREFERENCES.journal.timelineStyle,
+        DEFAULT_PREFERENCES.entry.timelineStyle,
       timelineDensity:
         (map.get(TIMELINE_DENSITY_KEY) as TimelineDensity) ||
-        DEFAULT_PREFERENCES.journal.timelineDensity,
+        DEFAULT_PREFERENCES.entry.timelineDensity,
       showTimestamp: map.get(SHOW_TIMESTAMP_KEY) !== "false",
       showLocation: map.get(SHOW_LOCATION_KEY) !== "false",
     };
@@ -113,13 +115,18 @@ export async function getAllUserPreferences(): Promise<{
         DEFAULT_PREFERENCES.accessibility.motionLevel,
     };
 
+    const security: SecurityPreferences = {
+      biometricLock: map.get(BIOMETRIC_LOCK_KEY) === "true",
+    };
+
     return {
       userName,
       preferences: {
         appearance,
-        journal,
+        entry,
         writing,
         accessibility,
+        security,
       },
     };
   });
@@ -167,4 +174,5 @@ export {
   EDITOR_TEXT_SIZE_KEY,
   AUTO_LOCATION_KEY,
   MOTION_LEVEL_KEY,
+  BIOMETRIC_LOCK_KEY,
 };

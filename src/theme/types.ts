@@ -42,9 +42,10 @@ export type ThemeMode = "system" | "light" | "dark";
 
 export type {
   AppearancePreferences,
-  JournalPreferences,
+  EntryPreferences,
   WritingPreferences,
   AccessibilityPreferences,
+  SecurityPreferences,
   UserPreferences,
   AtmosphereIntensity,
   TimelineStyle,
@@ -64,8 +65,9 @@ import type {
   AccessibilityPreferences,
   AppearancePreferences,
   AtmosphereIntensity,
-  JournalPreferences,
+  EntryPreferences,
   MoodId,
+  SecurityPreferences,
   UserPreferences,
   WritingPreferences,
 } from "./preferences";
@@ -117,9 +119,10 @@ export interface PreferencesContextValue {
   readonly activeMoodId: MoodId;
   readonly activeMoodName: string;
   setAppearance: (patch: Partial<AppearancePreferences>) => void;
-  setJournal: (patch: Partial<JournalPreferences>) => void;
+  setEntry: (patch: Partial<EntryPreferences>) => void;
   setWriting: (patch: Partial<WritingPreferences>) => void;
   setAccessibility: (patch: Partial<AccessibilityPreferences>) => void;
+  setSecurity: (patch: Partial<SecurityPreferences>) => void;
   applyMood: (moodId: Exclude<MoodId, "custom">) => void;
 }
 
