@@ -12,6 +12,8 @@ export const space = {
   xxxl: 32,
 } as const;
 
+export type SpacingScale = typeof space;
+
 /** Shared vertical rhythm between header lines and before timeline content. */
 export const sectionGap = space.lg;
 
@@ -30,3 +32,5 @@ export const metrics = {
   btnSm: 28,
   btnMd: 36,
 } as const;
+
+export type LayoutMetrics = typeof metrics;
