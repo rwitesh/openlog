@@ -17,7 +17,8 @@ interface LocationChipProps {
   on?: boolean;
   loading?: boolean;
   failed?: boolean;
-  onPress: () => void;
+  onPress?: () => void;
+  readOnly?: boolean;
 }
 
 type ChipState = "idle" | "loading" | "ready" | "failed";
@@ -26,8 +27,10 @@ function chipState(
   on?: boolean,
   loading?: boolean,
   failed?: boolean,
-  location?: EntryLocation | null
+  location?: EntryLocation | null,
+  readOnly?: boolean
 ): ChipState {
+  if (readOnly) return location ? "ready" : "idle";
   if (loading) return "loading";
   if (on && location) return "ready";
   if (failed) return "failed";
@@ -40,10 +43,11 @@ export function LocationChip({
   loading,
   failed,
   onPress,
+  readOnly = false,
 }: LocationChipProps) {
   const { colors } = useTheme().theme;
   const [detailOpen, setDetailOpen] = useState(false);
-  const state = chipState(on, loading, failed, location);
+  const state = chipState(on, loading, failed, location, readOnly);
 
   useEffect(() => {
     if (state !== "ready") setDetailOpen(false);
@@ -61,12 +65,12 @@ export function LocationChip({
       setDetailOpen(true);
       return;
     }
-    onPress();
+    onPress?.();
   };
 
   const handleRemove = () => {
     setDetailOpen(false);
-    onPress();
+    onPress?.();
   };
 
   return (
@@ -116,14 +120,16 @@ export function LocationChip({
               <Feather name="x" size={metrics.iconMd} color={colors.textSecondary} />
             </Pressable>
 
-            <Pressable
-              onPress={handleRemove}
-              hitSlop={space.sm}
-              style={({ pressed }) => [styles.iconBtn, pressed && press]}
-              accessibilityRole="button"
-            >
-              <Feather name="trash-2" size={metrics.iconMd} color={colors.destructive} />
-            </Pressable>
+            {!readOnly && onPress ? (
+              <Pressable
+                onPress={handleRemove}
+                hitSlop={space.sm}
+                style={({ pressed }) => [styles.iconBtn, pressed && press]}
+                accessibilityRole="button"
+              >
+                <Feather name="trash-2" size={metrics.iconMd} color={colors.destructive} />
+              </Pressable>
+            ) : null}
           </View>
         </Popover>
       ) : null}

@@ -3,6 +3,6 @@ export type RootStackParamList = {
   Timeline: undefined;
   Memory: { monthTs: number };
   Day: { dayTs: number };
-  Compose: { entryId?: string } | undefined;
+  Compose: { entryId?: string; mode?: "view" | "edit" } | undefined;
   Settings: undefined;
 };
