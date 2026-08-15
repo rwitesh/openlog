@@ -14,13 +14,14 @@ import { LocationChip } from "./LocationChip";
 
 interface DateTimeBadgesProps {
   when: number;
-  onOpenDate: () => void;
-  onOpenTime: () => void;
+  onOpenDate?: () => void;
+  onOpenTime?: () => void;
   location?: EntryLocation | null;
   locationOn?: boolean;
   locationLoading?: boolean;
   locationFailed?: boolean;
   onLocationPress?: () => void;
+  readOnly?: boolean;
 }
 
 export function DateTimeBadges({
@@ -32,20 +33,22 @@ export function DateTimeBadges({
   locationLoading,
   locationFailed,
   onLocationPress,
+  readOnly = false,
 }: DateTimeBadgesProps) {
   const { colors } = useTheme().theme;
 
   return (
     <View style={styles.row}>
       <Pressable
-        onPress={onOpenDate}
+        onPress={readOnly ? undefined : onOpenDate}
+        disabled={readOnly || !onOpenDate}
         style={({ pressed }) => [
           chip.base,
           { backgroundColor: colors.surfaceMuted },
-          pressed && press,
+          !readOnly && pressed && press,
         ]}
-        accessibilityLabel="Change entry date"
-        accessibilityRole="button"
+        accessibilityLabel={readOnly ? "Entry date" : "Change entry date"}
+        accessibilityRole={readOnly ? undefined : "button"}
       >
         <Feather name="calendar" size={metrics.iconSm} color={colors.text} />
         <ThemedText weight="medium" style={[typography.caption, { color: colors.text }]}>
@@ -54,14 +57,15 @@ export function DateTimeBadges({
       </Pressable>
 
       <Pressable
-        onPress={onOpenTime}
+        onPress={readOnly ? undefined : onOpenTime}
+        disabled={readOnly || !onOpenTime}
         style={({ pressed }) => [
           chip.base,
           { backgroundColor: colors.surfaceMuted },
-          pressed && press,
+          !readOnly && pressed && press,
         ]}
-        accessibilityLabel="Change entry time"
-        accessibilityRole="button"
+        accessibilityLabel={readOnly ? "Entry time" : "Change entry time"}
+        accessibilityRole={readOnly ? undefined : "button"}
       >
         <Feather name="clock" size={metrics.iconSm} color={colors.text} />
         <ThemedText weight="medium" style={[typography.caption, { color: colors.text }]}>
@@ -69,7 +73,9 @@ export function DateTimeBadges({
         </ThemedText>
       </Pressable>
 
-      {onLocationPress ? (
+      {readOnly ? (
+        location ? <LocationChip location={location} readOnly /> : null
+      ) : onLocationPress ? (
         <LocationChip
           location={location}
           on={locationOn}

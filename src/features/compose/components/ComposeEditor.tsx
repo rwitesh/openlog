@@ -5,12 +5,20 @@ import { useTheme, useWritingPreferences } from "@/theme/ThemeProvider";
 import { space } from "@/theme/spacing";
 
 interface EditorProps {
-  inputRef: RefObject<TextInput | null>;
+  inputRef?: RefObject<TextInput | null>;
   value: string;
-  onChangeText: (text: string) => void;
+  onChangeText?: (text: string) => void;
+  readOnly?: boolean;
+  children?: React.ReactNode;
 }
 
-export function ComposeEditor({ inputRef, value, onChangeText }: EditorProps) {
+export function ComposeEditor({
+  inputRef,
+  value,
+  onChangeText,
+  readOnly = false,
+  children,
+}: EditorProps) {
   const { theme } = useTheme();
   const { editorTextSize } = useWritingPreferences();
   const { colors, typography } = theme;
@@ -33,19 +41,22 @@ export function ComposeEditor({ inputRef, value, onChangeText }: EditorProps) {
       showsVerticalScrollIndicator
     >
       <TextInput
+        key={readOnly ? "read" : "edit"}
         ref={inputRef}
         value={value}
         onChangeText={onChangeText}
-        placeholder="Write something…"
+        placeholder={readOnly ? undefined : "Write something…"}
         placeholderTextColor={colors.textTertiary}
         multiline
         scrollEnabled={false}
-        maxLength={2000}
-        autoFocus
+        maxLength={readOnly ? undefined : 2000}
+        editable={!readOnly}
+        autoFocus={!readOnly}
         blurOnSubmit={false}
         textAlignVertical="top"
         style={[styles.input, editorStyle, { color: colors.text }]}
       />
+      {children}
     </ScrollView>
   );
 }

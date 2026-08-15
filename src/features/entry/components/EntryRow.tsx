@@ -58,8 +58,12 @@ function EntryRowBase({ entry, animate }: EntryRowProps) {
     ]).start();
   }, [animate, opacity, translateY, motion]);
 
+  const handleView = () => {
+    navigation.navigate("Compose", { entryId: entry.id, mode: "view" });
+  };
+
   const handleEdit = () => {
-    navigation.navigate("Compose", { entryId: entry.id });
+    navigation.navigate("Compose", { entryId: entry.id, mode: "edit" });
   };
 
   const handleDelete = () => {
@@ -103,7 +107,7 @@ function EntryRowBase({ entry, animate }: EntryRowProps) {
     <>
       <Animated.View style={{ opacity, transform: [{ translateY }] }}>
         <View style={styles.headerRow}>
-          <View style={styles.meta}>
+          <Pressable onPress={handleView} style={styles.meta} hitSlop={space.xs}>
             {showTime ? (
               <ThemedText
                 weight="medium"
@@ -125,14 +129,16 @@ function EntryRowBase({ entry, animate }: EntryRowProps) {
                 {locationName}
               </ThemedText>
             ) : null}
-          </View>
+          </Pressable>
           <EntryMenuButton onPress={() => setDetailsOpen(true)} />
         </View>
 
         {hasText ? (
-          <ThemedText style={[theme.typography.entryText, { color: colors.text }]}>
-            {bodyText}
-          </ThemedText>
+          <Pressable onPress={handleView} hitSlop={space.xs}>
+            <ThemedText style={[theme.typography.entryText, { color: colors.text }]}>
+              {bodyText}
+            </ThemedText>
+          </Pressable>
         ) : null}
 
         {hasImages ? (
