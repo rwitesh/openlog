@@ -106,7 +106,7 @@ export async function getAllUserPreferences(): Promise<{
       editorTextSize:
         (map.get(EDITOR_TEXT_SIZE_KEY) as EditorTextSize) ||
         DEFAULT_PREFERENCES.writing.editorTextSize,
-      autoLocation: map.get(AUTO_LOCATION_KEY) !== "false",
+      autoLocation: map.get(AUTO_LOCATION_KEY) === "true",
     };
 
     const accessibility: AccessibilityPreferences = {

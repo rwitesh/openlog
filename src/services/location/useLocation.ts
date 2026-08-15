@@ -6,6 +6,13 @@ import { useDebouncedCallback } from "@/shared/hooks/useDebouncedCallback";
 
 const TYPING_REFRESH_MS = 3000;
 
+/**
+ * Location attach state for the compose screen.
+ *
+ * `on` is the intent to attach a place; `place` is the resolved place.
+ * Only `toggle()` (an explicit chip tap) may show the OS permission
+ * dialog — automatic fetches run silently, see `fetchPlace`.
+ */
 export function useLocation(
   text: string,
   initialLocation?: EntryLocation,
@@ -16,106 +23,65 @@ export function useLocation(
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
 
-  const wantsRef = useRef(Boolean(initialLocation) || autoEnable);
-  const placeRef = useRef<EntryLocation | null>(initialLocation ?? null);
-  const fetchGenRef = useRef(0);
-  const cancelledRef = useRef(false);
-  placeRef.current = place;
+  const wants = useRef(on);
+  // Bumped on every fetch and on turn-off: only the latest fetch may apply
+  // its result, so a stale response can never resurrect a detached location.
+  const fetchId = useRef(0);
 
-  const isCancelled = (generation: number) =>
-    cancelledRef.current || fetchGenRef.current !== generation;
+  const resolve = useCallback(async (opts: { prompt?: boolean; spinner?: boolean } = {}) => {
+    const id = ++fetchId.current;
 
-  const cancelFetch = useCallback(() => {
-    cancelledRef.current = true;
-    fetchGenRef.current += 1;
-    wantsRef.current = false;
+    if (opts.spinner) setLoading(true);
+    setFailed(false);
+
+    const loc = await fetchPlace({ prompt: opts.prompt });
+
+    if (id !== fetchId.current) return;
+
     setLoading(false);
-    setFailed(false);
-  }, []);
-
-  const fetch = useCallback(async (showLoading: boolean) => {
-    const generation = ++fetchGenRef.current;
-    cancelledRef.current = false;
-
-    if (!wantsRef.current) return;
-
-    if (showLoading) setLoading(true);
-    setFailed(false);
-
-    try {
-      const loc = await fetchPlace({
-        isCancelled: () => isCancelled(generation),
-      });
-
-      if (isCancelled(generation) || !wantsRef.current) return;
-
-      if (loc) {
-        setPlace(loc);
-        setOn(true);
-        setFailed(false);
-      } else {
-        setOn(false);
-        setFailed(true);
-      }
-    } finally {
-      if (!isCancelled(generation) && wantsRef.current) setLoading(false);
+    if (loc) {
+      setPlace(loc);
+      setOn(true);
+    } else {
+      setOn(false);
+      setFailed(true);
     }
   }, []);
 
-  const activate = useCallback(
-    async (silent = false) => {
-      wantsRef.current = true;
+  const turnOff = useCallback(() => {
+    fetchId.current += 1; // invalidate any in-flight fetch
+    wants.current = false;
+    setOn(false);
+    setFailed(false);
+    setLoading(false);
+  }, []);
 
-      if (placeRef.current) {
-        setOn(true);
-        setFailed(false);
-        await fetch(false);
-        return;
-      }
+  // Auto-detect preference: attach silently when compose opens.
+  useEffect(() => {
+    if (autoEnable && !initialLocation) void resolve();
+  }, [autoEnable, initialLocation, resolve]);
 
-      await fetch(!silent);
-    },
-    [fetch]
-  );
-
+  // Keep the place fresh while writing.
   const refreshWhileOn = useDebouncedCallback(() => {
-    if (!wantsRef.current || !on) return;
-    void fetch(false);
+    if (wants.current && on) void resolve();
   }, TYPING_REFRESH_MS);
 
   useEffect(() => {
-    if (!text.trim()) return;
-    refreshWhileOn();
+    if (text.trim()) refreshWhileOn();
   }, [text, refreshWhileOn]);
 
-  useEffect(() => {
-    if (autoEnable && !initialLocation) {
-      void activate(true);
-    }
-  }, [autoEnable, initialLocation, activate]);
-
   const toggle = useCallback(async () => {
-    if (loading) {
-      cancelFetch();
-      setOn(false);
+    if (on || loading) {
+      turnOff();
       return;
     }
-
-    if (on) {
-      wantsRef.current = false;
-      setOn(false);
+    wants.current = true;
+    if (place) {
+      setOn(true); // re-attach the known place right away
       setFailed(false);
-      return;
     }
+    await resolve({ prompt: true, spinner: !place });
+  }, [on, loading, place, turnOff, resolve]);
 
-    await activate(Boolean(place));
-  }, [loading, on, place, cancelFetch, activate]);
-
-  return {
-    on,
-    place,
-    loading,
-    failed,
-    toggle,
-  };
+  return { on, place, loading, failed, toggle };
 }

@@ -41,8 +41,8 @@ export function BiometricLockRow() {
       return "Enroll biometrics in your device settings to enable app lock.";
     }
     return enabled
-      ? "Your entries lock whenever the app moves to the background."
-      : "Lock your entries whenever the app opens or returns from the background.";
+      ? "Your entries lock whenever the app opens."
+      : "Lock your entries behind biometrics whenever the app opens.";
   })();
 
   const handleToggle = async (value: boolean) => {
