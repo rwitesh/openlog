@@ -1,5 +1,6 @@
 import type { AccentChoice, ThemePaletteId } from "./colors";
-import type { FontChoice, TextSize } from "./typography";
+import type { FontChoice, FontName, TextSize } from "./typography";
+import { DEFAULT_FONT_FAMILY } from "./typography";
 import type { MotionLevel } from "./motion";
 import type { ThemeMode } from "./types";
 
@@ -13,7 +14,9 @@ export interface AppearancePreferences {
   accent: AccentChoice;
   mode: ThemeMode;
   atmosphere: AtmosphereIntensity;
-  fontChoice: FontChoice;
+  fontFamily: FontName;
+  /** @deprecated Alias for fontFamily */
+  fontChoice?: FontChoice;
   textSize: TextSize;
 }
 
@@ -52,7 +55,8 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
     accent: "default",
     mode: "system",
     atmosphere: "soft",
-    fontChoice: "sans",
+    fontFamily: DEFAULT_FONT_FAMILY,
+    fontChoice: DEFAULT_FONT_FAMILY,
     textSize: "regular",
   },
   entry: {

@@ -7,14 +7,23 @@ export const FONT = {
 } as const;
 
 export type FontWeight = keyof typeof FONT;
-export type FontChoice = "sans" | "serif";
+export type FontName = string;
+export type FontChoice = string;
 export type TextSize = "compact" | "regular" | "generous";
 
-export function fontFamily(weight: FontWeight = "regular", fontChoice: FontChoice = "sans"): string {
-  if (fontChoice === "serif") {
+export const DEFAULT_FONT_FAMILY: FontName = "Source Sans 3";
+
+export function fontFamily(
+  weight: FontWeight = "regular",
+  fontName: FontName = DEFAULT_FONT_FAMILY
+): string {
+  if (fontName === "serif") {
     return Platform.OS === "ios" ? "Georgia" : "serif";
   }
-  return FONT[weight];
+  if (fontName === "sans" || fontName === "Source Sans 3") {
+    return FONT[weight];
+  }
+  return fontName;
 }
 
 export const BASE_FONT_SIZE = {
@@ -33,8 +42,11 @@ export function scaleSize(base: number, size: TextSize): number {
   return base;
 }
 
-export function createTypography(size: TextSize = "regular", fontChoice: FontChoice = "sans") {
-  const getF = (w: FontWeight = "regular") => fontFamily(w, fontChoice);
+export function createTypography(
+  size: TextSize = "regular",
+  fontName: FontName = DEFAULT_FONT_FAMILY
+) {
+  const getF = (w: FontWeight = "regular") => fontFamily(w, fontName);
   const s = (base: number) => scaleSize(base, size);
 
   return {
@@ -104,5 +116,5 @@ export function createTypography(size: TextSize = "regular", fontChoice: FontCho
 }
 
 export const FONT_SIZE = BASE_FONT_SIZE;
-export const typography = createTypography("regular", "sans");
+export const typography = createTypography("regular", DEFAULT_FONT_FAMILY);
 export type TypographyStyles = ReturnType<typeof createTypography>;

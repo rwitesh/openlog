@@ -56,6 +56,7 @@ const APPEARANCE_KEYS: Record<keyof AppearancePreferences, string> = {
   accent: ACCENT_KEY,
   mode: THEME_KEY,
   atmosphere: ATMOSPHERE_KEY,
+  fontFamily: FONT_KEY,
   fontChoice: FONT_KEY,
   textSize: TEXT_SIZE_KEY,
 };
@@ -170,7 +171,7 @@ export function PreferencesProvider({
       [ACCENT_KEY]: DEFAULT_PREFERENCES.appearance.accent,
       [THEME_KEY]: DEFAULT_PREFERENCES.appearance.mode,
       [ATMOSPHERE_KEY]: DEFAULT_PREFERENCES.appearance.atmosphere,
-      [FONT_KEY]: DEFAULT_PREFERENCES.appearance.fontChoice,
+      [FONT_KEY]: DEFAULT_PREFERENCES.appearance.fontFamily,
       [TEXT_SIZE_KEY]: DEFAULT_PREFERENCES.appearance.textSize,
       [TIMELINE_STYLE_KEY]: DEFAULT_PREFERENCES.entry.timelineStyle,
       [TIMELINE_DENSITY_KEY]: DEFAULT_PREFERENCES.entry.timelineDensity,

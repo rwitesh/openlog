@@ -27,6 +27,7 @@ export type {
 /* Typography tokens */
 export type {
   FontChoice,
+  FontName,
   FontWeight,
   TextSize,
   TypographyStyles,
@@ -57,19 +58,10 @@ export type {
 /* Theme */
 
 import type { ThemeColors, ThemeBackgroundConfig } from "./colors";
-import type { TypographyStyles } from "./typography";
+import type { TypographyStyles, FontName, FontChoice, TextSize } from "./typography";
 import type { MotionTokens } from "./motion";
 import type { SpacingScale } from "./spacing";
-import type {
-  AccessibilityPreferences,
-  AppearancePreferences,
-  AtmosphereIntensity,
-  EntryPreferences,
-  SecurityPreferences,
-  UserPreferences,
-  WritingPreferences,
-} from "./preferences";
-import type { FontChoice, TextSize } from "./typography";
+import type { AtmosphereIntensity, UserPreferences } from "./preferences";
 
 /** The mode after the user's preference has been reconciled with the OS. */
 export type ResolvedThemeMode = "light" | "dark";
@@ -97,7 +89,9 @@ export interface Theme {
   }>;
   /** Base (unscaled) font size steps. */
   readonly fontSize: Readonly<Record<string, number>>;
-  /** User's chosen font family and text scale (kept for introspection). */
+  /** User's chosen font family name. */
+  readonly fontFamily: FontName;
+  /** @deprecated Kept for backwards compatibility */
   readonly fontChoice: FontChoice;
   readonly textSize: TextSize;
   readonly typography: TypographyStyles;
@@ -116,11 +110,11 @@ export type NavTheme = NavigationTheme;
 
 export interface PreferencesContextValue {
   readonly preferences: UserPreferences;
-  setAppearance: (patch: Partial<AppearancePreferences>) => void;
-  setEntry: (patch: Partial<EntryPreferences>) => void;
-  setWriting: (patch: Partial<WritingPreferences>) => void;
-  setAccessibility: (patch: Partial<AccessibilityPreferences>) => void;
-  setSecurity: (patch: Partial<SecurityPreferences>) => void;
+  setAppearance: (patch: Partial<import("./preferences").AppearancePreferences>) => void;
+  setEntry: (patch: Partial<import("./preferences").EntryPreferences>) => void;
+  setWriting: (patch: Partial<import("./preferences").WritingPreferences>) => void;
+  setAccessibility: (patch: Partial<import("./preferences").AccessibilityPreferences>) => void;
+  setSecurity: (patch: Partial<import("./preferences").SecurityPreferences>) => void;
   resetAppearanceDefaults: () => void;
 }
 

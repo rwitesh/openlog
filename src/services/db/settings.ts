@@ -16,6 +16,7 @@ import type {
 import { DEFAULT_PREFERENCES } from "@/theme/preferences";
 import type { FontChoice, TextSize } from "@/theme/typography";
 import type { MotionLevel } from "@/theme/motion";
+import { hasFont } from "@/services/fonts";
 
 const THEME_KEY = "theme";
 const PALETTE_KEY = "palette";
@@ -80,6 +81,16 @@ export async function getAllUserPreferences(): Promise<{
 
     const userName = map.get(USER_NAME_KEY)?.trim() || null;
 
+    const rawFont = map.get(FONT_KEY);
+    let resolvedFont = DEFAULT_PREFERENCES.appearance.fontFamily;
+    if (rawFont === "sans") {
+      resolvedFont = "Source Sans 3";
+    } else if (rawFont === "serif") {
+      resolvedFont = "Source Serif 4";
+    } else if (rawFont && hasFont(rawFont)) {
+      resolvedFont = rawFont;
+    }
+
     const appearance: AppearancePreferences = {
       palette: (map.get(PALETTE_KEY) as ThemePaletteId) || DEFAULT_PREFERENCES.appearance.palette,
       accent: (map.get(ACCENT_KEY) as AccentChoice) || DEFAULT_PREFERENCES.appearance.accent,
@@ -87,7 +98,8 @@ export async function getAllUserPreferences(): Promise<{
       atmosphere:
         (map.get(ATMOSPHERE_KEY) as AtmosphereIntensity) ||
         DEFAULT_PREFERENCES.appearance.atmosphere,
-      fontChoice: (map.get(FONT_KEY) as FontChoice) || DEFAULT_PREFERENCES.appearance.fontChoice,
+      fontFamily: resolvedFont,
+      fontChoice: resolvedFont,
       textSize: (map.get(TEXT_SIZE_KEY) as TextSize) || DEFAULT_PREFERENCES.appearance.textSize,
     };
 

@@ -19,7 +19,7 @@ import { usePreferences, useTheme } from "@/theme/ThemeProvider";
 import { space } from "@/theme/spacing";
 import { radius } from "@/theme/theme";
 import { press } from "@/theme/motion";
-import { typography, type FontChoice, type TextSize } from "@/theme/typography";
+import type { TextSize } from "@/theme/typography";
 import type {
   AtmosphereIntensity,
   EditorTextSize,
@@ -27,12 +27,14 @@ import type {
   TimelineStyle,
 } from "@/theme/preferences";
 import {
+  FontPickerModal,
   LiveThemePreview,
   SegmentedRow,
   ThemeCard,
   ToggleRow,
 } from "@/features/settings";
 import { ThemedText } from "@/shared/components/ThemedText";
+import type { FontName } from "@/services/fonts";
 
 type ThemeCategoryFilter = "all" | "quiet" | "expressive";
 
@@ -49,8 +51,10 @@ export function AppearanceScreen() {
   } = usePreferences();
 
   const [categoryFilter, setCategoryFilter] = useState<ThemeCategoryFilter>("all");
+  const [isFontPickerOpen, setIsFontPickerOpen] = useState(false);
 
   const { appearance, entry, writing } = preferences;
+  const activeFont = appearance.fontFamily || "Source Sans 3";
 
   const currentAccent =
     ACCENT_OPTIONS.find((a) => a.id === appearance.accent) ?? ACCENT_OPTIONS[0];
@@ -59,6 +63,10 @@ export function AppearanceScreen() {
     categoryFilter === "all"
       ? THEME_OPTIONS
       : THEME_OPTIONS.filter((t) => t.category === categoryFilter);
+
+  const handleSelectFont = (fontName: FontName) => {
+    setAppearance({ fontFamily: fontName });
+  };
 
   const handleReset = () => {
     Alert.alert(
@@ -157,240 +165,240 @@ export function AppearanceScreen() {
           <ThemedText weight="medium" style={[styles.sectionTitle, { color: colors.textSecondary }]}>
             APPEARANCE MODE
           </ThemedText>
-        <SegmentedRow<ThemeMode>
-          items={[
-            { id: "light", label: "Light" },
-            { id: "dark", label: "Dark" },
-            { id: "system", label: "System" },
-          ]}
-          selected={appearance.mode}
-          onSelect={(m) => setAppearance({ mode: m })}
-        />
-      </View>
-      <View style={styles.section}>
-        <View style={styles.sectionHeaderRow}>
-          <ThemedText weight="medium" style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-            ACCENT COLOR
-          </ThemedText>
-          <ThemedText style={[styles.accentLabel, { color: colors.textSecondary }]}>
-            {currentAccent.label}
-          </ThemedText>
+          <SegmentedRow<ThemeMode>
+            items={[
+              { id: "light", label: "Light" },
+              { id: "dark", label: "Dark" },
+              { id: "system", label: "System" },
+            ]}
+            selected={appearance.mode}
+            onSelect={(m) => setAppearance({ mode: m })}
+          />
         </View>
 
-        <View style={styles.accentsGrid}>
-          {ACCENT_OPTIONS.map((item) => {
-            const isSelected = appearance.accent === item.id;
-            const color = mode === "dark" ? item.colorDark : item.colorLight;
-            const isDefault = item.id === "default";
+        <View style={styles.section}>
+          <View style={styles.sectionHeaderRow}>
+            <ThemedText weight="medium" style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+              ACCENT COLOR
+            </ThemedText>
+            <ThemedText style={[styles.accentLabel, { color: colors.textSecondary }]}>
+              {currentAccent.label}
+            </ThemedText>
+          </View>
 
-            return (
-              <Pressable
-                key={item.id}
-                onPress={() => setAppearance({ accent: item.id })}
-                hitSlop={{ top: 6, bottom: 6, left: 3, right: 3 }}
-                style={({ pressed }) => [
-                  styles.accentDotWrap,
-                  isSelected && {
-                    borderColor: color,
-                    transform: [{ scale: 1.08 }],
-                  },
-                  pressed && press,
-                ]}
-                accessibilityLabel={`Accent color ${item.label}`}
-                accessibilityRole="button"
-                accessibilityState={{ selected: isSelected }}
-              >
-                <View
-                  style={[
-                    styles.accentDot,
-                    {
-                      backgroundColor: color,
-                      borderWidth: isDefault ? 1 : 0,
-                      borderColor: colors.separator,
+          <View style={styles.accentsGrid}>
+            {ACCENT_OPTIONS.map((item) => {
+              const isSelected = appearance.accent === item.id;
+              const color = mode === "dark" ? item.colorDark : item.colorLight;
+              const isDefault = item.id === "default";
+
+              return (
+                <Pressable
+                  key={item.id}
+                  onPress={() => setAppearance({ accent: item.id })}
+                  hitSlop={{ top: 6, bottom: 6, left: 3, right: 3 }}
+                  style={({ pressed }) => [
+                    styles.accentDotWrap,
+                    isSelected && {
+                      borderColor: color,
+                      transform: [{ scale: 1.08 }],
                     },
+                    pressed && press,
                   ]}
+                  accessibilityLabel={`Accent color ${item.label}`}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: isSelected }}
                 >
-                  {isSelected ? (
-                    <Feather
-                      name="check"
-                      size={12}
-                      color={mode === "dark" ? "#141311" : "#FAF7F0"}
-                    />
-                  ) : null}
-                </View>
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
-
-      <View style={styles.section}>
-        <ThemedText weight="medium" style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-          ATMOSPHERE GRADIENT
-        </ThemedText>
-        <SegmentedRow<AtmosphereIntensity>
-          items={[
-            { id: "soft", label: "Soft" },
-            { id: "muted", label: "Muted" },
-            { id: "off", label: "Off" },
-          ]}
-          selected={appearance.atmosphere}
-          onSelect={(a) => setAppearance({ atmosphere: a })}
-        />
-      </View>
-
-      <View style={styles.section}>
-        <ThemedText weight="medium" style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-          TYPOGRAPHY
-        </ThemedText>
-
-        <View style={styles.fontRow}>
-          {([
-            { id: "sans" as FontChoice, name: "Clean Sans", preview: "Source Sans 3 · Modern clarity" },
-            { id: "serif" as FontChoice, name: "Literary Serif", preview: "Editorial Serif · Classic warmth" },
-          ]).map((font) => {
-            const isSelected = appearance.fontChoice === font.id;
-            return (
-              <Pressable
-                key={font.id}
-                onPress={() => setAppearance({ fontChoice: font.id })}
-                style={({ pressed }) => [
-                  styles.fontCard,
-                  {
-                    backgroundColor: isSelected ? colors.surface : colors.surfaceMuted,
-                    borderColor: isSelected ? colors.marker : colors.separator,
-                    borderWidth: isSelected ? 2 : StyleSheet.hairlineWidth,
-                  },
-                  pressed && press,
-                ]}
-                accessibilityRole="button"
-                accessibilityState={{ selected: isSelected }}
-              >
-                <View style={styles.fontCardHeader}>
-                  <ThemedText
-                    weight={isSelected ? "semibold" : "medium"}
+                  <View
                     style={[
-                      styles.fontName,
-                      font.id === "serif" && { fontFamily: "Georgia" },
-                      { color: isSelected ? colors.text : colors.textSecondary },
+                      styles.accentDot,
+                      {
+                        backgroundColor: color,
+                        borderWidth: isDefault ? 1 : 0,
+                        borderColor: colors.separator,
+                      },
                     ]}
                   >
-                    {font.name}
-                  </ThemedText>
-                  {isSelected ? (
-                    <Feather name="check" size={14} color={colors.marker} />
-                  ) : null}
-                </View>
-                <ThemedText
-                  style={[
-                    styles.fontPreviewText,
-                    font.id === "serif" && { fontFamily: "Georgia" },
-                    { color: colors.textSecondary },
-                  ]}
-                >
-                  Aa Bb Gg 123
-                </ThemedText>
-              </Pressable>
-            );
-          })}
+                    {isSelected ? (
+                      <Feather
+                        name="check"
+                        size={12}
+                        color={mode === "dark" ? "#141311" : "#FAF7F0"}
+                      />
+                    ) : null}
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
 
-        <View style={styles.subItem}>
-          <ThemedText weight="medium" style={[styles.subheading, { color: colors.textSecondary }]}>
-            TEXT SCALE
+        <View style={styles.section}>
+          <ThemedText weight="medium" style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+            ATMOSPHERE GRADIENT
           </ThemedText>
-          <SegmentedRow<TextSize>
+          <SegmentedRow<AtmosphereIntensity>
             items={[
-              { id: "compact", label: "Compact" },
-              { id: "regular", label: "Regular" },
-              { id: "generous", label: "Generous" },
+              { id: "soft", label: "Soft" },
+              { id: "muted", label: "Muted" },
+              { id: "off", label: "Off" },
             ]}
-            selected={appearance.textSize}
-            onSelect={(t) => setAppearance({ textSize: t })}
+            selected={appearance.atmosphere}
+            onSelect={(a) => setAppearance({ atmosphere: a })}
           />
         </View>
-      </View>
 
-      <View style={styles.section}>
-        <ThemedText weight="medium" style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-          TIMELINE
-        </ThemedText>
-
-        <SegmentedRow<TimelineStyle>
-          items={[
-            { id: "rail", label: "Rail" },
-            { id: "minimal", label: "Minimal" },
-            { id: "clean", label: "Clean" },
-          ]}
-          selected={entry.timelineStyle}
-          onSelect={(timelineStyle) => setEntry({ timelineStyle })}
-        />
-
-        <View style={styles.subItem}>
-          <ThemedText weight="medium" style={[styles.subheading, { color: colors.textSecondary }]}>
-            DENSITY
+        <View style={styles.section}>
+          <ThemedText weight="medium" style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+            TYPOGRAPHY
           </ThemedText>
-          <SegmentedRow<TimelineDensity>
-            items={[
-              { id: "comfortable", label: "Comfortable" },
-              { id: "compact", label: "Compact" },
+
+          <Pressable
+            onPress={() => setIsFontPickerOpen(true)}
+            style={({ pressed }) => [
+              styles.fontDropdown,
+              {
+                backgroundColor: colors.surfaceMuted,
+                borderColor: colors.separator,
+              },
+              pressed && press,
             ]}
-            selected={entry.timelineDensity}
-            onSelect={(timelineDensity) => setEntry({ timelineDensity })}
-          />
-        </View>
-
-        <View style={[styles.cardGroup, { backgroundColor: colors.surfaceMuted }]}>
-          <ToggleRow
-            label="Timestamps"
-            value={entry.showTimestamp}
-            onValueChange={(showTimestamp) => setEntry({ showTimestamp })}
-          />
-          <View style={[styles.divider, { backgroundColor: colors.separator }]} />
-          <ToggleRow
-            label="Location"
-            value={entry.showLocation}
-            onValueChange={(showLocation) => setEntry({ showLocation })}
-          />
-        </View>
-      </View>
-
-      <View style={styles.section}>
-        <ThemedText weight="medium" style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-          WRITING / EDITOR
-        </ThemedText>
-        <SegmentedRow<EditorTextSize>
-          items={[
-            { id: "regular", label: "Standard" },
-            { id: "large", label: "Large" },
-          ]}
-          selected={writing.editorTextSize}
-          onSelect={(editorTextSize) => setWriting({ editorTextSize })}
-        />
-      </View>
-
-      <View style={styles.resetSection}>
-        <Pressable
-          onPress={handleReset}
-          style={({ pressed }) => [
-            styles.resetButton,
-            { borderColor: colors.separator },
-            pressed && press,
-          ]}
-          accessibilityRole="button"
-        >
-          <Feather name="rotate-ccw" size={14} color={colors.textSecondary} />
-          <ThemedText
-            weight="medium"
-            style={[styles.resetButtonText, { color: colors.textSecondary }]}
+            accessibilityRole="button"
+            accessibilityLabel={`Font family: ${activeFont}. Tap to choose a font.`}
           >
-            Reset to Defaults
+            <View style={styles.fontDropdownLeft}>
+              <ThemedText style={[styles.fontDropdownLabel, { color: colors.textSecondary }]}>
+                FONT FAMILY
+              </ThemedText>
+              <ThemedText
+                weight="semibold"
+                style={[styles.fontDropdownValue, { color: colors.text }]}
+              >
+                {activeFont}
+              </ThemedText>
+              <ThemedText
+                style={[styles.fontDropdownPreview, { color: colors.textSecondary }]}
+              >
+                Aa Bb Gg 123 · The quick brown fox
+              </ThemedText>
+            </View>
+
+            <View
+              style={[
+                styles.fontDropdownIconWrap,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.separator,
+                },
+              ]}
+            >
+              <Feather name="chevron-down" size={16} color={colors.textSecondary} />
+            </View>
+          </Pressable>
+
+          <View style={styles.subItem}>
+            <ThemedText weight="medium" style={[styles.subheading, { color: colors.textSecondary }]}>
+              TEXT SCALE
+            </ThemedText>
+            <SegmentedRow<TextSize>
+              items={[
+                { id: "compact", label: "Compact" },
+                { id: "regular", label: "Regular" },
+                { id: "generous", label: "Generous" },
+              ]}
+              selected={appearance.textSize}
+              onSelect={(t) => setAppearance({ textSize: t })}
+            />
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <ThemedText weight="medium" style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+            TIMELINE
           </ThemedText>
-        </Pressable>
-      </View>
-    </ScrollView>
-  </View>
-);
+
+          <SegmentedRow<TimelineStyle>
+            items={[
+              { id: "rail", label: "Rail" },
+              { id: "minimal", label: "Minimal" },
+              { id: "clean", label: "Clean" },
+            ]}
+            selected={entry.timelineStyle}
+            onSelect={(timelineStyle) => setEntry({ timelineStyle })}
+          />
+
+          <View style={styles.subItem}>
+            <ThemedText weight="medium" style={[styles.subheading, { color: colors.textSecondary }]}>
+              DENSITY
+            </ThemedText>
+            <SegmentedRow<TimelineDensity>
+              items={[
+                { id: "comfortable", label: "Comfortable" },
+                { id: "compact", label: "Compact" },
+              ]}
+              selected={entry.timelineDensity}
+              onSelect={(timelineDensity) => setEntry({ timelineDensity })}
+            />
+          </View>
+
+          <View style={[styles.cardGroup, { backgroundColor: colors.surfaceMuted }]}>
+            <ToggleRow
+              label="Timestamps"
+              value={entry.showTimestamp}
+              onValueChange={(showTimestamp) => setEntry({ showTimestamp })}
+            />
+            <View style={[styles.divider, { backgroundColor: colors.separator }]} />
+            <ToggleRow
+              label="Location"
+              value={entry.showLocation}
+              onValueChange={(showLocation) => setEntry({ showLocation })}
+            />
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <ThemedText weight="medium" style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+            WRITING / EDITOR
+          </ThemedText>
+          <SegmentedRow<EditorTextSize>
+            items={[
+              { id: "regular", label: "Standard" },
+              { id: "large", label: "Large" },
+            ]}
+            selected={writing.editorTextSize}
+            onSelect={(editorTextSize) => setWriting({ editorTextSize })}
+          />
+        </View>
+
+        <View style={styles.resetSection}>
+          <Pressable
+            onPress={handleReset}
+            style={({ pressed }) => [
+              styles.resetButton,
+              { borderColor: colors.separator },
+              pressed && press,
+            ]}
+            accessibilityRole="button"
+          >
+            <Feather name="rotate-ccw" size={14} color={colors.textSecondary} />
+            <ThemedText
+              weight="medium"
+              style={[styles.resetButtonText, { color: colors.textSecondary }]}
+            >
+              Reset to Defaults
+            </ThemedText>
+          </Pressable>
+        </View>
+      </ScrollView>
+
+      <FontPickerModal
+        visible={isFontPickerOpen}
+        selectedFont={activeFont}
+        onSelectFont={handleSelectFont}
+        onClose={() => setIsFontPickerOpen(false)}
+      />
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -475,28 +483,40 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  fontRow: {
-    flexDirection: "row",
-    gap: space.sm,
-  },
-  fontCard: {
-    flex: 1,
-    padding: space.md,
-    borderRadius: radius.md,
-    gap: space.xs,
-  },
-  fontCardHeader: {
+  fontDropdown: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    padding: space.md,
+    borderRadius: radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    gap: space.md,
   },
-  fontName: {
-    fontSize: 14,
-    lineHeight: 18,
+  fontDropdownLeft: {
+    flex: 1,
+    gap: 3,
   },
-  fontPreviewText: {
+  fontDropdownLabel: {
+    fontSize: 10,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+  },
+  fontDropdownValue: {
+    fontSize: 16,
+    lineHeight: 20,
+  },
+  fontDropdownPreview: {
     fontSize: 12,
     lineHeight: 16,
+    marginTop: 1,
+  },
+  fontDropdownIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: StyleSheet.hairlineWidth,
   },
   subItem: {
     marginTop: space.sm,

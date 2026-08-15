@@ -14,8 +14,6 @@ interface MonthHeroProps {
 function MonthHeroBase({ stats }: MonthHeroProps) {
   const { theme } = useTheme();
   const { colors } = theme;
-  const { preferences } = usePreferences();
-  const { fontChoice } = preferences.appearance;
 
   return (
     <View style={styles.container}>
@@ -26,7 +24,7 @@ function MonthHeroBase({ stats }: MonthHeroProps) {
             styles.monthName,
             {
               color: colors.text,
-              fontFamily: fontFamily("semibold", fontChoice),
+              fontFamily: fontFamily("semibold", theme.fontFamily),
             },
           ]}
         >
