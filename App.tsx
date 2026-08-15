@@ -1,16 +1,14 @@
 import { View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
-import { NavigationContainer, type Theme as NavTheme } from "@react-navigation/native";
+import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { ThemeProvider } from "@/theme/ThemeProvider";
-import { useTheme } from "@/theme/ThemeProvider";
+import { AppProviders } from "@/theme/ThemeProvider";
+import { useTheme, useNavigationTheme } from "@/theme/ThemeContext";
 import { ProfileProvider } from "@/profile";
 import { useAppBootstrap } from "@/hooks/useAppBootstrap";
-import { FONT } from "@/theme/typography";
-import type { ThemeColors } from "@/theme/colors";
 import type { RootStackParamList } from "@/types/navigation";
 import { Timeline } from "@/screens/timeline";
 import { Memory } from "@/screens/memory";
@@ -27,33 +25,14 @@ SplashScreen.preventAutoHideAsync().catch((error) => {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-function makeNavTheme(mode: "light" | "dark", colors: ThemeColors): NavTheme {
-  return {
-    dark: mode === "dark",
-    fonts: {
-      regular: { fontFamily: FONT.regular, fontWeight: "400" },
-      medium: { fontFamily: FONT.medium, fontWeight: "500" },
-      bold: { fontFamily: FONT.semibold, fontWeight: "600" },
-      heavy: { fontFamily: FONT.semibold, fontWeight: "600" },
-    },
-    colors: {
-      primary: colors.text,
-      background: colors.background,
-      card: colors.background,
-      text: colors.text,
-      border: colors.separator,
-      notification: colors.destructive,
-    },
-  };
-}
-
 function AppContent({ showWelcome }: { showWelcome: boolean }) {
-  const { theme, resolvedMode } = useTheme();
+  const { theme, mode } = useTheme();
+  const navTheme = useNavigationTheme();
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
-      <NavigationContainer theme={makeNavTheme(resolvedMode, theme.colors)}>
-        <StatusBar style={resolvedMode === "dark" ? "light" : "dark"} />
+      <NavigationContainer theme={navTheme}>
+        <StatusBar style={mode === "dark" ? "light" : "dark"} />
         <Stack.Navigator
           initialRouteName={showWelcome ? "Welcome" : "Timeline"}
           screenOptions={{
@@ -121,11 +100,11 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <Layout>
-        <ThemeProvider initialPreferences={preferences}>
+        <AppProviders initialPreferences={preferences}>
           <ProfileProvider initialName={userName}>
             <AppContent showWelcome={!userName} />
           </ProfileProvider>
-        </ThemeProvider>
+        </AppProviders>
       </Layout>
     </SafeAreaProvider>
   );

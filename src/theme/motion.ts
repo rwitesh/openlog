@@ -39,3 +39,6 @@ export function createMotion(level: MotionLevel = "subtle") {
 }
 
 export const motion = createMotion("subtle");
+
+/** Fully-resolved motion tokens for a given MotionLevel. */
+export type MotionTokens = ReturnType<typeof createMotion>;
