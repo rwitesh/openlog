@@ -38,7 +38,7 @@ export type { MotionLevel, MotionTokens } from "./motion";
 export type { SpacingScale, LayoutMetrics } from "./spacing";
 
 /* Preference contracts */
-export type { ThemeMode } from "@/types/entry";
+export type ThemeMode = "system" | "light" | "dark";
 
 export type {
   AppearancePreferences,

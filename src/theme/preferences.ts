@@ -1,7 +1,7 @@
 import type { AccentChoice, PaperMood } from "./colors";
 import type { FontChoice, TextSize } from "./typography";
 import type { MotionLevel } from "./motion";
-import type { ThemeMode } from "@/types/entry";
+import type { ThemeMode } from "./types";
 
 export type TimelineStyle = "rail" | "minimal" | "clean";
 export type TimelineDensity = "comfortable" | "compact";

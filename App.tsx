@@ -5,19 +5,18 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { AppProviders } from "@/theme/ThemeProvider";
-import { useTheme, useNavigationTheme } from "@/theme/ThemeContext";
-import { ProfileProvider } from "@/profile";
-import { useAppBootstrap } from "@/hooks/useAppBootstrap";
-import type { RootStackParamList } from "@/types/navigation";
+import { AppProviders, useNavigationTheme, useTheme } from "@/theme";
+import { ProfileProvider } from "@/features/profile";
+import { useAppBootstrap } from "@/shared/hooks";
+import type { RootStackParamList } from "@/navigation";
 import { Timeline } from "@/screens/timeline";
 import { Memory } from "@/screens/memory";
 import { Welcome } from "@/screens/welcome";
 import { Day } from "@/screens/day";
 import { Compose } from "@/screens/compose";
 import { Settings } from "@/screens/settings";
-import { Layout } from "@/layout";
-import { logDevWarning } from "@/lib";
+import { Layout } from "@/shared/components/Layout";
+import { logDevWarning } from "@/shared/utils";
 
 SplashScreen.preventAutoHideAsync().catch((error) => {
   logDevWarning("startup:preventAutoHideAsync", error);

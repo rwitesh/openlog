@@ -34,7 +34,7 @@ import {
   THEME_KEY,
   TIMELINE_DENSITY_KEY,
   TIMELINE_STYLE_KEY,
-} from "@/db/settings";
+} from "@/services/db";
 import {
   DEFAULT_PREFERENCES,
   MOOD_PRESETS,

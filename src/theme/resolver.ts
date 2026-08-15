@@ -11,7 +11,6 @@ import {
   createTypography,
   FONT,
 } from "./typography";
-import type { ThemeMode } from "@/types/entry";
 import type {
   AppearancePreferences,
   MotionLevel,
@@ -19,6 +18,7 @@ import type {
   ResolvedThemeMode,
   SystemScheme,
   Theme,
+  ThemeMode,
 } from "./types";
 
 /** Corner radius scale — cards, sheets, images. */
