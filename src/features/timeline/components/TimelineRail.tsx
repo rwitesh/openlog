@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, View, type ViewProps } from "react-native";
 
-import { useJournalPreferences, useTheme } from "@/theme/ThemeProvider";
+import { useEntryPreferences, useTheme } from "@/theme/ThemeProvider";
 import { space } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
 import { press } from "@/theme/motion";
@@ -30,7 +30,7 @@ export function TimelineRail({
   ...rest
 }: RailProps) {
   const { theme } = useTheme();
-  const { timelineStyle, timelineDensity } = useJournalPreferences();
+  const { timelineStyle, timelineDensity } = useEntryPreferences();
   const { colors } = theme;
 
   const center = showDate ? MARKER / 2 : 9 + DOT / 2;

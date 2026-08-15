@@ -1,3 +1,4 @@
+export * from "./components/BiometricLockRow";
 export * from "./components/CollapsibleSection";
 export * from "./components/LiveThemePreview";
 export * from "./components/MoodPicker";

@@ -6,7 +6,7 @@
  *   - `accessibility.motionLevel`
  *   - the OS color scheme
  *
- * Functional preferences (journal/writing toggles) changing here will NOT
+ * Functional preferences (entry/writing toggles) changing here will NOT
  * re-render theme consumers — that state lives in PreferencesContext.
  */
 

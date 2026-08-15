@@ -24,6 +24,7 @@ import {
   ACCENT_KEY,
   ATMOSPHERE_KEY,
   AUTO_LOCATION_KEY,
+  BIOMETRIC_LOCK_KEY,
   EDITOR_TEXT_SIZE_KEY,
   FONT_KEY,
   MOOD_KEY,
@@ -45,8 +46,9 @@ import {
 import type {
   AccessibilityPreferences,
   AppearancePreferences,
-  JournalPreferences,
+  EntryPreferences,
   PreferencesContextValue,
+  SecurityPreferences,
   UserPreferences,
   WritingPreferences,
 } from "./types";
@@ -62,7 +64,7 @@ const APPEARANCE_KEYS: Record<keyof AppearancePreferences, string> = {
   textSize: TEXT_SIZE_KEY,
 };
 
-const JOURNAL_KEYS: Record<keyof JournalPreferences, string> = {
+const ENTRY_KEYS: Record<keyof EntryPreferences, string> = {
   timelineStyle: TIMELINE_STYLE_KEY,
   timelineDensity: TIMELINE_DENSITY_KEY,
   showTimestamp: SHOW_TIMESTAMP_KEY,
@@ -76,6 +78,10 @@ const WRITING_KEYS: Record<keyof WritingPreferences, string> = {
 
 const ACCESSIBILITY_KEYS: Record<keyof AccessibilityPreferences, string> = {
   motionLevel: MOTION_LEVEL_KEY,
+};
+
+const SECURITY_KEYS: Record<keyof SecurityPreferences, string> = {
+  biometricLock: BIOMETRIC_LOCK_KEY,
 };
 
 /** Converts a preference patch into DB key/value entries (single write). */
@@ -120,12 +126,12 @@ export function PreferencesProvider({
     persist(toDbEntries(patch, APPEARANCE_KEYS));
   }, []);
 
-  const setJournal = useCallback((patch: Partial<JournalPreferences>) => {
+  const setEntry = useCallback((patch: Partial<EntryPreferences>) => {
     setPreferences((prev) => ({
       ...prev,
-      journal: { ...prev.journal, ...patch },
+      entry: { ...prev.entry, ...patch },
     }));
-    persist(toDbEntries(patch, JOURNAL_KEYS));
+    persist(toDbEntries(patch, ENTRY_KEYS));
   }, []);
 
   const setWriting = useCallback((patch: Partial<WritingPreferences>) => {
@@ -144,6 +150,14 @@ export function PreferencesProvider({
     persist(toDbEntries(patch, ACCESSIBILITY_KEYS));
   }, []);
 
+  const setSecurity = useCallback((patch: Partial<SecurityPreferences>) => {
+    setPreferences((prev) => ({
+      ...prev,
+      security: { ...prev.security, ...patch },
+    }));
+    persist(toDbEntries(patch, SECURITY_KEYS));
+  }, []);
+
   const applyMood = useCallback((moodId: Exclude<MoodId, "custom">) => {
     const preset = MOOD_PRESETS.find((p) => p.id === moodId);
     if (!preset) return;
@@ -158,8 +172,8 @@ export function PreferencesProvider({
         textSize: preset.textSize,
         atmosphere: preset.atmosphere,
       },
-      journal: {
-        ...prev.journal,
+      entry: {
+        ...prev.entry,
         timelineStyle: preset.timelineStyle,
         timelineDensity: preset.timelineDensity,
       },
@@ -185,9 +199,10 @@ export function PreferencesProvider({
       activeMoodId,
       activeMoodName,
       setAppearance,
-      setJournal,
+      setEntry,
       setWriting,
       setAccessibility,
+      setSecurity,
       applyMood,
     }),
     [
@@ -195,9 +210,10 @@ export function PreferencesProvider({
       activeMoodId,
       activeMoodName,
       setAppearance,
-      setJournal,
+      setEntry,
       setWriting,
       setAccessibility,
+      setSecurity,
       applyMood,
     ]
   );
@@ -234,11 +250,11 @@ export function useAppearancePreferences() {
   );
 }
 
-export function useJournalPreferences() {
-  const { preferences, setJournal } = usePreferencesContext();
+export function useEntryPreferences() {
+  const { preferences, setEntry } = usePreferencesContext();
   return useMemo(
-    () => ({ ...preferences.journal, setJournal }),
-    [preferences.journal, setJournal]
+    () => ({ ...preferences.entry, setEntry }),
+    [preferences.entry, setEntry]
   );
 }
 
@@ -255,5 +271,13 @@ export function useAccessibilityPreferences() {
   return useMemo(
     () => ({ ...preferences.accessibility, setAccessibility }),
     [preferences.accessibility, setAccessibility]
+  );
+}
+
+export function useSecurityPreferences() {
+  const { preferences, setSecurity } = usePreferencesContext();
+  return useMemo(
+    () => ({ ...preferences.security, setSecurity }),
+    [preferences.security, setSecurity]
   );
 }

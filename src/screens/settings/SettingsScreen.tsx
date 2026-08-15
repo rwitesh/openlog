@@ -8,6 +8,7 @@ import { usePreferences, useTheme } from "@/theme/ThemeProvider";
 import { useProfile } from "@/features/profile";
 import { useEntries } from "@/features/entry";
 import {
+  BiometricLockRow,
   CollapsibleSection,
   LiveThemePreview,
   MoodPicker,
@@ -124,9 +125,10 @@ export function SettingsScreen() {
     preferences,
     activeMoodName,
     setAppearance,
-    setJournal,
+    setEntry,
     setWriting,
     setAccessibility,
+    setSecurity,
   } = usePreferences();
   const { name, setName } = useProfile();
   const { clearAll } = useEntries();
@@ -140,7 +142,7 @@ export function SettingsScreen() {
       async () => deleteMediaList(await clearAll())
     );
 
-  const { appearance, journal, writing, accessibility } = preferences;
+  const { appearance, entry, writing, accessibility, security } = preferences;
 
   const currentMoodName = THEME_PALETTES[appearance.palette]?.label ?? "Warm Paper";
   const currentAccentName =
@@ -320,12 +322,12 @@ export function SettingsScreen() {
       <CollapsibleSection
         title="Timeline"
         summary={`${
-          journal.timelineStyle === "rail"
+          entry.timelineStyle === "rail"
             ? "Continuous Rail"
-            : journal.timelineStyle === "minimal"
+            : entry.timelineStyle === "minimal"
               ? "Minimal Dots"
               : "Clean Line"
-        } · ${journal.timelineDensity === "compact" ? "Compact" : "Comfortable"}`}
+        } · ${entry.timelineDensity === "compact" ? "Compact" : "Comfortable"}`}
       >
         <ThemedText weight="medium" style={[styles.subheading, { color: colors.textSecondary }]}>
           TIMELINE STYLE
@@ -336,8 +338,8 @@ export function SettingsScreen() {
             { id: "minimal", label: "Minimal" },
             { id: "clean", label: "Clean" },
           ]}
-          selected={journal.timelineStyle}
-          onSelect={(timelineStyle) => setJournal({ timelineStyle })}
+          selected={entry.timelineStyle}
+          onSelect={(timelineStyle) => setEntry({ timelineStyle })}
         />
 
         <ThemedText weight="medium" style={[styles.subheading, { color: colors.textSecondary }]}>
@@ -348,8 +350,8 @@ export function SettingsScreen() {
             { id: "comfortable", label: "Comfortable" },
             { id: "compact", label: "Compact" },
           ]}
-          selected={journal.timelineDensity}
-          onSelect={(timelineDensity) => setJournal({ timelineDensity })}
+          selected={entry.timelineDensity}
+          onSelect={(timelineDensity) => setEntry({ timelineDensity })}
         />
 
         <ThemedText weight="medium" style={[styles.subheading, { color: colors.textSecondary }]}>
@@ -357,14 +359,14 @@ export function SettingsScreen() {
         </ThemedText>
         <ToggleRow
           label="Timestamps"
-          value={journal.showTimestamp}
-          onValueChange={(showTimestamp) => setJournal({ showTimestamp })}
+          value={entry.showTimestamp}
+          onValueChange={(showTimestamp) => setEntry({ showTimestamp })}
         />
         <View style={[styles.divider, { backgroundColor: colors.separator }]} />
         <ToggleRow
           label="Location Labels"
-          value={journal.showLocation}
-          onValueChange={(showLocation) => setJournal({ showLocation })}
+          value={entry.showLocation}
+          onValueChange={(showLocation) => setEntry({ showLocation })}
         />
       </CollapsibleSection>
 
@@ -420,6 +422,14 @@ export function SettingsScreen() {
           selected={accessibility.motionLevel}
           onSelect={(motionLevel) => setAccessibility({ motionLevel })}
         />
+      </CollapsibleSection>
+
+      {/* PRIVACY */}
+      <CollapsibleSection
+        title="Privacy"
+        summary={security.biometricLock ? "App lock on" : "App lock off"}
+      >
+        <BiometricLockRow />
       </CollapsibleSection>
 
       {/* DATA */}
