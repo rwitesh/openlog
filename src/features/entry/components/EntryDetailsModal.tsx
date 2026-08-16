@@ -3,14 +3,14 @@ import { Feather } from "@expo/vector-icons";
 import type { ComponentProps } from "react";
 
 import type { Entry } from "@/shared/types";
-import { useTheme } from "@/theme/ThemeProvider";
+import { useTheme } from "@/theme";
 import { metrics, space } from "@/theme/spacing";
 import { radius } from "@/theme/theme";
 import { FONT_SIZE } from "@/theme/typography";
 import { press } from "@/theme/motion";
 import { formatDateTime } from "@/shared/utils/dates";
 import { formatDurationMs } from "@/shared/utils/duration";
-import { typeLabel } from "../utils/entryLabels";
+import { typeLabel } from "../utils/EntryLabels";
 import { LocationDetail } from "./LocationDetail";
 import { Sheet } from "@/shared/components/Sheet";
 import { ThemedText } from "@/shared/components/ThemedText";

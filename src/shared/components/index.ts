@@ -3,7 +3,4 @@ export * from "./Sheet";
 export * from "./Popover";
 export * from "./Toolbar";
 export * from "./Layout";
-export * from "./CloudLayer";
-export * from "./gradient";
-export * from "./AtmosphericBackground";
 export * from "./AudioWaveform";

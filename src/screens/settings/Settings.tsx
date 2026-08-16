@@ -6,7 +6,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Location from "expo-location";
 
 import type { RootStackParamList } from "@/navigation/types";
-import { usePreferences, useTheme } from "@/theme/ThemeProvider";
+import { usePreferences, useTheme } from "@/theme";
 import { useProfile } from "@/features/profile";
 import { useEntries } from "@/features/entry";
 import {

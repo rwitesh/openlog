@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, View } from "react-native";
-import { useTheme } from "@/theme/ThemeProvider";
+import { useTheme } from "@/theme";
 import { press } from "@/theme/motion";
 import { ThemedText } from "@/shared/components/ThemedText";
 

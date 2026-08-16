@@ -1,6 +1,6 @@
 import { StyleSheet, View } from "react-native";
 
-import { useTheme } from "@/theme/ThemeProvider";
+import { useTheme } from "@/theme";
 import { space } from "@/theme/spacing";
 
 interface ToolbarProps {

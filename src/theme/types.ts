@@ -1,32 +1,16 @@
-/**
- * Consolidated type contracts for the theming & preferences system.
- *
- * Layout:
- *   types.ts             — contracts only (this file)
- *   resolver.ts          — pure token resolution (no React)
- *   PreferencesContext   — raw preference state + persistence
- *   ThemeContext         — resolved visual tokens (pure, derived)
- *
- * Token data (palettes, fonts, spacing constants) lives in its own
- * leaf modules; this file is the single import surface for types.
- */
-
 import type { Theme as NavigationTheme } from "@react-navigation/native";
 import type { ColorSchemeName } from "react-native";
 
 /* Color tokens */
 export type {
   ThemeColors,
-  ThemePaletteId,
   AccentChoice,
   AccentOption,
-  ThemeOption,
   ThemeBackgroundConfig,
 } from "./colors";
 
 /* Typography tokens */
 export type {
-  FontChoice,
   FontName,
   FontWeight,
   TextSize,
@@ -49,7 +33,6 @@ export type {
   AccessibilityPreferences,
   SecurityPreferences,
   UserPreferences,
-  AtmosphereIntensity,
   TimelineStyle,
   TimelineDensity,
   EditorTextSize,
@@ -58,10 +41,10 @@ export type {
 /* Theme */
 
 import type { ThemeColors, ThemeBackgroundConfig } from "./colors";
-import type { TypographyStyles, FontName, FontChoice, TextSize } from "./typography";
+import type { TypographyStyles, FontName, TextSize } from "./typography";
 import type { MotionTokens } from "./motion";
 import type { SpacingScale } from "./spacing";
-import type { AtmosphereIntensity, UserPreferences } from "./preferences";
+import type { UserPreferences } from "./preferences";
 
 /** The mode after the user's preference has been reconciled with the OS. */
 export type ResolvedThemeMode = "light" | "dark";
@@ -91,15 +74,12 @@ export interface Theme {
   readonly fontSize: Readonly<Record<string, number>>;
   /** User's chosen font family name. */
   readonly fontFamily: FontName;
-  /** @deprecated Kept for backwards compatibility */
-  readonly fontChoice: FontChoice;
   readonly textSize: TextSize;
   readonly typography: TypographyStyles;
   readonly spacing: SpacingScale;
   readonly radius: RadiusScale;
   readonly motion: MotionTokens;
-  readonly atmosphere: AtmosphereIntensity;
-  /** Optional background image / visual overlay treatment. */
+  /** Optional background image treatment. */
   readonly backgroundConfig?: ThemeBackgroundConfig;
 }
 

@@ -3,4 +3,4 @@ export * from "./components/MonthHeader";
 export * from "./components/MonthHero";
 export * from "./components/MonthPulse";
 export * from "./components/MonthStats";
-export * from "./utils/memoryStats";
+export * from "./utils/MemoryStats";

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 
-import { useTheme } from "@/theme/ThemeProvider";
+import { useTheme } from "@/theme";
 import { space } from "@/theme/spacing";
 import { press } from "@/theme/motion";
 import { typography } from "@/theme/typography";

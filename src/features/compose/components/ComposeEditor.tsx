@@ -1,7 +1,7 @@
 import { type RefObject } from "react";
 import { ScrollView, StyleSheet, TextInput } from "react-native";
 
-import { useTheme, useWritingPreferences } from "@/theme/ThemeProvider";
+import { useTheme, useWritingPreferences } from "@/theme";
 import { space } from "@/theme/spacing";
 
 interface EditorProps {

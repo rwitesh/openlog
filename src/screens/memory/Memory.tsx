@@ -18,7 +18,7 @@ import {
   getMonthOverview,
   getMonthPulseData,
 } from "@/features/memory";
-import { useTheme } from "@/theme/ThemeProvider";
+import { useTheme } from "@/theme";
 import { space } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
 import {
@@ -107,7 +107,7 @@ export function MemoryScreen({ route, navigation }: Props) {
   );
 
   return (
-    <View style={[styles.screen, { backgroundColor: colors.background }]}>
+    <View style={styles.screen}>
       <MonthHeader
         monthLabel={monthLabel}
         onBack={() => navigation.goBack()}

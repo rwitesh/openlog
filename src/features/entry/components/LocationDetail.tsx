@@ -5,7 +5,7 @@ import {
   formatLocationCoordinates,
   locationPlaceTitle,
 } from "@/services/location/location";
-import { useTheme } from "@/theme/ThemeProvider";
+import { useTheme } from "@/theme";
 import { space } from "@/theme/spacing";
 import { FONT_SIZE } from "@/theme/typography";
 import type { EntryLocation } from "@/shared/types";

@@ -8,7 +8,7 @@ import {
   type NativeSyntheticEvent,
 } from "react-native";
 
-import { useTheme } from "@/theme/ThemeProvider";
+import { useTheme } from "@/theme";
 import { space } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
 import { ThemedText } from "@/shared/components/ThemedText";

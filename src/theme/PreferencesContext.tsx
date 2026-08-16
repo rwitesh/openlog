@@ -1,13 +1,10 @@
 /**
  * PreferencesContext — the single owner of raw user preference state.
  *
- * Responsibilities (and nothing else):
+ * Responsibilities:
  *   - Hold `UserPreferences` and expose granular patchers.
  *   - Persist patches to the settings DB in a single batched write.
  *   - Reset appearance preferences to defaults when requested.
- *
- * It deliberately knows nothing about colors, typography, or the OS
- * color scheme — visual derivation lives in ThemeContext/resolver.
  */
 
 import {
@@ -22,19 +19,18 @@ import {
 import {
   setSettingsBatch,
   ACCENT_KEY,
-  ATMOSPHERE_KEY,
   AUTO_LOCATION_KEY,
   BIOMETRIC_LOCK_KEY,
   EDITOR_TEXT_SIZE_KEY,
   FONT_KEY,
   MOTION_LEVEL_KEY,
-  PALETTE_KEY,
   SHOW_LOCATION_KEY,
   SHOW_TIMESTAMP_KEY,
   TEXT_SIZE_KEY,
   THEME_KEY,
   TIMELINE_DENSITY_KEY,
   TIMELINE_STYLE_KEY,
+  BACKGROUND_IMAGE_KEY,
 } from "@/services/db";
 import {
   DEFAULT_PREFERENCES,
@@ -52,13 +48,11 @@ import type {
 /* Persistence mapping: preference field → settings DB key */
 
 const APPEARANCE_KEYS: Record<keyof AppearancePreferences, string> = {
-  palette: PALETTE_KEY,
   accent: ACCENT_KEY,
   mode: THEME_KEY,
-  atmosphere: ATMOSPHERE_KEY,
   fontFamily: FONT_KEY,
-  fontChoice: FONT_KEY,
   textSize: TEXT_SIZE_KEY,
+  backgroundImageUri: BACKGROUND_IMAGE_KEY,
 };
 
 const ENTRY_KEYS: Record<keyof EntryPreferences, string> = {
@@ -167,10 +161,8 @@ export function PreferencesProvider({
     }));
 
     persist({
-      [PALETTE_KEY]: DEFAULT_PREFERENCES.appearance.palette,
       [ACCENT_KEY]: DEFAULT_PREFERENCES.appearance.accent,
       [THEME_KEY]: DEFAULT_PREFERENCES.appearance.mode,
-      [ATMOSPHERE_KEY]: DEFAULT_PREFERENCES.appearance.atmosphere,
       [FONT_KEY]: DEFAULT_PREFERENCES.appearance.fontFamily,
       [TEXT_SIZE_KEY]: DEFAULT_PREFERENCES.appearance.textSize,
       [TIMELINE_STYLE_KEY]: DEFAULT_PREFERENCES.entry.timelineStyle,
@@ -178,6 +170,7 @@ export function PreferencesProvider({
       [SHOW_TIMESTAMP_KEY]: String(DEFAULT_PREFERENCES.entry.showTimestamp),
       [SHOW_LOCATION_KEY]: String(DEFAULT_PREFERENCES.entry.showLocation),
       [EDITOR_TEXT_SIZE_KEY]: DEFAULT_PREFERENCES.writing.editorTextSize,
+      [BACKGROUND_IMAGE_KEY]: "null",
     });
   }, []);
 
@@ -221,7 +214,6 @@ function usePreferencesContext(): PreferencesContextValue {
   return context;
 }
 
-/** Full preference state + patchers. */
 export function usePreferences(): PreferencesContextValue {
   return usePreferencesContext();
 }

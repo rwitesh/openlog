@@ -6,5 +6,5 @@ export * from "./components/LocationChip";
 export * from "./components/AudioDraftPreview";
 export * from "./components/LiveRecordingBar";
 export * from "./components/ComposeFooterBar";
-export * from "./utils/draftTransform";
-export * from "./styles/chipStyles";
+export * from "./utils/DraftTransform";
+export * from "./styles/ChipStyles";

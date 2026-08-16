@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { StyleSheet, Switch, View } from "react-native";
 
 import { authenticate, getBiometricSupport, type BiometricSupport } from "@/services/auth";
-import { usePreferences, useTheme } from "@/theme/ThemeProvider";
+import { usePreferences, useTheme } from "@/theme";
 import { space } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
 import { ThemedText } from "@/shared/components/ThemedText";

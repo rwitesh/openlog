@@ -6,8 +6,8 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
 import type { Entry } from "@/shared/types";
 import type { RootStackParamList } from "@/navigation/types";
-import { useEntries } from "../store/entryStore";
-import { useEntryPreferences, useTheme } from "@/theme/ThemeProvider";
+import { useEntries } from "../store/EntryStore";
+import { useEntryPreferences, useTheme } from "@/theme";
 import { press } from "@/theme/motion";
 import { space } from "@/theme/spacing";
 import { radius } from "@/theme/theme";

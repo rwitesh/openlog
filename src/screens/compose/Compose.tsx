@@ -22,7 +22,7 @@ import { withTimeOfDay } from "@/shared/utils/dates";
 import { logDevWarning } from "@/shared/utils/devLog";
 import { Layout, useKeepFocus } from "@/shared/components/Layout";
 import { CalendarPicker, TimePicker } from "@/shared/pickers";
-import { useTheme, useWritingPreferences } from "@/theme/ThemeProvider";
+import { useTheme, useWritingPreferences } from "@/theme";
 import { metrics, space } from "@/theme/spacing";
 import { press } from "@/theme/motion";
 

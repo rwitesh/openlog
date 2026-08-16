@@ -7,7 +7,7 @@ import {
   type ViewStyle,
 } from "react-native";
 
-import { useTheme } from "@/theme/ThemeProvider";
+import { useTheme } from "@/theme";
 import { space } from "@/theme/spacing";
 import { radius } from "@/theme/theme";
 

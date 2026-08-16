@@ -11,7 +11,7 @@ import type { ReactNode } from "react";
 import { StatusBar } from "expo-status-bar";
 
 import { useAppLock } from "@/services/auth";
-import { usePreferences, useTheme } from "@/theme/ThemeProvider";
+import { usePreferences, useTheme } from "@/theme";
 import { LockScreen } from "./LockScreen";
 
 interface AppLockGateProps {

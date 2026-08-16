@@ -12,9 +12,8 @@ import { type NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import type { RootStackParamList } from "@/navigation/types";
-import { AtmosphericBackground } from "@/shared/components/AtmosphericBackground";
 import { useProfile } from "@/features/profile";
-import { useTheme } from "@/theme/ThemeProvider";
+import { useTheme } from "@/theme";
 import { ThemedText } from "@/shared/components/ThemedText";
 import { metrics, space } from "@/theme/spacing";
 import { radius } from "@/theme/theme";
@@ -43,13 +42,10 @@ export function WelcomeScreen({ navigation }: Props) {
 
   return (
     <KeyboardAvoidingView
-      style={styles.flex}
+      style={[styles.flex, { backgroundColor: colors.background }]}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <AtmosphericBackground
-        mode={resolvedMode}
-        background={colors.background}
-        variant="screen"
+      <View
         style={[
           styles.screen,
           {
@@ -127,7 +123,7 @@ export function WelcomeScreen({ navigation }: Props) {
             </Pressable>
           </View>
         </View>
-      </AtmosphericBackground>
+      </View>
     </KeyboardAvoidingView>
   );
 }

@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 
-import { useTheme } from "@/theme/ThemeProvider";
+import { useTheme } from "@/theme";
 import { metrics, space } from "@/theme/spacing";
 import { press } from "@/theme/motion";
 import { Toolbar } from "@/shared/components/Toolbar";

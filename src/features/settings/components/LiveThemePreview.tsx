@@ -1,5 +1,4 @@
-import { StyleSheet, View } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
+import { Image, StyleSheet, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 
 import { useEntryPreferences, useTheme } from "@/theme";
@@ -8,25 +7,15 @@ import { radius } from "@/theme/theme";
 import { ThemedText } from "@/shared/components/ThemedText";
 import { TimelineRail } from "@/features/timeline/components/TimelineRail";
 
-// Stable mock timestamp for predictable preview rendering (e.g. 15th of the month)
+// Stable mock timestamp for predictable preview rendering
 const MOCK_DAY_TS = 1715767200000;
 
 export function LiveThemePreview() {
-  const { theme, isDark } = useTheme();
+  const { theme } = useTheme();
   const { showTimestamp, showLocation } = useEntryPreferences();
-  const { colors, atmosphere, typography } = theme;
+  const { colors, typography, backgroundConfig } = theme;
 
-  const hasAtmosphere = atmosphere !== "off";
-  const gradientColors: [string, string, ...string[]] =
-    atmosphere === "soft"
-      ? isDark
-        ? ["rgba(255, 255, 255, 0.03)", "rgba(0, 0, 0, 0.12)"]
-        : ["rgba(255, 255, 255, 0.08)", "rgba(0, 0, 0, 0.02)"]
-      : atmosphere === "muted"
-        ? isDark
-          ? ["rgba(0, 0, 0, 0.15)", "rgba(0, 0, 0, 0.3)"]
-          : ["rgba(0, 0, 0, 0.03)", "rgba(0, 0, 0, 0.06)"]
-        : ["transparent", "transparent"];
+  const hasBackground = Boolean(backgroundConfig?.imageUri);
 
   return (
     <View
@@ -39,10 +28,25 @@ export function LiveThemePreview() {
       ]}
       accessibilityLabel="Live theme preview showing feed appearance"
     >
-      {hasAtmosphere ? (
-        <LinearGradient
-          colors={gradientColors}
+      {/* Background Image Layer */}
+      {hasBackground && backgroundConfig?.imageUri ? (
+        <Image
+          source={{ uri: backgroundConfig.imageUri }}
           style={StyleSheet.absoluteFill}
+          resizeMode="cover"
+        />
+      ) : null}
+
+      {/* Internal Readability Overlay */}
+      {hasBackground ? (
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            {
+              backgroundColor: colors.background,
+              opacity: 0.35,
+            },
+          ]}
           pointerEvents="none"
         />
       ) : null}

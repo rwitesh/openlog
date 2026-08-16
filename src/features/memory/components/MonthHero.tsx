@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { StyleSheet, View } from "react-native";
 
-import { usePreferences, useTheme } from "@/theme/ThemeProvider";
+import { usePreferences, useTheme } from "@/theme";
 import { space } from "@/theme/spacing";
 import { fontFamily } from "@/theme/typography";
 import { ThemedText } from "@/shared/components/ThemedText";
