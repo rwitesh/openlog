@@ -25,7 +25,6 @@ export interface EntryPreferences {
 
 export interface WritingPreferences {
   editorTextSize: EditorTextSize;
-  autoLocation: boolean;
 }
 
 export interface AccessibilityPreferences {
@@ -60,7 +59,6 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   },
   writing: {
     editorTextSize: "regular",
-    autoLocation: false,
   },
   accessibility: {
     motionLevel: "subtle",

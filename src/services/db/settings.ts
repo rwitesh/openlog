@@ -27,7 +27,6 @@ const TIMELINE_DENSITY_KEY = "timeline_density";
 const SHOW_LOCATION_KEY = "show_location_timeline";
 const SHOW_TIMESTAMP_KEY = "show_timestamp_timeline";
 const EDITOR_TEXT_SIZE_KEY = "editor_text_size";
-const AUTO_LOCATION_KEY = "auto_location";
 const MOTION_LEVEL_KEY = "motion_level";
 const BIOMETRIC_LOCK_KEY = "biometric_lock";
 const USER_NAME_KEY = "user_name";
@@ -115,7 +114,6 @@ export async function getAllUserPreferences(): Promise<{
       editorTextSize:
         (map.get(EDITOR_TEXT_SIZE_KEY) as EditorTextSize) ||
         DEFAULT_PREFERENCES.writing.editorTextSize,
-      autoLocation: map.get(AUTO_LOCATION_KEY) === "true",
     };
 
     const accessibility: AccessibilityPreferences = {
@@ -179,7 +177,6 @@ export {
   SHOW_LOCATION_KEY,
   SHOW_TIMESTAMP_KEY,
   EDITOR_TEXT_SIZE_KEY,
-  AUTO_LOCATION_KEY,
   MOTION_LEVEL_KEY,
   BIOMETRIC_LOCK_KEY,
   BACKGROUND_IMAGE_KEY,

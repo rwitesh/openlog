@@ -3,7 +3,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
-import * as Location from "expo-location";
 
 import type { RootStackParamList } from "@/navigation/types";
 import { usePreferences, useTheme } from "@/theme";
@@ -13,7 +12,6 @@ import {
   BiometricLockRow,
   CollapsibleSection,
   SegmentedRow,
-  ToggleRow,
 } from "@/features/settings";
 import { space } from "@/theme/spacing";
 import { radius } from "@/theme/theme";
@@ -41,7 +39,6 @@ export function SettingsScreen() {
   const { theme } = useTheme();
   const {
     preferences,
-    setWriting,
     setAccessibility,
   } = usePreferences();
   const { name, setName } = useProfile();
@@ -56,29 +53,7 @@ export function SettingsScreen() {
       async () => deleteMediaList(await clearAll())
     );
 
-  /**
-   * Auto-Detect Location asks for permission once here — compose
-   * then attaches places silently instead of popping a dialog on open.
-   */
-  const handleAutoLocationToggle = (autoLocation: boolean) => {
-    if (!autoLocation) {
-      setWriting({ autoLocation: false });
-      return;
-    }
-
-    void Location.requestForegroundPermissionsAsync().then(({ status }) => {
-      if (status === "granted") {
-        setWriting({ autoLocation: true });
-      } else {
-        Alert.alert(
-          "Location unavailable",
-          "Allow location access in system settings to auto-detect places while writing."
-        );
-      }
-    });
-  };
-
-  const { writing, accessibility, security } = preferences;
+  const { accessibility, security } = preferences;
 
   return (
     <ScrollView
@@ -175,18 +150,6 @@ export function SettingsScreen() {
         summary={security.biometricLock ? "App lock on" : "App lock off"}
       >
         <BiometricLockRow />
-
-        <View style={[styles.divider, { backgroundColor: colors.separator }]} />
-
-        <ThemedText weight="medium" style={[styles.subheading, { color: colors.textSecondary }]}>
-          LOCATION ATTACHMENT
-        </ThemedText>
-        <ToggleRow
-          label="Auto-Detect Location"
-          subtitle="Silently attaches city while writing"
-          value={writing.autoLocation}
-          onValueChange={handleAutoLocationToggle}
-        />
       </CollapsibleSection>
 
       <CollapsibleSection

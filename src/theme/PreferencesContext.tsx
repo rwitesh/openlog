@@ -19,7 +19,6 @@ import {
 import {
   setSettingsBatch,
   ACCENT_KEY,
-  AUTO_LOCATION_KEY,
   BIOMETRIC_LOCK_KEY,
   EDITOR_TEXT_SIZE_KEY,
   FONT_KEY,
@@ -64,7 +63,6 @@ const ENTRY_KEYS: Record<keyof EntryPreferences, string> = {
 
 const WRITING_KEYS: Record<keyof WritingPreferences, string> = {
   editorTextSize: EDITOR_TEXT_SIZE_KEY,
-  autoLocation: AUTO_LOCATION_KEY,
 };
 
 const ACCESSIBILITY_KEYS: Record<keyof AccessibilityPreferences, string> = {
