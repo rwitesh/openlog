@@ -3,38 +3,36 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
-  Modal,
   Pressable,
   StyleSheet,
   TextInput,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 
-import { useTheme } from "@/theme/ThemeProvider";
+import { usePreferences, useTheme } from "@/theme";
+import type { TextSize } from "@/theme/typography";
 import { space } from "@/theme/spacing";
 import { radius } from "@/theme/theme";
 import { press } from "@/theme/motion";
 import { ThemedText } from "@/shared/components/ThemedText";
 import { fontManager, getFonts, type FontName } from "@/services/fonts";
+import { SettingsBottomSheet } from "./SettingsBottomSheet";
+import { SegmentedRow } from "./SegmentedRow";
 
-interface FontPickerModalProps {
+interface TypographyModalProps {
   visible: boolean;
-  selectedFont: FontName;
-  onSelectFont: (fontName: FontName) => void;
   onClose: () => void;
 }
 
-export function FontPickerModal({
-  visible,
-  selectedFont,
-  onSelectFont,
-  onClose,
-}: FontPickerModalProps) {
-  const insets = useSafeAreaInsets();
+export function TypographyModal({ visible, onClose }: TypographyModalProps) {
   const { theme } = useTheme();
   const { colors } = theme;
+  const { preferences, setAppearance } = usePreferences();
+  const { appearance } = preferences;
+
+  const selectedFont = appearance.fontFamily || "Source Sans 3";
+  const selectedTextSize = appearance.textSize;
 
   const [searchQuery, setSearchQuery] = useState("");
   const [loadingFont, setLoadingFont] = useState<string | null>(null);
@@ -58,7 +56,7 @@ export function FontPickerModal({
     try {
       const result = await fontManager.load(fontName);
       if (result.success) {
-        onSelectFont(fontName);
+        setAppearance({ fontFamily: fontName });
       } else {
         Alert.alert(
           "Font Download Failed",
@@ -77,7 +75,7 @@ export function FontPickerModal({
   const handleDelete = (fontName: FontName) => {
     Alert.alert(
       "Delete Cached Font?",
-      `Remove the downloaded font file for "${fontName}" from your device?`,
+      `Remove "${fontName}" from your device?`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -87,7 +85,7 @@ export function FontPickerModal({
             await fontManager.remove(fontName);
             setCacheVersion((v) => v + 1);
             if (fontName === selectedFont) {
-              onSelectFont("Source Sans 3");
+              setAppearance({ fontFamily: "Source Sans 3" });
             }
           },
         },
@@ -96,45 +94,24 @@ export function FontPickerModal({
   };
 
   return (
-    <Modal
+    <SettingsBottomSheet
       visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
+      onClose={onClose}
+      title="Typography"
+      scrollable={false}
     >
-      <View
-        style={[
-          styles.container,
-          {
-            backgroundColor: colors.background,
-            paddingTop: insets.top || space.md,
-            paddingBottom: insets.bottom || space.md,
-          },
-        ]}
-      >
-        {/* Header */}
-        <View style={[styles.header, { borderBottomColor: colors.separator }]}>
-          <View style={styles.headerLeft}>
-            <ThemedText weight="semibold" style={[styles.title, { color: colors.text }]}>
-              Select Font
-            </ThemedText>
-            <ThemedText style={[styles.subtitle, { color: colors.textSecondary }]}>
-              {allFonts.length} typography styles
-            </ThemedText>
-          </View>
-          <Pressable
-            onPress={onClose}
-            hitSlop={8}
-            style={({ pressed }) => [
-              styles.closeButton,
-              { backgroundColor: colors.surfaceMuted },
-              pressed && press,
+      <View style={styles.container}>
+        {/* Text Scale Selection */}
+        <View style={styles.scaleSection}>
+          <SegmentedRow<TextSize>
+            items={[
+              { id: "compact", label: "Compact" },
+              { id: "regular", label: "Regular" },
+              { id: "generous", label: "Generous" },
             ]}
-            accessibilityRole="button"
-            accessibilityLabel="Close font picker"
-          >
-            <Feather name="x" size={18} color={colors.text} />
-          </Pressable>
+            selected={selectedTextSize}
+            onSelect={(t) => setAppearance({ textSize: t })}
+          />
         </View>
 
         {/* Search Bar */}
@@ -152,7 +129,7 @@ export function FontPickerModal({
             <TextInput
               value={searchQuery}
               onChangeText={setSearchQuery}
-              placeholder="Search fonts by name..."
+              placeholder="Search typefaces..."
               placeholderTextColor={colors.textTertiary}
               style={[styles.searchInput, { color: colors.text }]}
               autoCapitalize="none"
@@ -187,25 +164,21 @@ export function FontPickerModal({
                 style={({ pressed }) => [
                   styles.fontRow,
                   {
-                    backgroundColor: isSelected ? colors.surface : "transparent",
-                    borderColor: isSelected ? colors.separator : "transparent",
+                    backgroundColor: isSelected ? colors.surface : colors.surfaceMuted,
+                    borderColor: isSelected ? colors.accent : colors.separator,
                   },
+                  isSelected && styles.fontRowSelected,
                   pressed && press,
                 ]}
                 accessibilityRole="button"
                 accessibilityState={{ selected: isSelected }}
               >
-                <View style={styles.fontRowContent}>
-                  <ThemedText
-                    weight={isSelected ? "semibold" : "regular"}
-                    style={[
-                      styles.fontRowName,
-                      { color: colors.text },
-                    ]}
-                  >
-                    {fontName}
-                  </ThemedText>
-                </View>
+                <ThemedText
+                  weight={isSelected ? "semibold" : "regular"}
+                  style={[styles.fontRowName, { color: colors.text }]}
+                >
+                  {fontName}
+                </ThemedText>
 
                 <View style={styles.fontRowRight}>
                   {isLoading ? (
@@ -226,13 +199,28 @@ export function FontPickerModal({
                           accessibilityRole="button"
                           accessibilityLabel={`Delete cached font ${fontName}`}
                         >
-                          <Feather name="trash-2" size={15} color={colors.textTertiary} />
+                          <Feather name="trash-2" size={14} color={colors.textTertiary} />
                         </Pressable>
                       ) : null}
 
                       {!isCached && !isBundledDefault ? (
                         <View style={styles.iconWrap}>
-                          <Feather name="download-cloud" size={15} color={colors.textTertiary} />
+                          <Feather name="download-cloud" size={14} color={colors.textTertiary} />
+                        </View>
+                      ) : null}
+
+                      {isSelected ? (
+                        <View
+                          style={[
+                            styles.checkBadge,
+                            { backgroundColor: colors.accent },
+                          ]}
+                        >
+                          <Feather
+                            name="check"
+                            size={11}
+                            color={theme.mode === "dark" ? "#121215" : "#FAF8F5"}
+                          />
                         </View>
                       ) : null}
                     </View>
@@ -244,50 +232,23 @@ export function FontPickerModal({
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <ThemedText style={[styles.emptyText, { color: colors.textSecondary }]}>
-                No fonts found matching "{searchQuery}"
+                No typefaces found matching "{searchQuery}"
               </ThemedText>
             </View>
           }
         />
       </View>
-    </Modal>
+    </SettingsBottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    gap: space.sm + 2,
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: space.lg,
-    paddingVertical: space.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  headerLeft: {
-    gap: 2,
-  },
-  title: {
-    fontSize: 18,
-    lineHeight: 22,
-  },
-  subtitle: {
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  closeButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  searchContainer: {
-    paddingHorizontal: space.lg,
-    paddingVertical: space.sm,
-  },
+  scaleSection: {},
+  searchContainer: {},
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
@@ -303,26 +264,25 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
   },
   listContent: {
-    paddingHorizontal: space.lg,
     paddingBottom: space.xl,
-    paddingTop: space.xs,
-    gap: 4,
+    gap: 6,
   },
   fontRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: space.sm + 4,
+    paddingVertical: space.sm + 2,
     paddingHorizontal: space.md,
     borderRadius: radius.md,
     borderWidth: StyleSheet.hairlineWidth,
   },
-  fontRowContent: {
-    flex: 1,
+  fontRowSelected: {
+    borderWidth: 1.5,
   },
   fontRowName: {
-    fontSize: 15,
-    lineHeight: 20,
+    fontSize: 14,
+    lineHeight: 18,
+    flex: 1,
   },
   fontRowRight: {
     alignItems: "flex-end",
@@ -342,6 +302,13 @@ const styles = StyleSheet.create({
   },
   iconWrap: {
     padding: 6,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  checkBadge: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
   },

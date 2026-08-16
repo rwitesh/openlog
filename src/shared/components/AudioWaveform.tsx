@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { StyleSheet, View } from "react-native";
 
-import { useTheme } from "@/theme/ThemeProvider";
+import { useTheme } from "@/theme";
 import { clampRatio } from "@/shared/utils/duration";
 import {
   LIVE_WAVEFORM_BAR_COUNT,

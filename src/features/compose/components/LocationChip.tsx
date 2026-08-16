@@ -7,10 +7,10 @@ import { LocationDetail } from "@/features/entry/components/LocationDetail";
 import { locationAccessibilityLabel } from "@/services/location/location";
 import { press } from "@/theme/motion";
 import { metrics, space } from "@/theme/spacing";
-import { useTheme } from "@/theme/ThemeProvider";
+import { useTheme } from "@/theme";
 import type { EntryLocation } from "@/shared/types";
 
-import { chip } from "../styles/chipStyles";
+import { chip } from "../styles/ChipStyles";
 
 interface LocationChipProps {
   location?: EntryLocation | null;

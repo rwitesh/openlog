@@ -1,4 +1,4 @@
-import { View } from "react-native";
+import { Image, StyleSheet, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
 import { NavigationContainer } from "@react-navigation/native";
@@ -16,7 +16,7 @@ import { Welcome } from "@/screens/welcome";
 import { Day } from "@/screens/day";
 import { Compose } from "@/screens/compose";
 import { Settings, Appearance } from "@/screens/settings";
-import { Layout } from "@/shared/components/Layout";
+import { Layout } from "@/shared/components";
 import { logDevWarning } from "@/shared/utils";
 
 SplashScreen.preventAutoHideAsync().catch((error) => {
@@ -28,15 +28,35 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 function AppContent({ showWelcome }: { showWelcome: boolean }) {
   const { theme, mode } = useTheme();
   const navTheme = useNavigationTheme();
+  const bgConfig = theme.backgroundConfig;
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+      {/* Background Image Layer */}
+      {bgConfig?.imageUri ? (
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+          <Image
+            source={{ uri: bgConfig.imageUri }}
+            style={StyleSheet.absoluteFill}
+            resizeMode="cover"
+          />
+          <View
+            style={[
+              StyleSheet.absoluteFill,
+              {
+                backgroundColor: theme.colors.background,
+                opacity: 0.35,
+              },
+            ]}
+          />
+        </View>
+      ) : null}
       <NavigationContainer theme={navTheme}>
         <StatusBar style={mode === "dark" ? "light" : "dark"} />
         <Stack.Navigator
           initialRouteName={showWelcome ? "Welcome" : "Timeline"}
           screenOptions={{
-            contentStyle: { backgroundColor: theme.colors.background },
+            contentStyle: { backgroundColor: "transparent" },
             animation: "slide_from_right",
           }}
         >

@@ -2,7 +2,7 @@
  * ThemeContext — the pure visual token layer.
  *
  * Subscribes ONLY to the inputs that affect visuals:
- *   - `appearance` (palette, accent, mode, atmosphere, font, text size)
+ *   - `appearance` (accent, mode, font, text size, background)
  *   - `accessibility.motionLevel`
  *   - the OS color scheme
  *

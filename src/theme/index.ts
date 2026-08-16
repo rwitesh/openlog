@@ -45,4 +45,4 @@ export {
   type ThemedSurface,
 } from "./primitives";
 
-export { AppProviders } from "./ThemeProvider";
+export { AppProviders } from "./AppProviders";

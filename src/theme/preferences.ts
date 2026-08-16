@@ -1,23 +1,19 @@
-import type { AccentChoice, ThemePaletteId } from "./colors";
-import type { FontChoice, FontName, TextSize } from "./typography";
+import type { AccentChoice } from "./colors";
+import type { FontName, TextSize } from "./typography";
 import { DEFAULT_FONT_FAMILY } from "./typography";
 import type { MotionLevel } from "./motion";
 import type { ThemeMode } from "./types";
 
 export type TimelineStyle = "rail" | "minimal" | "clean";
 export type TimelineDensity = "comfortable" | "compact";
-export type AtmosphereIntensity = "soft" | "muted" | "off";
 export type EditorTextSize = "regular" | "large";
 
 export interface AppearancePreferences {
-  palette: ThemePaletteId;
   accent: AccentChoice;
   mode: ThemeMode;
-  atmosphere: AtmosphereIntensity;
   fontFamily: FontName;
-  /** @deprecated Alias for fontFamily */
-  fontChoice?: FontChoice;
   textSize: TextSize;
+  backgroundImageUri?: string | null;
 }
 
 export interface EntryPreferences {
@@ -37,7 +33,6 @@ export interface AccessibilityPreferences {
 }
 
 export interface SecurityPreferences {
-  /** Require biometric / device-credential unlock when the app opens. */
   biometricLock: boolean;
 }
 
@@ -51,13 +46,11 @@ export interface UserPreferences {
 
 export const DEFAULT_PREFERENCES: UserPreferences = {
   appearance: {
-    palette: "warm",
     accent: "default",
     mode: "system",
-    atmosphere: "soft",
     fontFamily: DEFAULT_FONT_FAMILY,
-    fontChoice: DEFAULT_FONT_FAMILY,
     textSize: "regular",
+    backgroundImageUri: null,
   },
   entry: {
     timelineStyle: "rail",

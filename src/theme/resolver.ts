@@ -41,28 +41,28 @@ export function resolveTheme(
   systemScheme: SystemScheme
 ): Theme {
   const mode = resolveThemeMode(appearance.mode, systemScheme);
-  const activeFont = appearance.fontFamily || appearance.fontChoice || DEFAULT_FONT_FAMILY;
+  const activeFont = appearance.fontFamily || DEFAULT_FONT_FAMILY;
 
   return {
     mode,
-    colors: getThemeColors(appearance.palette, mode, appearance.accent),
+    colors: getThemeColors(mode, appearance.accent),
     font: FONT,
     fontSize: BASE_FONT_SIZE,
     fontFamily: activeFont,
-    fontChoice: activeFont,
     textSize: appearance.textSize,
     typography: createTypography(appearance.textSize, activeFont),
     spacing: space,
     radius,
     motion: createMotion(motionLevel),
-    atmosphere: appearance.atmosphere,
+    backgroundConfig: appearance.backgroundImageUri
+      ? { imageUri: appearance.backgroundImageUri }
+      : undefined,
   };
 }
 
 /**
  * Derives the React Navigation theme directly from resolved semantic tokens.
- * Kept next to `resolveTheme` so navigation styling can never drift from
- * the design system.
+ * Background is transparent so the environmental root layer shows through.
  */
 export function makeNavTheme(mode: ResolvedThemeMode, colors: Theme["colors"]): NavTheme {
   return {
@@ -75,7 +75,7 @@ export function makeNavTheme(mode: ResolvedThemeMode, colors: Theme["colors"]): 
     },
     colors: {
       primary: colors.text,
-      background: colors.background,
+      background: "transparent",
       card: colors.background,
       text: colors.text,
       border: colors.separator,

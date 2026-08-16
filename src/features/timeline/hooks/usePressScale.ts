@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { Animated } from "react-native";
 
-import { useTheme } from "@/theme/ThemeProvider";
+import { useTheme } from "@/theme";
 
 export function usePressScale(toValue = 0.96) {
   const { theme } = useTheme();

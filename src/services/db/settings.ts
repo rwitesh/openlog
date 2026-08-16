@@ -1,9 +1,8 @@
 import { runDb } from "./database";
 import type { ThemeMode } from "@/theme/types";
-import type { AccentChoice, ThemePaletteId } from "@/theme/colors";
+import type { AccentChoice } from "@/theme/colors";
 import type {
   AppearancePreferences,
-  AtmosphereIntensity,
   EditorTextSize,
   EntryPreferences,
   SecurityPreferences,
@@ -14,16 +13,15 @@ import type {
   AccessibilityPreferences,
 } from "@/theme/preferences";
 import { DEFAULT_PREFERENCES } from "@/theme/preferences";
-import type { FontChoice, TextSize } from "@/theme/typography";
+import type { TextSize } from "@/theme/typography";
 import type { MotionLevel } from "@/theme/motion";
 import { hasFont } from "@/services/fonts";
 
 const THEME_KEY = "theme";
-const PALETTE_KEY = "palette";
 const ACCENT_KEY = "accent_choice";
-const ATMOSPHERE_KEY = "atmosphere_intensity";
 const FONT_KEY = "font_choice";
 const TEXT_SIZE_KEY = "text_size";
+const BACKGROUND_IMAGE_KEY = "background_image_uri";
 const TIMELINE_STYLE_KEY = "timeline_style";
 const TIMELINE_DENSITY_KEY = "timeline_density";
 const SHOW_LOCATION_KEY = "show_location_timeline";
@@ -92,15 +90,14 @@ export async function getAllUserPreferences(): Promise<{
     }
 
     const appearance: AppearancePreferences = {
-      palette: (map.get(PALETTE_KEY) as ThemePaletteId) || DEFAULT_PREFERENCES.appearance.palette,
       accent: (map.get(ACCENT_KEY) as AccentChoice) || DEFAULT_PREFERENCES.appearance.accent,
       mode: (map.get(THEME_KEY) as ThemeMode) || DEFAULT_PREFERENCES.appearance.mode,
-      atmosphere:
-        (map.get(ATMOSPHERE_KEY) as AtmosphereIntensity) ||
-        DEFAULT_PREFERENCES.appearance.atmosphere,
       fontFamily: resolvedFont,
-      fontChoice: resolvedFont,
       textSize: (map.get(TEXT_SIZE_KEY) as TextSize) || DEFAULT_PREFERENCES.appearance.textSize,
+      backgroundImageUri:
+        map.get(BACKGROUND_IMAGE_KEY) && map.get(BACKGROUND_IMAGE_KEY) !== "null"
+          ? map.get(BACKGROUND_IMAGE_KEY)
+          : null,
     };
 
     const entry: EntryPreferences = {
@@ -174,9 +171,7 @@ export async function setUserName(name: string): Promise<void> {
 
 export {
   THEME_KEY,
-  PALETTE_KEY,
   ACCENT_KEY,
-  ATMOSPHERE_KEY,
   FONT_KEY,
   TEXT_SIZE_KEY,
   TIMELINE_STYLE_KEY,
@@ -187,4 +182,5 @@ export {
   AUTO_LOCATION_KEY,
   MOTION_LEVEL_KEY,
   BIOMETRIC_LOCK_KEY,
+  BACKGROUND_IMAGE_KEY,
 };

@@ -22,22 +22,36 @@ export function HeaderIconActions({
     <View style={[styles.actions, { top }]}>
       <Pressable
         onPress={onOpenCalendar}
-        hitSlop={space.md}
-        style={({ pressed }) => [styles.iconBtn, pressed && press]}
+        hitSlop={space.sm}
+        style={({ pressed }) => [
+          styles.iconBtn,
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.separator,
+          },
+          pressed && press,
+        ]}
         accessibilityLabel="Calendar"
         accessibilityRole="button"
       >
-        <Feather name="calendar" size={metrics.iconMd} color={colors.textSecondary} />
+        <Feather name="calendar" size={metrics.iconSm + 2} color={colors.text} />
       </Pressable>
 
       <Pressable
         onPress={onOpenSettings}
-        hitSlop={space.md}
-        style={({ pressed }) => [styles.iconBtn, pressed && press]}
+        hitSlop={space.sm}
+        style={({ pressed }) => [
+          styles.iconBtn,
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.separator,
+          },
+          pressed && press,
+        ]}
         accessibilityLabel="Settings"
         accessibilityRole="button"
       >
-        <Feather name="settings" size={metrics.iconMd} color={colors.textSecondary} />
+        <Feather name="settings" size={metrics.iconSm + 2} color={colors.text} />
       </Pressable>
     </View>
   );
@@ -49,12 +63,14 @@ const styles = StyleSheet.create({
     right: space.lg,
     flexDirection: "row",
     alignItems: "center",
-    gap: space.xs,
+    gap: space.xs + 2,
     zIndex: 2,
   },
   iconBtn: {
     width: metrics.btnMd,
     height: metrics.btnMd,
+    borderRadius: metrics.btnMd / 2,
+    borderWidth: StyleSheet.hairlineWidth,
     alignItems: "center",
     justifyContent: "center",
   },

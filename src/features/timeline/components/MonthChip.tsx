@@ -2,7 +2,7 @@ import { Animated, Pressable, StyleSheet } from "react-native";
 import { Feather } from "@expo/vector-icons";
 
 import type { ThemeColors } from "@/theme/colors";
-import { useTheme } from "@/theme/ThemeProvider";
+import { useTheme } from "@/theme";
 import { metrics, sectionGap, space } from "@/theme/spacing";
 import { usePressScale } from "../hooks/usePressScale";
 import { ThemedText } from "@/shared/components/ThemedText";
@@ -27,8 +27,12 @@ export function MonthChip({ label, dark, colors, onPress }: MonthChipProps) {
         style={({ pressed }) => [
           styles.chip,
           {
-            backgroundColor: dark ? "rgba(255, 255, 255, 0.08)" : colors.surface,
-            borderColor: dark ? "rgba(255, 255, 255, 0.12)" : colors.separator,
+            backgroundColor: dark
+              ? theme.backgroundConfig?.imageUri
+                ? "rgba(25, 26, 30, 0.88)"
+                : "rgba(255, 255, 255, 0.08)"
+              : colors.surface,
+            borderColor: dark ? "rgba(255, 255, 255, 0.15)" : colors.separator,
           },
           pressed && styles.pressed,
         ]}

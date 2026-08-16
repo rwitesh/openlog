@@ -8,7 +8,6 @@ export const FONT = {
 
 export type FontWeight = keyof typeof FONT;
 export type FontName = string;
-export type FontChoice = string;
 export type TextSize = "compact" | "regular" | "generous";
 
 export const DEFAULT_FONT_FAMILY: FontName = "Source Sans 3";
@@ -17,10 +16,7 @@ export function fontFamily(
   weight: FontWeight = "regular",
   fontName: FontName = DEFAULT_FONT_FAMILY
 ): string {
-  if (fontName === "serif") {
-    return Platform.OS === "ios" ? "Georgia" : "serif";
-  }
-  if (fontName === "sans" || fontName === "Source Sans 3") {
+  if (fontName === "Source Sans 3") {
     return FONT[weight];
   }
   return fontName;

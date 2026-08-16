@@ -2,11 +2,11 @@ import { useMemo } from "react";
 import { FlatList, StyleSheet, View } from "react-native";
 
 import type { Entry } from "@/shared/types";
-import { useTheme } from "@/theme/ThemeProvider";
+import { useTheme } from "@/theme";
 import { space } from "@/theme/spacing";
 import { typography } from "@/theme/typography";
 import { isSameDay } from "@/shared/utils/dates";
-import { toTimelineItems } from "../utils/timelineTransform";
+import { toTimelineItems } from "../utils/TimelineTransform";
 import { ThemedText } from "@/shared/components/ThemedText";
 import { EntryRow } from "@/features/entry";
 import { TimelineRail } from "./TimelineRail";

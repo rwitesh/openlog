@@ -1,12 +1,12 @@
 import { Animated, StyleSheet, View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useProfile } from "@/features/profile";
-import { useTheme } from "@/theme/ThemeProvider";
+import { useTheme } from "@/theme";
 import { metrics, sectionGap, space } from "@/theme/spacing";
 import { formatMonthYear } from "@/shared/utils/dates";
 import { ThemedText } from "@/shared/components/ThemedText";
-import { AtmosphericBackground } from "@/shared/components/AtmosphericBackground";
 import { HeaderIconActions } from "./HeaderIconActions";
 import { MonthChip } from "./MonthChip";
 import { useStaggeredEntrance } from "../hooks/useStaggeredEntrance";
@@ -26,7 +26,7 @@ export function TimelineHeader({
   onOpenSettings,
   onLayout,
 }: TimelineHeaderProps) {
-  const { theme, resolvedMode } = useTheme();
+  const { theme, resolvedMode, isDark } = useTheme();
   const { name } = useProfile();
   const insets = useSafeAreaInsets();
   const { colors } = theme;
@@ -36,17 +36,28 @@ export function TimelineHeader({
   const greeting = name ? `Hi, ${name}` : "Hi there";
   const currentMonth = formatMonthYear(selectedMonth ?? Date.now());
   const topInset = insets.top + space.lg;
+  const hasBackground = Boolean(theme.backgroundConfig?.imageUri);
 
   return (
     <View
       onLayout={(e) => onLayout(e.nativeEvent.layout.height)}
       style={styles.wrapper}
     >
-      <AtmosphericBackground
-        mode={resolvedMode}
-        background={colors.background}
-        style={[styles.header, { paddingTop: topInset }]}
-      >
+      <View style={[styles.header, { paddingTop: topInset }]}>
+        {/* Protective scrim gradient when a background image is active */}
+        {hasBackground ? (
+          <LinearGradient
+            colors={
+              isDark
+                ? ["rgba(18, 18, 21, 0.88)", "rgba(18, 18, 21, 0.35)", "transparent"]
+                : ["rgba(250, 248, 245, 0.92)", "rgba(250, 248, 245, 0.45)", "transparent"]
+            }
+            locations={[0, 0.75, 1]}
+            style={StyleSheet.absoluteFill}
+            pointerEvents="none"
+          />
+        ) : null}
+
         <HeaderIconActions
           top={topInset}
           colors={colors}
@@ -79,7 +90,7 @@ export function TimelineHeader({
             />
           </Animated.View>
         </View>
-      </AtmosphericBackground>
+      </View>
     </View>
   );
 }

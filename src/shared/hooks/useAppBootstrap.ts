@@ -9,7 +9,7 @@ import {
 } from "@expo-google-fonts/source-sans-3";
 
 import { getAllUserPreferences } from "@/services/db/settings";
-import { loadEntries } from "@/features/entry/store/entryStore";
+import { loadEntries } from "@/features/entry/store/EntryStore";
 import { resolveTheme, resolveThemeMode } from "@/theme/theme";
 import { DEFAULT_PREFERENCES, type UserPreferences } from "@/theme/preferences";
 import { fontManager } from "@/services/fonts";
