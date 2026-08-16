@@ -10,7 +10,7 @@ import type { EntryLocation } from "@/shared/types";
 import { ThemedText } from "@/shared/components/ThemedText";
 
 import { chip } from "../styles/ChipStyles";
-import { LocationChip } from "./LocationChip";
+import { LocationBadge } from "./LocationBadge";
 
 interface DateTimeBadgesProps {
   when: number;
@@ -21,6 +21,8 @@ interface DateTimeBadgesProps {
   locationLoading?: boolean;
   locationFailed?: boolean;
   onLocationPress?: () => void;
+  onLocationRefresh?: () => void;
+  onLocationRemove?: () => void;
   readOnly?: boolean;
 }
 
@@ -33,6 +35,8 @@ export function DateTimeBadges({
   locationLoading,
   locationFailed,
   onLocationPress,
+  onLocationRefresh,
+  onLocationRemove,
   readOnly = false,
 }: DateTimeBadgesProps) {
   const { colors } = useTheme().theme;
@@ -74,14 +78,16 @@ export function DateTimeBadges({
       </Pressable>
 
       {readOnly ? (
-        location ? <LocationChip location={location} readOnly /> : null
+        location ? <LocationBadge location={location} readOnly /> : null
       ) : onLocationPress ? (
-        <LocationChip
+        <LocationBadge
           location={location}
           on={locationOn}
           loading={locationLoading}
           failed={locationFailed}
           onPress={onLocationPress}
+          onRefresh={onLocationRefresh}
+          onRemove={onLocationRemove}
         />
       ) : null}
     </View>

@@ -22,7 +22,7 @@ import { withTimeOfDay } from "@/shared/utils/dates";
 import { logDevWarning } from "@/shared/utils/devLog";
 import { Layout, useKeepFocus } from "@/shared/components/Layout";
 import { CalendarPicker, TimePicker } from "@/shared/pickers";
-import { useTheme, useWritingPreferences } from "@/theme";
+import { useTheme } from "@/theme";
 import { metrics, space } from "@/theme/spacing";
 import { press } from "@/theme/motion";
 
@@ -40,7 +40,6 @@ function entryImages(entry: Entry): string[] {
 export function ComposeScreen({ navigation, route }: Props) {
   const { theme } = useTheme();
   const { colors } = theme;
-  const { autoLocation } = useWritingPreferences();
 
   const entryId = route.params?.entryId;
   const [mode, setMode] = useState<"view" | "edit">(route.params?.mode ?? (entryId ? "view" : "edit"));
@@ -62,7 +61,7 @@ export function ComposeScreen({ navigation, route }: Props) {
   const inputRef = useRef<TextInput>(null);
   const recording = useRecording();
   const keepFocus = useKeepFocus(inputRef);
-  const location = useLocation(text, existing?.location, !existing && autoLocation);
+  const location = useLocation(existing?.location);
 
   useEffect(() => {
     if (!entryId) return;
@@ -206,8 +205,18 @@ export function ComposeScreen({ navigation, route }: Props) {
     keepFocus();
   };
 
-  const toggleLocation = async () => {
-    await location.toggle();
+  const handleLocationPress = async () => {
+    await location.request();
+    keepFocus();
+  };
+
+  const handleLocationRefresh = async () => {
+    await location.refresh();
+    keepFocus();
+  };
+
+  const handleLocationRemove = () => {
+    location.remove();
     keepFocus();
   };
 
@@ -221,7 +230,9 @@ export function ComposeScreen({ navigation, route }: Props) {
         locationOn={location.on}
         locationLoading={location.loading}
         locationFailed={location.failed}
-        onLocationPress={isReadOnly ? undefined : toggleLocation}
+        onLocationPress={isReadOnly ? undefined : handleLocationPress}
+        onLocationRefresh={isReadOnly ? undefined : handleLocationRefresh}
+        onLocationRemove={isReadOnly ? undefined : handleLocationRemove}
         readOnly={isReadOnly}
       />
 

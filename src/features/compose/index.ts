@@ -2,7 +2,7 @@ export * from "./types";
 export * from "./components/ComposeEditor";
 export * from "./components/ComposeAttachments";
 export * from "./components/DateTimeBadges";
-export * from "./components/LocationChip";
+export * from "./components/LocationBadge";
 export * from "./components/AudioDraftPreview";
 export * from "./components/LiveRecordingBar";
 export * from "./components/ComposeFooterBar";
