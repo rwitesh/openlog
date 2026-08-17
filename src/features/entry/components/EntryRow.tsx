@@ -72,11 +72,11 @@ function EntryRowBase({ entry, animate }: EntryRowProps) {
     });
   };
 
-  const bodyText =
-    entry.type === "text" ? entry.text : entry.text?.trim() ? entry.text : undefined;
-  const images = entry.type === "image" ? entry.uris : [];
+  const bodyText = entry.text?.trim() ? entry.text : undefined;
+  const images = entry.images ?? [];
+  const audios = entry.audios ?? [];
   const hasImages = images.length > 0;
-  const hasAudio = entry.type === "audio";
+  const hasAudio = audios.length > 0;
   const hasText = Boolean(bodyText);
   const locationName = entry.location ? locationPlaceTitle(entry.location) : undefined;
 
@@ -88,10 +88,10 @@ function EntryRowBase({ entry, animate }: EntryRowProps) {
   const handleDeleteImage = (index: number) => {
     removeImage(entry.id, index)
       .then((updated) => {
-        if (!updated || updated.type !== "image" || updated.uris.length === 0) {
+        if (!updated || updated.images.length === 0) {
           setImageViewerOpen(false);
-        } else if (index >= updated.uris.length) {
-          setImageViewerIndex(updated.uris.length - 1);
+        } else if (index >= updated.images.length) {
+          setImageViewerIndex(updated.images.length - 1);
         }
       })
       .catch(() => {
@@ -190,8 +190,10 @@ function EntryRowBase({ entry, animate }: EntryRowProps) {
         ) : null}
 
         {hasAudio ? (
-          <View style={hasText || hasImages ? styles.audioAfterContent : undefined}>
-            <AudioPlayer uri={entry.uri} durationMs={entry.durationMs} />
+          <View style={[styles.audioList, hasText || hasImages ? styles.audioAfterContent : undefined]}>
+            {audios.map((uri, index) => (
+              <AudioPlayer key={`${uri}-${index}`} uri={uri} />
+            ))}
           </View>
         ) : null}
       </Animated.View>
@@ -253,6 +255,9 @@ const styles = StyleSheet.create({
   },
   audioAfterContent: {
     marginTop: space.md,
+  },
+  audioList: {
+    gap: space.xs,
   },
   singleImageWrap: {
     width: "100%",

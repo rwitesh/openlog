@@ -1,5 +1,3 @@
-export type EntryType = "text" | "image" | "audio";
-
 export interface EntryLocation {
   latitude: number;
   longitude: number;
@@ -7,35 +5,28 @@ export interface EntryLocation {
   name?: string;
 }
 
-interface EntryBase {
+export interface Entry {
   id: string;
   createdAt: number;
   updatedAt: number;
+  text?: string;
+  images: string[];
+  audios: string[];
   location?: EntryLocation;
 }
 
-export type TextEntry = EntryBase & {
-  type: "text";
-  text: string;
-};
-
-export type ImageEntry = EntryBase & {
-  type: "image";
+export interface NewEntryInput {
   text?: string;
-  uris: string[];
-};
+  images?: string[];
+  audios?: string[];
+  createdAt?: number;
+  location?: EntryLocation | null;
+}
 
-export type AudioEntry = EntryBase & {
-  type: "audio";
+export interface UpdateEntryInput {
   text?: string;
-  uri: string;
-  durationMs?: number;
-};
-
-export type Entry = TextEntry | ImageEntry | AudioEntry;
-
-export type NewEntryInput = (
-  | { type: "text"; text: string }
-  | { type: "image"; text?: string; uris: string[] }
-  | { type: "audio"; text?: string; uri: string; durationMs?: number }
-) & { createdAt?: number; location?: EntryLocation };
+  images?: string[];
+  audios?: string[];
+  createdAt?: number;
+  location?: EntryLocation | null;
+}

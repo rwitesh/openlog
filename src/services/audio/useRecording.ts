@@ -32,6 +32,18 @@ export function useRecording() {
     setLiveLevels([...samplesRef.current]);
   }, [recorderState.isRecording, recorderState.metering]);
 
+  useEffect(() => {
+    return () => {
+      try {
+        if (recorder.getStatus().isRecording) {
+          void recorder.stop();
+        }
+      } catch {
+        // Handle might already be disposed
+      }
+    };
+  }, [recorder]);
+
   const start = useCallback(async (): Promise<boolean> => {
     const { granted } = await requestRecordingPermissionsAsync();
     if (!granted) return false;

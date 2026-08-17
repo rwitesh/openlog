@@ -12,7 +12,9 @@
       "deploymentTarget": "15.0",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Record voice entries on your timeline.",
-        "NSLocationWhenInUseUsageDescription": "Attach your current location to entries."
+        "NSLocationWhenInUseUsageDescription": "Attach your current location to entries.",
+        "NSPhotoLibraryUsageDescription": "Attach photos from your library to timeline entries.",
+        "NSPhotoLibraryAddUsageDescription": "Save photos from entries to your photo library."
       },
       "bundleIdentifier": "com.anonymous.kizuna"
     },
@@ -56,6 +58,12 @@
       "expo-asset",
       "expo-font",
       "expo-image",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Attach photos from your library to timeline entries."
+        }
+      ],
       "expo-audio",
       "expo-sharing",
       [

@@ -12,15 +12,14 @@ import { AudioWaveform } from "@/shared/components/AudioWaveform";
 
 interface DraftPreviewProps {
   uri: string;
-  durationMs: number;
   levels?: number[];
   onRemove?: () => void;
 }
 
 /** Inline preview of a recorded voice note inside the composer. */
-export function AudioDraftPreview({ uri, durationMs, levels, onRemove }: DraftPreviewProps) {
+export function AudioDraftPreview({ uri, levels, onRemove }: DraftPreviewProps) {
   const { colors } = useTheme().theme;
-  const { progress, isPlaying, toggle, timeLabel } = usePlayback(uri, durationMs);
+  const { progress, isPlaying, toggle, timeLabel } = usePlayback(uri);
 
   return (
     <View style={[styles.wrap, { backgroundColor: colors.surfaceMuted }]}>

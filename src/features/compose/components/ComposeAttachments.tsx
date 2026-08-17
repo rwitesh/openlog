@@ -16,19 +16,15 @@ const PREVIEW_SIZE = 80;
 interface AttachmentsProps {
   imageUris: string[];
   onRemoveImage: (index: number) => void;
-  audioUri?: string;
-  audioDurationMs?: number;
-  audioLevels?: number[];
-  onRemoveAudio: () => void;
+  audioUris?: string[];
+  onRemoveAudio?: (index: number) => void;
   readOnly?: boolean;
 }
 
 export function ComposeAttachments({
   imageUris,
   onRemoveImage,
-  audioUri,
-  audioDurationMs = 0,
-  audioLevels,
+  audioUris = [],
   onRemoveAudio,
   readOnly = false,
 }: AttachmentsProps) {
@@ -37,7 +33,7 @@ export function ComposeAttachments({
   const [imageViewerIndex, setImageViewerIndex] = useState(0);
 
   const hasImages = imageUris.length > 0;
-  const hasAudio = Boolean(audioUri);
+  const hasAudio = audioUris.length > 0;
 
   if (!hasImages && !hasAudio) return null;
 
@@ -116,12 +112,17 @@ export function ComposeAttachments({
         ) : null}
 
         {hasAudio ? (
-          <AudioDraftPreview
-            uri={audioUri!}
-            durationMs={audioDurationMs}
-            levels={audioLevels}
-            onRemove={readOnly ? undefined : onRemoveAudio}
-          />
+          <View style={styles.audioList}>
+            {audioUris.map((uri, index) => (
+              <AudioDraftPreview
+                key={`${uri}-${index}`}
+                uri={uri}
+                onRemove={
+                  readOnly || !onRemoveAudio ? undefined : () => onRemoveAudio(index)
+                }
+              />
+            ))}
+          </View>
         ) : null}
       </View>
 
@@ -197,5 +198,8 @@ const styles = StyleSheet.create({
     width: 220,
     aspectRatio: 4 / 3,
     borderRadius: radius.md,
+  },
+  audioList: {
+    gap: space.sm,
   },
 });

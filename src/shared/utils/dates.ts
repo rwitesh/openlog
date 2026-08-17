@@ -18,7 +18,9 @@ export function startOfDay(ts: number): number {
 }
 
 export function addDays(ts: number, days: number): number {
-  return startOfDay(ts) + days * DAY_MS;
+  const d = new Date(startOfDay(ts));
+  d.setDate(d.getDate() + days);
+  return d.getTime();
 }
 
 export function isSameDay(a: number, b: number): boolean {
@@ -122,7 +124,7 @@ export function entriesForDay<T extends { createdAt: number }>(
   dayTs: number
 ): T[] {
   const start = startOfDay(dayTs);
-  const end = start + DAY_MS;
+  const end = addDays(start, 1);
 
   return entries
     .filter((entry) => entry.createdAt >= start && entry.createdAt < end)
@@ -163,12 +165,11 @@ export function formatMonthYear(ts: number): string {
 /** Month grid cells; null marks leading/trailing blanks. */
 export function calendarCells(monthTs: number): (number | null)[] {
   const first = startOfMonth(monthTs);
-  const firstWeekday = new Date(first).getDay();
-  const daysInMonth = new Date(
-    new Date(first).getFullYear(),
-    new Date(first).getMonth() + 1,
-    0
-  ).getDate();
+  const firstDate = new Date(first);
+  const year = firstDate.getFullYear();
+  const month = firstDate.getMonth();
+  const firstWeekday = firstDate.getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
 
   const cells: (number | null)[] = [];
 
@@ -177,7 +178,7 @@ export function calendarCells(monthTs: number): (number | null)[] {
   }
 
   for (let day = 1; day <= daysInMonth; day += 1) {
-    cells.push(first + (day - 1) * DAY_MS);
+    cells.push(new Date(year, month, day, 0, 0, 0, 0).getTime());
   }
 
   return cells;

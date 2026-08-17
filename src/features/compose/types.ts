@@ -2,9 +2,8 @@ import type { EntryLocation } from "@/shared/types";
 
 export interface Draft {
   text?: string;
-  imageUris?: string[];
-  audioUri?: string;
-  durationMs?: number;
+  images?: string[];
+  audios?: string[];
   createdAt?: number;
   location?: EntryLocation;
 }

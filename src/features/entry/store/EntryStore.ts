@@ -6,7 +6,6 @@ import {
   deleteAllEntries,
   deleteEntry,
   getEntries,
-  removeImageFromEntry,
   updateEntry,
   type NewEntryInput,
   type UpdateEntryInput,
@@ -40,7 +39,7 @@ export async function loadEntries() {
 
 export async function addEntry(input: NewEntryInput) {
   const entry = await createEntry(input);
-  entries = [entry, ...entries];
+  entries = sortNewestFirst([entry, ...entries]);
   emit();
   return entry;
 }
@@ -62,14 +61,27 @@ export async function removeEntry(id: string) {
 }
 
 export async function removeImage(entryId: string, imageIndex: number) {
-  const { entry, removedUri } = await removeImageFromEntry(entryId, imageIndex);
+  const existing = entries.find((e) => e.id === entryId);
+  if (!existing || imageIndex < 0 || imageIndex >= existing.images.length) return null;
+  const removedUri = existing.images[imageIndex];
+  const nextImages = existing.images.filter((_, i) => i !== imageIndex);
   await deleteMedia(removedUri);
-  entries =
-    entry === null
-      ? entries.filter((e) => e.id !== entryId)
-      : entries.map((e) => (e.id === entryId ? entry : e));
+  const updated = await updateEntry(entryId, { images: nextImages });
+  entries = entries.map((e) => (e.id === entryId ? updated : e));
   emit();
-  return entry;
+  return updated;
+}
+
+export async function removeAudio(entryId: string, audioIndex: number) {
+  const existing = entries.find((e) => e.id === entryId);
+  if (!existing || audioIndex < 0 || audioIndex >= existing.audios.length) return null;
+  const removedUri = existing.audios[audioIndex];
+  const nextAudios = existing.audios.filter((_, i) => i !== audioIndex);
+  await deleteMedia(removedUri);
+  const updated = await updateEntry(entryId, { audios: nextAudios });
+  entries = entries.map((e) => (e.id === entryId ? updated : e));
+  emit();
+  return updated;
 }
 
 export async function clearAll() {
@@ -87,6 +99,7 @@ export function useEntries() {
     patchEntry,
     removeEntry,
     removeImage,
+    removeAudio,
     clearAll,
   };
 }
