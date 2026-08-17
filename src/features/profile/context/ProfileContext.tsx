@@ -28,9 +28,8 @@ export function ProfileProvider({ children, initialName }: ProfileProviderProps)
   const [name, setNameState] = useState<string | null>(initialName);
 
   const setName = useCallback((next: string) => {
-    const trimmed = next.trim();
-    setNameState(trimmed || null);
-    void persistUserName(trimmed);
+    setNameState(next || null);
+    void persistUserName(next);
   }, []);
 
   const value = useMemo(() => ({ name, setName }), [name, setName]);

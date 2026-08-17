@@ -67,8 +67,7 @@ export function SettingsScreen() {
     >
       <CollapsibleSection
         title="Profile"
-        summary={name ? name : "Set your name"}
-        defaultExpanded={true}
+        summary={name?.trim() ? name.trim() : "Set your name"}
       >
         <View style={styles.fieldRow}>
           <ThemedText style={[typography.settingLabel, { color: colors.textSecondary }]}>
