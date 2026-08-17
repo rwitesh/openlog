@@ -33,7 +33,8 @@ export function TimelineHeader({
   const dark = resolvedMode === "dark";
   const [greetingStyle, subtitleStyle, monthStyle] = useStaggeredEntrance([16, 12, 10]);
 
-  const greeting = name ? `Hi, ${name}` : "Hi there";
+  const firstName = name?.trim().split(/\s+/)[0];
+  const greeting = firstName ? `Hi, ${firstName}` : "Hi there";
   const currentMonth = formatMonthYear(selectedMonth ?? Date.now());
   const topInset = insets.top + space.lg;
   const hasBackground = Boolean(theme.backgroundConfig?.imageUri);
