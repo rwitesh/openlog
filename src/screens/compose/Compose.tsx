@@ -5,7 +5,6 @@ import * as ImagePicker from "expo-image-picker";
 import { Feather } from "@expo/vector-icons";
 
 import type { RootStackParamList } from "@/navigation/types";
-import type { Entry } from "@/shared/types";
 import { EntryDetailsModal, useEntries } from "@/features/entry";
 import {
   ComposeAttachments,
@@ -13,11 +12,10 @@ import {
   ComposeFooterBar,
   DateTimeBadges,
   MAX_IMAGES,
-  canSaveDraft,
-  fromDraft,
 } from "@/features/compose";
 import { useRecording } from "@/services/audio";
 import { useLocation } from "@/services/location";
+import { persistMedia } from "@/services/media";
 import { withTimeOfDay } from "@/shared/utils/dates";
 import { logDevWarning } from "@/shared/utils/devLog";
 import { Layout, useKeepFocus } from "@/shared/components/Layout";
@@ -27,15 +25,6 @@ import { metrics, space } from "@/theme/spacing";
 import { press } from "@/theme/motion";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Compose">;
-
-function entryText(entry: Entry): string {
-  if (entry.type === "text") return entry.text;
-  return entry.text?.trim() ?? "";
-}
-
-function entryImages(entry: Entry): string[] {
-  return entry.type === "image" ? entry.uris : [];
-}
 
 export function ComposeScreen({ navigation, route }: Props) {
   const { theme } = useTheme();
@@ -48,10 +37,9 @@ export function ComposeScreen({ navigation, route }: Props) {
   const { entries, addEntry, patchEntry, removeEntry } = useEntries();
   const existing = entryId ? entries.find((entry) => entry.id === entryId) : undefined;
 
-  const [text, setText] = useState(() => (existing ? entryText(existing) : ""));
-  const [imageUris, setImageUris] = useState<string[]>(() =>
-    existing ? entryImages(existing) : []
-  );
+  const [text, setText] = useState(() => existing?.text ?? "");
+  const [images, setImages] = useState<string[]>(() => existing?.images ?? []);
+  const [audios, setAudios] = useState<string[]>(() => existing?.audios ?? []);
   const [saving, setSaving] = useState(false);
   const [when, setWhen] = useState(() => existing?.createdAt ?? Date.now());
   const [datePickerOpen, setDatePickerOpen] = useState(false);
@@ -62,6 +50,14 @@ export function ComposeScreen({ navigation, route }: Props) {
   const recording = useRecording();
   const keepFocus = useKeepFocus(inputRef);
   const location = useLocation(existing?.location);
+
+  // If a new recording completes, append it to audios list
+  useEffect(() => {
+    if (recording.recordedUri && !recording.isRecording) {
+      setAudios((prev) => [...prev, recording.recordedUri!]);
+      recording.clear();
+    }
+  }, [recording.recordedUri, recording.isRecording, recording]);
 
   useEffect(() => {
     if (!entryId) return;
@@ -102,7 +98,9 @@ export function ComposeScreen({ navigation, route }: Props) {
         headerRight: () => (
           <Pressable
             onPress={() => {
-              setText(entryText(existing));
+              setText(existing.text ?? "");
+              setImages(existing.images);
+              setAudios(existing.audios);
               setWhen(existing.createdAt);
               setMode("view");
             }}
@@ -123,22 +121,19 @@ export function ComposeScreen({ navigation, route }: Props) {
     }
   }, [navigation, isReadOnly, existing, colors]);
 
-  const audioUri = recording.recordedUri || (existing?.type === "audio" ? existing.uri : undefined);
-  const audioDurationMs = recording.recordedUri
-    ? recording.recordedDurationMs
-    : (existing?.type === "audio" ? existing.durationMs ?? 0 : 0);
   const isRecording = recording.isRecording;
-  const hasAudioDraft = Boolean(audioUri && !isRecording);
   const canSave =
-    canSaveDraft({ text, imageUris, audioUri }) && !isRecording && !saving;
+    Boolean(text.trim() || images.length || audios.length || recording.recordedUri) &&
+    !isRecording &&
+    !saving;
 
   const pickImage = async () => {
-    if (isReadOnly || imageUris.length >= MAX_IMAGES) return;
+    if (isReadOnly || images.length >= MAX_IMAGES) return;
 
     const { granted } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!granted) return;
 
-    const remaining = MAX_IMAGES - imageUris.length;
+    const remaining = MAX_IMAGES - images.length;
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: "images",
       quality: 0.85,
@@ -146,7 +141,7 @@ export function ComposeScreen({ navigation, route }: Props) {
       selectionLimit: remaining,
     });
     if (!result.canceled) {
-      setImageUris((prev) => [
+      setImages((prev) => [
         ...prev,
         ...result.assets.map((asset) => asset.uri),
       ]);
@@ -156,7 +151,12 @@ export function ComposeScreen({ navigation, route }: Props) {
 
   const removeImage = (index: number) => {
     if (isReadOnly) return;
-    setImageUris((prev) => prev.filter((_, i) => i !== index));
+    setImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const removeAudio = (index: number) => {
+    if (isReadOnly) return;
+    setAudios((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSave = async () => {
@@ -164,32 +164,35 @@ export function ComposeScreen({ navigation, route }: Props) {
 
     setSaving(true);
     try {
+      // Gather active audio URIs including in-progress recording if any
+      const pendingAudios = [...audios];
+      if (recording.recordedUri && !pendingAudios.includes(recording.recordedUri)) {
+        pendingAudios.push(recording.recordedUri);
+      }
+
+      // Persist all media files into app storage
+      const persistedImages = await Promise.all(
+        images.map((img) => persistMedia(img, "jpg"))
+      );
+      const persistedAudios = await Promise.all(
+        pendingAudios.map((aud) => persistMedia(aud, "m4a"))
+      );
+
+      const entryPayload = {
+        text: text.trim() || undefined,
+        images: persistedImages,
+        audios: persistedAudios,
+        createdAt: when,
+        location: location.on && location.place ? location.place : null,
+      };
+
       if (existing) {
-        await patchEntry(existing.id, {
-          text: text.trim(),
-          createdAt: when,
-          location:
-            location.on && location.place ? location.place : null,
-        });
+        await patchEntry(existing.id, entryPayload);
         setMode("view");
         return;
       }
 
-      const input = await fromDraft({
-        text: text.trim() || undefined,
-        imageUris: imageUris.length ? imageUris : undefined,
-        audioUri: recording.recordedUri,
-        durationMs: recording.recordedDurationMs,
-        createdAt: when,
-        location:
-          location.on && location.place ? location.place : undefined,
-      });
-      if (!input) {
-        Alert.alert("Couldn't save", "Add some text, a photo, or audio first.");
-        return;
-      }
-
-      await addEntry(input);
+      await addEntry(entryPayload);
       navigation.goBack();
     } catch (error) {
       logDevWarning("compose:save", error);
@@ -246,12 +249,10 @@ export function ComposeScreen({ navigation, route }: Props) {
           >
             {isReadOnly ? (
               <ComposeAttachments
-                imageUris={imageUris}
+                imageUris={images}
                 onRemoveImage={removeImage}
-                audioUri={hasAudioDraft ? audioUri : undefined}
-                audioDurationMs={audioDurationMs}
-                audioLevels={recording.recordedLevels}
-                onRemoveAudio={recording.clear}
+                audioUris={audios}
+                onRemoveAudio={removeAudio}
                 readOnly
               />
             ) : null}
@@ -261,16 +262,14 @@ export function ComposeScreen({ navigation, route }: Props) {
         {!isReadOnly ? (
           <Layout.Screen.Footer>
             <ComposeAttachments
-              imageUris={imageUris}
+              imageUris={images}
               onRemoveImage={removeImage}
-              audioUri={hasAudioDraft ? audioUri : undefined}
-              audioDurationMs={audioDurationMs}
-              audioLevels={recording.recordedLevels}
-              onRemoveAudio={recording.clear}
+              audioUris={audios}
+              onRemoveAudio={removeAudio}
               readOnly={false}
             />
             <ComposeFooterBar
-              imageCount={imageUris.length}
+              imageCount={images.length}
               isRecording={isRecording}
               canSave={canSave}
               recordingDurationMs={recording.durationMs}

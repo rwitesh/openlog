@@ -2,7 +2,7 @@ import * as SQLite from "expo-sqlite";
 
 import { logDevWarning } from "@/shared/utils/devLog";
 
-const DB_NAME = "kizuna.db";
+const DB_NAME = "app.db";
 
 let dbInstance: SQLite.SQLiteDatabase | null = null;
 let openPromise: Promise<SQLite.SQLiteDatabase> | null = null;
@@ -23,13 +23,11 @@ async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
   await db.execAsync(`
     CREATE TABLE IF NOT EXISTS entries (
       id            TEXT PRIMARY KEY NOT NULL,
-      type          TEXT NOT NULL,
       created_at    INTEGER NOT NULL,
       updated_at    INTEGER NOT NULL,
       text          TEXT,
-      uri           TEXT,
-      uris          TEXT,
-      duration_ms   INTEGER,
+      images        TEXT,
+      audios        TEXT,
       latitude      REAL,
       longitude     REAL,
       location_name TEXT
@@ -70,35 +68,6 @@ async function ensureDatabase(): Promise<SQLite.SQLiteDatabase> {
   return openPromise;
 }
 
-async function closeDatabase(): Promise<void> {
-  if (!dbInstance) return;
-
-  try {
-    await dbInstance.closeAsync();
-  } catch {
-    // Handle may already be invalid after fast refresh.
-  }
-
-  dbInstance = null;
-  openPromise = null;
-}
-
-/**
- * Deletes the database file and opens a fresh connection with the current schema.
- * Must run inside {@link withLock}.
- */
-async function rebuildDatabaseLocked(): Promise<void> {
-  await closeDatabase();
-
-  try {
-    await SQLite.deleteDatabaseAsync(DB_NAME);
-  } catch {
-    // File may already be missing.
-  }
-
-  dbInstance = await openFreshDatabase();
-}
-
 /**
  * Opens (and lazily initialises) the app's single SQLite database.
  * Prefer {@link runDb} so access stays serialized.
@@ -115,12 +84,7 @@ export async function runDb<T>(
   fn: (db: SQLite.SQLiteDatabase) => Promise<T>
 ): Promise<T> {
   return withLock(async () => {
-    try {
-      return await fn(await ensureDatabase());
-    } catch (firstError) {
-      logDevWarning("db:runDb", firstError);
-      await rebuildDatabaseLocked();
-      return await fn(await ensureDatabase());
-    }
+    const db = await ensureDatabase();
+    return await fn(db);
   });
 }

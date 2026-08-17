@@ -14,15 +14,11 @@ import { AudioWaveform } from "@/shared/components/AudioWaveform";
 
 interface AudioPlayerProps {
   uri: string;
-  durationMs?: number;
 }
 
-export function AudioPlayer({ uri, durationMs }: AudioPlayerProps) {
+export function AudioPlayer({ uri }: AudioPlayerProps) {
   const { colors } = useTheme().theme;
-  const { player, status, totalMs, progress, isPlaying, toggle, timeLabel } = usePlayback(
-    uri,
-    durationMs
-  );
+  const { player, status, totalMs, progress, isPlaying, toggle, timeLabel } = usePlayback(uri);
   const [trackWidth, setTrackWidth] = useState(0);
 
   const seekToRatio = (ratio: number) => {

@@ -1,6 +1,5 @@
 import type { Entry } from "@/shared/types";
 import {
-  DAY_MS,
   dayOfMonth,
   getMonthEntries,
   startOfMonth,
@@ -17,10 +16,7 @@ const MONTH_NAMES_UPPER = [
 export function getMonthPhotoCount(entries: Entry[], monthTs?: number): number {
   const list = monthTs !== undefined ? getMonthEntries(entries, monthTs) : entries;
   return list.reduce((count, entry) => {
-    if (entry.type === "image" && Array.isArray(entry.uris)) {
-      return count + entry.uris.length;
-    }
-    return count;
+    return count + (entry.images?.length ?? 0);
   }, 0);
 }
 
@@ -28,7 +24,7 @@ export function getMonthPhotoCount(entries: Entry[], monthTs?: number): number {
 export function getMonthAudioCount(entries: Entry[], monthTs?: number): number {
   const list = monthTs !== undefined ? getMonthEntries(entries, monthTs) : entries;
   return list.reduce((count, entry) => {
-    return entry.type === "audio" ? count + 1 : count;
+    return count + (entry.audios?.length ?? 0);
   }, 0);
 }
 
@@ -95,12 +91,9 @@ export function getMonthPulseData(entries: Entry[], monthTs: number): MonthPulse
     };
 
     existing.momentCount += 1;
-    if (entry.type === "image" && entry.uris?.length) {
-      existing.photoCount += entry.uris.length;
-    }
-    if (entry.type === "audio") {
-      existing.audioCount += 1;
-    }
+    existing.photoCount += entry.images?.length ?? 0;
+    existing.audioCount += entry.audios?.length ?? 0;
+
     if (entry.location) {
       const title = locationPlaceTitle(entry.location);
       if (title && title !== "Location") {
@@ -121,7 +114,7 @@ export function getMonthPulseData(entries: Entry[], monthTs: number): MonthPulse
   const days: PulseDay[] = [];
 
   for (let day = 1; day <= daysInMonth; day++) {
-    const dayTs = first + (day - 1) * DAY_MS;
+    const dayTs = new Date(year, month, day, 0, 0, 0, 0).getTime();
     const info = dayMap.get(day);
     const count = info?.momentCount ?? 0;
 

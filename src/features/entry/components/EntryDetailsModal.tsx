@@ -9,8 +9,7 @@ import { radius } from "@/theme/theme";
 import { FONT_SIZE } from "@/theme/typography";
 import { press } from "@/theme/motion";
 import { formatDateTime } from "@/shared/utils/dates";
-import { formatDurationMs } from "@/shared/utils/duration";
-import { typeLabel } from "../utils/EntryLabels";
+import { entryContentTypeLabel } from "../utils/EntryLabels";
 import { LocationDetail } from "./LocationDetail";
 import { Sheet } from "@/shared/components/Sheet";
 import { ThemedText } from "@/shared/components/ThemedText";
@@ -99,13 +98,7 @@ export function EntryDetailsModal({
         <View style={[styles.divider, { backgroundColor: colors.separator }]} />
         <DetailRow label="Updated" value={formatDateTime(entry.updatedAt)} />
         <View style={[styles.divider, { backgroundColor: colors.separator }]} />
-        <DetailRow label="Type" value={typeLabel(entry.type)} />
-        {entry.type === "audio" && entry.durationMs ? (
-          <>
-            <View style={[styles.divider, { backgroundColor: colors.separator }]} />
-            <DetailRow label="Length" value={formatDurationMs(entry.durationMs)} />
-          </>
-        ) : null}
+        <DetailRow label="Content" value={entryContentTypeLabel(entry)} />
         {entry.location ? (
           <>
             <View style={[styles.divider, { backgroundColor: colors.separator }]} />

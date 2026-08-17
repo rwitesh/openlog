@@ -1,11 +1,9 @@
-import type { EntryType } from "@/shared/types";
+import type { Entry } from "@/shared/types";
 
-const TYPE_LABELS: Record<EntryType, string> = {
-  text: "Text",
-  image: "Photo",
-  audio: "Audio",
-};
-
-export function typeLabel(type: EntryType): string {
-  return TYPE_LABELS[type];
+export function entryContentTypeLabel(entry: Entry): string {
+  const parts: string[] = [];
+  if (entry.text?.trim()) parts.push("Text");
+  if (entry.images?.length) parts.push(entry.images.length === 1 ? "1 Photo" : `${entry.images.length} Photos`);
+  if (entry.audios?.length) parts.push(entry.audios.length === 1 ? "1 Voice note" : `${entry.audios.length} Voice notes`);
+  return parts.length ? parts.join(" · ") : "Note";
 }
