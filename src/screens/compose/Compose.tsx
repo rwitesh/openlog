@@ -4,7 +4,7 @@ import { type NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 
 import type { RootStackParamList } from "@/navigation/types";
-import { EntryDetailsModal, useEntries } from "@/features/entry";
+import { EntryDetailsModal, useEntries } from "@/modules/entry";
 import {
   ComposeAttachments,
   ComposeEditor,
@@ -12,7 +12,7 @@ import {
   DateTimeBadges,
   useComposeDraft,
   useMediaAttachments,
-} from "@/features/compose";
+} from "@/modules/compose";
 import { withTimeOfDay } from "@/shared/utils/dates";
 import { Layout, useKeepFocus } from "@/shared/components/Layout";
 import { CalendarPicker, TimePicker } from "@/shared/pickers";

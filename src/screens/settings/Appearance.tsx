@@ -18,7 +18,7 @@ import {
   ThemeModal,
   TimelineEditorModal,
   TypographyModal,
-} from "@/features/settings";
+} from "@/modules/settings";
 
 type ActiveSheet =
   | "theme"

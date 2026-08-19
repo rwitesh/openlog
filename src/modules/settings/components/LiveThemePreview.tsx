@@ -5,7 +5,7 @@ import { useEntryPreferences, useTheme } from "@/theme";
 import { space } from "@/theme/spacing";
 import { radius } from "@/theme/theme";
 import { ThemedText } from "@/shared/components/ThemedText";
-import { TimelineRail } from "@/features/timeline/components/TimelineRail";
+import { TimelineRail } from "@/modules/timeline/components/TimelineRail";
 
 // Stable mock timestamp for predictable preview rendering
 const MOCK_DAY_TS = 1715767200000;

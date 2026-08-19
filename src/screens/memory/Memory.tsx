@@ -9,7 +9,7 @@ import { type NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import type { RootStackParamList } from "@/navigation/types";
-import { useEntries } from "@/features/entry";
+import { useEntries } from "@/modules/entry";
 import {
   MonthHeader,
   MonthHero,
@@ -17,7 +17,7 @@ import {
   MonthStats,
   getMonthOverview,
   getMonthPulseData,
-} from "@/features/memory";
+} from "@/modules/memory";
 import { useTheme } from "@/theme";
 import { space } from "@/theme/spacing";
 import { typography } from "@/theme/typography";

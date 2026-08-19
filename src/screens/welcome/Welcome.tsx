@@ -12,7 +12,7 @@ import { type NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import type { RootStackParamList } from "@/navigation/types";
-import { useProfile } from "@/features/profile";
+import { useProfile } from "@/modules/profile";
 import { useTheme } from "@/theme";
 import { ThemedText } from "@/shared/components/ThemedText";
 import { metrics, space } from "@/theme/spacing";
