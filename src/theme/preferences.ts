@@ -14,6 +14,7 @@ export interface AppearancePreferences {
   fontFamily: FontName;
   textSize: TextSize;
   backgroundImageUri?: string | null;
+  backgroundImageOpacity?: number;
 }
 
 export interface EntryPreferences {
@@ -50,6 +51,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
     fontFamily: DEFAULT_FONT_FAMILY,
     textSize: "regular",
     backgroundImageUri: null,
+    backgroundImageOpacity: 0.35,
   },
   entry: {
     timelineStyle: "rail",

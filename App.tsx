@@ -37,17 +37,11 @@ function AppContent({ showWelcome }: { showWelcome: boolean }) {
         <View style={StyleSheet.absoluteFill} pointerEvents="none">
           <Image
             source={{ uri: bgConfig.imageUri }}
-            style={StyleSheet.absoluteFill}
-            resizeMode="cover"
-          />
-          <View
             style={[
               StyleSheet.absoluteFill,
-              {
-                backgroundColor: theme.colors.background,
-                opacity: 0.35,
-              },
+              { opacity: bgConfig.opacity ?? 0.35 },
             ]}
+            resizeMode="cover"
           />
         </View>
       ) : null}

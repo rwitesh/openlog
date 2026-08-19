@@ -86,10 +86,11 @@ export function SettingsScreen() {
   const timelineSummary = `${
     entry.timelineStyle.charAt(0).toUpperCase() + entry.timelineStyle.slice(1)
   } · ${entry.timelineDensity === "comfortable" ? "Comfortable" : "Compact"}`;
+  const backgroundOpacityPct = Math.round(
+    (appearance.backgroundImageOpacity ?? 0.35) * 100
+  );
   const backgroundSummary = appearance.backgroundImageUri
-    ? matchedBackground
-      ? matchedBackground.name
-      : "My Photo"
+    ? `${matchedBackground ? matchedBackground.name : "Custom"} · ${backgroundOpacityPct}%`
     : "None";
   const accessibilitySummary =
     accessibility.motionLevel === "full"
