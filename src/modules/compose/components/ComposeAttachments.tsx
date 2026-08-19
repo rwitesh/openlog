@@ -9,7 +9,7 @@ import { radius } from "@/theme/theme";
 import { press } from "@/theme/motion";
 import { MAX_IMAGES } from "../types";
 import { AudioDraftPreview } from "./AudioDraftPreview";
-import { ImageViewerModal } from "@/features/entry/components/ImageViewerModal";
+import { ImageViewerModal } from "@/modules/entry/components/ImageViewerModal";
 
 const PREVIEW_SIZE = 80;
 

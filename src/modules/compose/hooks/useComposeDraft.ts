@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { Alert } from "react-native";
 
-import { addEntry, patchEntry } from "@/features/entry";
+import { addEntry, patchEntry } from "@/modules/entry";
 import { useLocation } from "@/services/location";
 import { logDevWarning } from "@/shared/utils/devLog";
 import type { Entry } from "@/shared/types";

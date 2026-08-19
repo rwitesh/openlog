@@ -6,13 +6,13 @@ import { Feather } from "@expo/vector-icons";
 
 import type { RootStackParamList } from "@/navigation/types";
 import { usePreferences, useTheme } from "@/theme";
-import { useProfile } from "@/features/profile";
-import { useEntries } from "@/features/entry";
+import { useProfile } from "@/modules/profile";
+import { useEntries } from "@/modules/entry";
 import {
   BiometricLockRow,
   CollapsibleSection,
   SegmentedRow,
-} from "@/features/settings";
+} from "@/modules/settings";
 import { space } from "@/theme/spacing";
 import { radius } from "@/theme/theme";
 import { press } from "@/theme/motion";

@@ -6,8 +6,8 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { AppProviders, useNavigationTheme, useTheme } from "@/theme";
-import { ProfileProvider } from "@/features/profile";
-import { AppLockGate } from "@/features/auth";
+import { ProfileProvider } from "@/modules/profile";
+import { AppLockGate } from "@/modules/auth";
 import { useAppBootstrap } from "@/shared/hooks";
 import type { RootStackParamList } from "@/navigation";
 import { Timeline } from "@/screens/timeline";

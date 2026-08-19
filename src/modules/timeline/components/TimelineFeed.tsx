@@ -8,7 +8,7 @@ import { typography } from "@/theme/typography";
 import { isSameDay } from "@/shared/utils/dates";
 import { toTimelineItems } from "../utils/TimelineTransform";
 import { ThemedText } from "@/shared/components/ThemedText";
-import { EntryRow } from "@/features/entry";
+import { EntryRow } from "@/modules/entry";
 import { TimelineRail } from "./TimelineRail";
 
 interface TimelineProps {

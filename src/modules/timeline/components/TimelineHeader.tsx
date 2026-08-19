@@ -2,7 +2,7 @@ import { Animated, StyleSheet, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useProfile } from "@/features/profile";
+import { useProfile } from "@/modules/profile";
 import { useTheme } from "@/theme";
 import { metrics, sectionGap, space } from "@/theme/spacing";
 import { formatMonthYear } from "@/shared/utils/dates";
