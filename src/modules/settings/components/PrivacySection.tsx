@@ -8,12 +8,13 @@ import { typography } from "@/theme/typography";
 import { ThemedText } from "@/shared/components/ThemedText";
 
 /**
- * Settings row that arms/disarms the biometric app lock.
+ * Privacy & security editor: the biometric app lock. Future options (lock
+ * timeout, screenshot blocking) append as siblings inside the container.
  *
- * Enabling requires a successful live scan first, so the lock can never
- * be turned on for a device that can't actually verify the owner.
+ * Enabling requires a successful live scan first, so the lock can never be
+ * turned on for a device that can't actually verify the owner.
  */
-export function BiometricLockRow() {
+export function PrivacySection() {
   const { theme } = useTheme();
   const { colors } = theme;
   const { preferences, setSecurity } = usePreferences();
@@ -64,28 +65,33 @@ export function BiometricLockRow() {
   };
 
   return (
-    <View style={styles.row}>
-      <View style={styles.labelGroup}>
-        <ThemedText style={[typography.settingLabel, { color: colors.text }]}>
-          Require Biometric Unlock
-        </ThemedText>
-        <ThemedText style={[styles.caption, { color: colors.textSecondary }]}>
-          {caption}
-        </ThemedText>
+    <View style={styles.container}>
+      <View style={styles.row}>
+        <View style={styles.labelGroup}>
+          <ThemedText style={[typography.settingLabel, { color: colors.text }]}>
+            Require Biometric Unlock
+          </ThemedText>
+          <ThemedText style={[styles.caption, { color: colors.textSecondary }]}>
+            {caption}
+          </ThemedText>
+        </View>
+        <Switch
+          value={enabled}
+          onValueChange={(value) => void handleToggle(value)}
+          disabled={!support?.available || verifying}
+          trackColor={{ false: colors.line, true: colors.marker }}
+          thumbColor={colors.surface}
+          accessibilityLabel="Require biometric unlock setting"
+        />
       </View>
-      <Switch
-        value={enabled}
-        onValueChange={(value) => void handleToggle(value)}
-        disabled={!support?.available || verifying}
-        trackColor={{ false: colors.line, true: colors.marker }}
-        thumbColor={colors.surface}
-        accessibilityLabel="Require biometric unlock setting"
-      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    paddingVertical: space.xs,
+  },
   row: {
     flexDirection: "row",
     alignItems: "center",

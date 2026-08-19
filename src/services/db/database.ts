@@ -46,12 +46,30 @@ async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
   await initSearchIndex(db);
 }
 
+/** Objects that make up the FTS mirror; all four must already exist for the index to be trusted. */
+const SEARCH_INDEX_OBJECTS = [
+  "entries_fts",
+  "entries_fts_ai",
+  "entries_fts_ad",
+  "entries_fts_au",
+] as const;
+
 /**
  * Full-text search index over entry text and location names. The FTS5 table
  * mirrors `entries` as an external-content table, so the triggers below keep
  * both in sync without any app-level bookkeeping.
  */
 async function initSearchIndex(db: SQLite.SQLiteDatabase): Promise<void> {
+  // Detect a complete mirror BEFORE creating anything. `count(*)` on an
+  // external-content table reads through to `entries`, so it can never prove
+  // the index is populated — object presence is the only reliable signal.
+  const placeholders = SEARCH_INDEX_OBJECTS.map(() => "?").join(", ");
+  const existing = await db.getAllAsync<{ name: string }>(
+    `SELECT name FROM sqlite_master WHERE name IN (${placeholders})`,
+    ...SEARCH_INDEX_OBJECTS
+  );
+  const hadCompleteIndex = existing.length === SEARCH_INDEX_OBJECTS.length;
+
   await db.execAsync(`
     CREATE VIRTUAL TABLE IF NOT EXISTS entries_fts USING fts5(
       text,
@@ -81,12 +99,9 @@ async function initSearchIndex(db: SQLite.SQLiteDatabase): Promise<void> {
     END
   `);
 
-  // Backfill installs that predate full-text search; triggers keep it in sync afterwards.
-  const counts = await db.getFirstAsync<{ indexed: number; total: number }>(
-    `SELECT (SELECT count(*) FROM entries_fts) AS indexed,
-            (SELECT count(*) FROM entries) AS total`
-  );
-  if (counts && counts.indexed !== counts.total) {
+  // Backfill installs where the mirror was missing or incomplete (e.g. an
+  // upgrade from a build predating search); the triggers keep it synced after.
+  if (!hadCompleteIndex) {
     await db.execAsync(`INSERT INTO entries_fts (entries_fts) VALUES ('rebuild')`);
   }
 }

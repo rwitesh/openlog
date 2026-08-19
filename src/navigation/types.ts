@@ -5,5 +5,4 @@ export type RootStackParamList = {
   Day: { dayTs: number };
   Compose: { entryId?: string; mode?: "view" | "edit" } | undefined;
   Settings: undefined;
-  Appearance: undefined;
 };
