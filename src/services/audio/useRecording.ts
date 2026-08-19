@@ -85,6 +85,18 @@ export function useRecording() {
     setLiveLevels([]);
   }, []);
 
+  /** Stop the recorder and discard the take without publishing its URI. */
+  const cancel = useCallback(async () => {
+    try {
+      if (recorder.getStatus().isRecording) {
+        await recorder.stop();
+      }
+    } catch {
+      // Handle might already be disposed
+    }
+    clear();
+  }, [recorder, clear]);
+
   const durationMs = recorderState.isRecording
     ? recorderState.durationMillis
     : recordedDurationMs ?? 0;
@@ -98,5 +110,6 @@ export function useRecording() {
     recordedLevels,
     toggle,
     clear,
+    cancel,
   };
 }

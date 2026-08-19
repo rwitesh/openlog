@@ -1,4 +1,6 @@
 export * from "./types";
+export * from "./hooks/useComposeDraft";
+export * from "./hooks/useMediaAttachments";
 export * from "./components/ComposeEditor";
 export * from "./components/ComposeAttachments";
 export * from "./components/DateTimeBadges";

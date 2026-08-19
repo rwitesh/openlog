@@ -7,10 +7,10 @@ import { useTheme } from "@/theme";
 import { metrics, space } from "@/theme/spacing";
 import { radius } from "@/theme/theme";
 import { press } from "@/theme/motion";
+import { MAX_IMAGES } from "../types";
 import { AudioDraftPreview } from "./AudioDraftPreview";
 import { ImageViewerModal } from "@/features/entry/components/ImageViewerModal";
 
-export const MAX_IMAGES = 10;
 const PREVIEW_SIZE = 80;
 
 interface AttachmentsProps {
