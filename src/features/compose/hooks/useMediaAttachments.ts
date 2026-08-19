@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import * as ImagePicker from "expo-image-picker";
 
 import { useRecording } from "@/services/audio";
+import { downscaleImage } from "@/services/media";
 import type { Entry } from "@/shared/types";
 import { MAX_IMAGES } from "../types";
 
@@ -40,12 +41,17 @@ export function useMediaAttachments(existing?: Entry) {
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: "images",
-      quality: 0.85,
+      // Full quality here — downscaleImage performs the only re-encode.
+      quality: 1,
       allowsMultipleSelection: true,
       selectionLimit: MAX_IMAGES - images.length,
     });
     if (!result.canceled) {
-      setImages((prev) => [...prev, ...result.assets.map((asset) => asset.uri)]);
+      // Shrink before state so the preview and the durable copy share one small file.
+      const downscaled = await Promise.all(
+        result.assets.map((asset) => downscaleImage(asset.uri, asset))
+      );
+      setImages((prev) => [...prev, ...downscaled]);
     }
   }, [images.length]);
 
