@@ -63,6 +63,15 @@ export function useLocation(initialLocation?: EntryLocation | null) {
     setLoading(false);
   }, []);
 
+  /** Restore the location the draft started with, discarding edits. */
+  const reset = useCallback(() => {
+    fetchId.current += 1;
+    setOn(Boolean(initialLocation));
+    setPlace(initialLocation ?? null);
+    setLoading(false);
+    setFailed(false);
+  }, [initialLocation]);
+
   const toggle = useCallback(async () => {
     if (loading) return;
     if (on) {
@@ -80,6 +89,7 @@ export function useLocation(initialLocation?: EntryLocation | null) {
     request,
     refresh,
     remove,
+    reset,
     toggle,
   };
 }

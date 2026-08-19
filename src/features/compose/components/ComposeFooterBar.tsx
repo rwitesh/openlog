@@ -6,7 +6,7 @@ import { metrics, space } from "@/theme/spacing";
 import { press } from "@/theme/motion";
 import { Toolbar } from "@/shared/components/Toolbar";
 import { LiveRecordingBar } from "./LiveRecordingBar";
-import { MAX_IMAGES } from "./ComposeAttachments";
+import { MAX_IMAGES } from "../types";
 
 interface FooterBarProps {
   imageCount: number;
