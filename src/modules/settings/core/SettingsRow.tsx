@@ -8,23 +8,31 @@ import { radius } from "@/theme/theme";
 import { press } from "@/theme/motion";
 import { ThemedText } from "@/shared/components/ThemedText";
 
-interface AppearanceOverviewRowProps {
+interface SettingsRowProps {
   icon: keyof typeof Feather.glyphMap;
   title: string;
   subtitle: string;
   badge?: ReactNode;
   onPress: () => void;
+  /** Hide the chevron for immediate actions (alerts, direct toggles). */
+  showChevron?: boolean;
   accessibilityLabel?: string;
 }
 
-export function AppearanceOverviewRow({
+/**
+ * The universal settings row: icon, title, current-value subtitle, optional
+ * leading badge, chevron. Every editor on the Settings screen opens through
+ * one of these.
+ */
+export function SettingsRow({
   icon,
   title,
   subtitle,
   badge,
   onPress,
+  showChevron = true,
   accessibilityLabel,
-}: AppearanceOverviewRowProps) {
+}: SettingsRowProps) {
   const { theme } = useTheme();
   const { colors } = theme;
 
@@ -70,7 +78,9 @@ export function AppearanceOverviewRow({
 
       <View style={styles.right}>
         {badge}
-        <Feather name="chevron-right" size={18} color={colors.textTertiary} />
+        {showChevron ? (
+          <Feather name="chevron-right" size={18} color={colors.textTertiary} />
+        ) : null}
       </View>
     </Pressable>
   );

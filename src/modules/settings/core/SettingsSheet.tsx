@@ -13,31 +13,31 @@ import { Feather } from "@expo/vector-icons";
 
 import { useTheme } from "@/theme";
 import { space } from "@/theme/spacing";
-import { radius } from "@/theme/theme";
 import { press } from "@/theme/motion";
 import { ThemedText } from "@/shared/components/ThemedText";
 
-interface SettingsBottomSheetProps {
+interface SettingsSheetProps {
   visible: boolean;
   onClose: () => void;
   title: string;
   subtitle?: string;
+  /** Optional trailing header control (e.g. a Reset affordance). */
   headerRight?: ReactNode;
   children: ReactNode;
-  scrollable?: boolean;
-  contentContainerStyle?: object;
 }
 
-export function SettingsBottomSheet({
+/**
+ * The single shared bottom sheet for all settings editors — one instance is
+ * mounted on the Settings screen, and rows swap its title and content.
+ */
+export function SettingsSheet({
   visible,
   onClose,
   title,
   subtitle,
   headerRight,
   children,
-  scrollable = true,
-  contentContainerStyle,
-}: SettingsBottomSheetProps) {
+}: SettingsSheetProps) {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
   const { colors } = theme;
@@ -51,13 +51,11 @@ export function SettingsBottomSheet({
       presentationStyle={isIOS ? "pageSheet" : "overFullScreen"}
       transparent={!isIOS}
       onRequestClose={onClose}
+      onDismiss={isIOS ? onClose : undefined}
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
-        style={[
-          styles.overlay,
-          !isIOS && styles.backdrop,
-        ]}
+        style={[styles.overlay, !isIOS && styles.backdrop]}
       >
         {!isIOS ? (
           <Pressable
@@ -115,18 +113,14 @@ export function SettingsBottomSheet({
           </View>
 
           {/* Body Content */}
-          {scrollable ? (
-            <ScrollView
-              style={styles.scroll}
-              contentContainerStyle={[styles.scrollContent, contentContainerStyle]}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-            >
-              {children}
-            </ScrollView>
-          ) : (
-            <View style={[styles.staticContent, contentContainerStyle]}>{children}</View>
-          )}
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {children}
+          </ScrollView>
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -205,10 +199,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.lg,
     paddingTop: space.md,
     paddingBottom: space.xl,
-  },
-  staticContent: {
-    flex: 1,
-    paddingHorizontal: space.lg,
-    paddingTop: space.md,
   },
 });

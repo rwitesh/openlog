@@ -7,12 +7,6 @@ import { space } from "@/theme/spacing";
 import { radius } from "@/theme/theme";
 import { press } from "@/theme/motion";
 import { ThemedText } from "@/shared/components/ThemedText";
-import { SettingsBottomSheet } from "./SettingsBottomSheet";
-
-interface ThemeModalProps {
-  visible: boolean;
-  onClose: () => void;
-}
 
 interface ThemeOptionItem {
   id: ThemeMode;
@@ -50,86 +44,79 @@ const THEME_OPTIONS: ThemeOptionItem[] = [
   },
 ];
 
-export function ThemeModal({ visible, onClose }: ThemeModalProps) {
+/** Theme picker: three direct-tap option cards with miniature theme swatches. */
+export function ThemeSection() {
   const { theme, isDark } = useTheme();
   const { colors } = theme;
   const { preferences, setAppearance } = usePreferences();
-  const { appearance } = preferences;
-
-  const currentMode = appearance.mode;
+  const currentMode = preferences.appearance.mode;
 
   return (
-    <SettingsBottomSheet
-      visible={visible}
-      onClose={onClose}
-      title="Theme"
-    >
-      <View style={styles.list}>
-        {THEME_OPTIONS.map((opt) => {
-          const isSelected = currentMode === opt.id;
+    <View style={styles.list}>
+      {THEME_OPTIONS.map((opt) => {
+        const isSelected = currentMode === opt.id;
 
-          return (
-            <Pressable
-              key={opt.id}
-              onPress={() => setAppearance({ mode: opt.id })}
-              style={({ pressed }) => [
-                styles.optionCard,
+        return (
+          <Pressable
+            key={opt.id}
+            onPress={() => setAppearance({ mode: opt.id })}
+            style={({ pressed }) => [
+              styles.optionCard,
+              {
+                backgroundColor: colors.surfaceMuted,
+                borderColor: isSelected ? colors.accent : colors.separator,
+              },
+              isSelected && styles.optionCardSelected,
+              pressed && press,
+            ]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: isSelected }}
+            accessibilityLabel={`${opt.title} theme`}
+          >
+            <View
+              style={[
+                styles.swatchBox,
                 {
-                  backgroundColor: colors.surfaceMuted,
-                  borderColor: isSelected ? colors.accent : colors.separator,
+                  backgroundColor:
+                    opt.id === "system"
+                      ? isDark
+                        ? "#121215"
+                        : "#FAF8F5"
+                      : opt.swatchBg,
+                  borderColor: colors.separator,
                 },
-                isSelected && styles.optionCardSelected,
-                pressed && press,
               ]}
-              accessibilityRole="button"
-              accessibilityState={{ selected: isSelected }}
-              accessibilityLabel={`${opt.title} Theme`}
             >
-              {/* Mini Swatch Box */}
               <View
                 style={[
-                  styles.swatchBox,
+                  styles.miniCard,
                   {
                     backgroundColor:
                       opt.id === "system"
                         ? isDark
-                          ? "#121215"
-                          : "#FAF8F5"
-                        : opt.swatchBg,
+                          ? "#191A1E"
+                          : "#FFFFFF"
+                        : opt.swatchSurface,
                     borderColor: colors.separator,
                   },
                 ]}
               >
                 <View
                   style={[
-                    styles.miniCard,
+                    styles.miniLinePrimary,
                     {
                       backgroundColor:
                         opt.id === "system"
                           ? isDark
-                            ? "#191A1E"
-                            : "#FFFFFF"
-                          : opt.swatchSurface,
-                      borderColor: colors.separator,
+                            ? "#F2F2F5"
+                            : "#181614"
+                          : opt.swatchText,
                     },
                   ]}
-                >
-                  <View
-                    style={[
-                      styles.miniLinePrimary,
-                      {
-                        backgroundColor:
-                          opt.id === "system"
-                            ? isDark
-                              ? "#F2F2F5"
-                              : "#181614"
-                            : opt.swatchText,
-                      },
-                    ]}
-                  />
-                  <View
-                    style={[
-                      styles.miniLineSecondary,
+                />
+                <View
+                  style={[
+                    styles.miniLineSecondary,
                       {
                         backgroundColor:
                           opt.id === "system"
@@ -140,51 +127,44 @@ export function ThemeModal({ visible, onClose }: ThemeModalProps) {
                             ? "#9697A3"
                             : "#6E675F",
                       },
-                    ]}
-                  />
-                </View>
+                  ]}
+                />
               </View>
+            </View>
 
-              {/* Text Description */}
-              <View style={styles.textWrap}>
-                <ThemedText weight="semibold" style={[styles.title, { color: colors.text }]}>
-                  {opt.title}
-                </ThemedText>
-                <ThemedText style={[styles.subtitle, { color: colors.textSecondary }]}>
-                  {opt.subtitle}
-                </ThemedText>
-              </View>
+            <View style={styles.textWrap}>
+              <ThemedText weight="semibold" style={[styles.title, { color: colors.text }]}>
+                {opt.title}
+              </ThemedText>
+              <ThemedText style={[styles.subtitle, { color: colors.textSecondary }]}>
+                {opt.subtitle}
+              </ThemedText>
+            </View>
 
-              {/* Selection Indicator */}
-              <View
-                style={[
-                  styles.radioDot,
-                  {
-                    borderColor: isSelected ? colors.accent : colors.textTertiary,
-                    backgroundColor: isSelected ? colors.accent : "transparent",
-                  },
-                ]}
-              >
-                {isSelected ? (
-                  <Feather
-                    name="check"
-                    size={11}
-                    color={isDark ? "#121215" : "#FAF8F5"}
-                  />
-                ) : null}
-              </View>
-            </Pressable>
-          );
-        })}
-      </View>
-    </SettingsBottomSheet>
+            <View
+              style={[
+                styles.radioDot,
+                {
+                  borderColor: isSelected ? colors.accent : colors.textTertiary,
+                  backgroundColor: isSelected ? colors.accent : "transparent",
+                },
+              ]}
+            >
+              {isSelected ? (
+                <Feather name="check" size={11} color={isDark ? "#121215" : "#FAF8F5"} />
+              ) : null}
+            </View>
+          </Pressable>
+        );
+      })}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   list: {
     gap: space.sm + 2,
-    paddingBottom: space.sm,
+    paddingBottom: space.xs,
   },
   optionCard: {
     flexDirection: "row",
