@@ -112,6 +112,12 @@ export function formatWhen(ts: number, now = Date.now()): string {
   return `${formatHeaderDate(ts, now)} · ${formatTime(ts)}`;
 }
 
+/** "August 14, 2025 · 7:20 PM" — search result meta line (year included, results span years). */
+export function formatSearchWhen(ts: number): string {
+  const d = new Date(ts);
+  return `${MONTHS_LONG[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()} · ${formatClock(d)}`;
+}
+
 /** Full date and time for detail views. */
 export function formatDateTime(ts: number): string {
   const d = new Date(ts);

@@ -43,6 +43,52 @@ async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
       value TEXT NOT NULL
     )
   `);
+  await initSearchIndex(db);
+}
+
+/**
+ * Full-text search index over entry text and location names. The FTS5 table
+ * mirrors `entries` as an external-content table, so the triggers below keep
+ * both in sync without any app-level bookkeeping.
+ */
+async function initSearchIndex(db: SQLite.SQLiteDatabase): Promise<void> {
+  await db.execAsync(`
+    CREATE VIRTUAL TABLE IF NOT EXISTS entries_fts USING fts5(
+      text,
+      location_name,
+      content='entries',
+      content_rowid='rowid'
+    )
+  `);
+  await db.execAsync(`
+    CREATE TRIGGER IF NOT EXISTS entries_fts_ai AFTER INSERT ON entries BEGIN
+      INSERT INTO entries_fts (rowid, text, location_name)
+      VALUES (new.rowid, new.text, new.location_name);
+    END
+  `);
+  await db.execAsync(`
+    CREATE TRIGGER IF NOT EXISTS entries_fts_ad AFTER DELETE ON entries BEGIN
+      INSERT INTO entries_fts (entries_fts, rowid, text, location_name)
+      VALUES ('delete', old.rowid, old.text, old.location_name);
+    END
+  `);
+  await db.execAsync(`
+    CREATE TRIGGER IF NOT EXISTS entries_fts_au AFTER UPDATE ON entries BEGIN
+      INSERT INTO entries_fts (entries_fts, rowid, text, location_name)
+      VALUES ('delete', old.rowid, old.text, old.location_name);
+      INSERT INTO entries_fts (rowid, text, location_name)
+      VALUES (new.rowid, new.text, new.location_name);
+    END
+  `);
+
+  // Backfill installs that predate full-text search; triggers keep it in sync afterwards.
+  const counts = await db.getFirstAsync<{ indexed: number; total: number }>(
+    `SELECT (SELECT count(*) FROM entries_fts) AS indexed,
+            (SELECT count(*) FROM entries) AS total`
+  );
+  if (counts && counts.indexed !== counts.total) {
+    await db.execAsync(`INSERT INTO entries_fts (entries_fts) VALUES ('rebuild')`);
+  }
 }
 
 async function openFreshDatabase(): Promise<SQLite.SQLiteDatabase> {

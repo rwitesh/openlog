@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import type { RootStackParamList } from "@/navigation/types";
 import { useEntries } from "@/modules/entry";
+import { TimelineSearchLayer } from "@/modules/search";
 import {
   AddEntryFab,
   FAB_CLEARANCE,
@@ -30,6 +31,7 @@ export function TimelineScreen({ navigation }: { navigation: Nav }) {
   const [viewMonth, setViewMonth] = useState(() => startOfMonth(Date.now()));
   const [dayPickerOpen, setDayPickerOpen] = useState(false);
   const [headerHeight, setHeaderHeight] = useState(0);
+  const [searchActive, setSearchActive] = useState(false);
 
   const isCurrentMonth = isSameMonth(viewMonth, Date.now());
   const monthEntries = useMemo(
@@ -42,11 +44,22 @@ export function TimelineScreen({ navigation }: { navigation: Nav }) {
     [navigation]
   );
 
+  const closeSearch = useCallback(() => setSearchActive(false), []);
+
+  const openEntryFromSearch = useCallback(
+    (entryId: string) => {
+      setSearchActive(false);
+      navigation.navigate("Compose", { entryId, mode: "view" });
+    },
+    [navigation]
+  );
+
   return (
     <View style={styles.flex}>
       <TimelineHeader
         selectedMonth={viewMonth}
         onOpenMonth={() => navigation.navigate("Memory", { monthTs: viewMonth })}
+        onOpenSearch={() => setSearchActive(true)}
         onOpenCalendar={() => setDayPickerOpen(true)}
         onOpenSettings={() => navigation.navigate("Settings")}
         onLayout={setHeaderHeight}
@@ -67,7 +80,7 @@ export function TimelineScreen({ navigation }: { navigation: Nav }) {
         onOpenDay={openDay}
       />
 
-      {isCurrentMonth ? (
+      {isCurrentMonth && !searchActive ? (
         <AddEntryFab onPress={() => navigation.navigate("Compose")} />
       ) : null}
 
@@ -78,6 +91,10 @@ export function TimelineScreen({ navigation }: { navigation: Nav }) {
         onSelectDate={openDay}
         onClose={() => setDayPickerOpen(false)}
       />
+
+      {searchActive ? (
+        <TimelineSearchLayer onClose={closeSearch} onOpenEntry={openEntryFromSearch} />
+      ) : null}
     </View>
   );
 }
