@@ -15,6 +15,7 @@ export interface ThemeColors {
 
 export interface ThemeBackgroundConfig {
   readonly imageUri?: string | null;
+  readonly opacity?: number;
 }
 
 export type AccentChoice =

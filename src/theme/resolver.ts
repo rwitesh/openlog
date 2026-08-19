@@ -55,7 +55,13 @@ export function resolveTheme(
     radius,
     motion: createMotion(motionLevel),
     backgroundConfig: appearance.backgroundImageUri
-      ? { imageUri: appearance.backgroundImageUri }
+      ? {
+          imageUri: appearance.backgroundImageUri,
+          opacity:
+            typeof appearance.backgroundImageOpacity === "number"
+              ? appearance.backgroundImageOpacity
+              : 0.35,
+        }
       : undefined,
   };
 }

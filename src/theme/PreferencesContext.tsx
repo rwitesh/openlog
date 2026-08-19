@@ -30,6 +30,7 @@ import {
   TIMELINE_DENSITY_KEY,
   TIMELINE_STYLE_KEY,
   BACKGROUND_IMAGE_KEY,
+  BACKGROUND_IMAGE_OPACITY_KEY,
 } from "@/services/db";
 import {
   DEFAULT_PREFERENCES,
@@ -52,6 +53,7 @@ const APPEARANCE_KEYS: Record<keyof AppearancePreferences, string> = {
   fontFamily: FONT_KEY,
   textSize: TEXT_SIZE_KEY,
   backgroundImageUri: BACKGROUND_IMAGE_KEY,
+  backgroundImageOpacity: BACKGROUND_IMAGE_OPACITY_KEY,
 };
 
 const ENTRY_KEYS: Record<keyof EntryPreferences, string> = {
@@ -169,6 +171,7 @@ export function PreferencesProvider({
       [SHOW_LOCATION_KEY]: String(DEFAULT_PREFERENCES.entry.showLocation),
       [EDITOR_TEXT_SIZE_KEY]: DEFAULT_PREFERENCES.writing.editorTextSize,
       [BACKGROUND_IMAGE_KEY]: "null",
+      [BACKGROUND_IMAGE_OPACITY_KEY]: String(DEFAULT_PREFERENCES.appearance.backgroundImageOpacity ?? 0.35),
     });
   }, []);
 

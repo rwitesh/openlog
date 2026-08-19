@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Alert,
   Image,
@@ -6,6 +6,7 @@ import {
   StyleSheet,
   View,
 } from "react-native";
+import Slider from "@react-native-community/slider";
 import * as ImagePicker from "expo-image-picker";
 import { Feather } from "@expo/vector-icons";
 
@@ -54,10 +55,13 @@ export const KIZUNA_BACKGROUNDS: KizunaBackgroundPreset[] = [
   },
 ];
 
-/**
- * Background picker, flattened for the unified settings screen: pure-theme and
- * curated presets first, then a personal photo from the device gallery.
- */
+const OPACITY_PRESETS = [
+  { label: "15%", value: 0.15 },
+  { label: "35%", value: 0.35 },
+  { label: "55%", value: 0.55 },
+  { label: "75%", value: 0.75 },
+];
+
 export function BackgroundSection() {
   const { theme, isDark } = useTheme();
   const { colors } = theme;
@@ -65,11 +69,18 @@ export function BackgroundSection() {
   const [isLoadingImage, setIsLoadingImage] = useState(false);
 
   const currentUri = preferences.appearance.backgroundImageUri;
+  const currentOpacity = preferences.appearance.backgroundImageOpacity ?? 0.35;
+  const [liveOpacity, setLiveOpacity] = useState(currentOpacity);
+
+  useEffect(() => {
+    setLiveOpacity(currentOpacity);
+  }, [currentOpacity]);
+
   const isCuratedSelected = KIZUNA_BACKGROUNDS.some((p) => p.uri === currentUri);
   const isCustomSelected = Boolean(currentUri && !isCuratedSelected);
   const isNoneSelected = !currentUri;
 
-  const handlePickFromGallery = async () => {
+  const handlePickFromGallery = useCallback(async () => {
     try {
       setIsLoadingImage(true);
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -99,287 +110,417 @@ export function BackgroundSection() {
     } finally {
       setIsLoadingImage(false);
     }
-  };
+  }, [setAppearance]);
 
-  const handleClearBackground = () => {
+  const handleClearBackground = useCallback(() => {
     setAppearance({ backgroundImageUri: null });
-  };
+  }, [setAppearance]);
+
+  const handleSelectPreset = useCallback(
+    (uri: string) => {
+      setAppearance({ backgroundImageUri: uri });
+    },
+    [setAppearance]
+  );
+
+  const handleSliderComplete = useCallback(
+    (val: number) => {
+      const rounded = Math.round(val * 100) / 100;
+      setLiveOpacity(rounded);
+      setAppearance({ backgroundImageOpacity: rounded });
+    },
+    [setAppearance]
+  );
+
+  const handlePresetOpacity = useCallback(
+    (value: number) => {
+      setLiveOpacity(value);
+      setAppearance({ backgroundImageOpacity: value });
+    },
+    [setAppearance]
+  );
 
   return (
     <View style={styles.container}>
-      {/* Pure Theme Option */}
-      <Pressable
-        onPress={handleClearBackground}
-        style={({ pressed }) => [
-          styles.presetCard,
-          {
-            backgroundColor: colors.surfaceMuted,
-            borderColor: isNoneSelected ? colors.accent : colors.separator,
-          },
-          isNoneSelected && styles.presetCardSelected,
-          pressed && press,
-        ]}
-        accessibilityRole="button"
-        accessibilityState={{ selected: isNoneSelected }}
-        accessibilityLabel="None, pure theme background"
-      >
-        <View
-          style={[
-            styles.noneThumbnail,
-            {
-              backgroundColor: colors.background,
-              borderColor: colors.separator,
-            },
-          ]}
-        >
-          <Feather name="slash" size={18} color={colors.textTertiary} />
-        </View>
-
-        <ThemedText
-          weight={isNoneSelected ? "semibold" : "medium"}
-          style={[styles.cardTitle, { color: colors.text }]}
-        >
-          None (Pure Theme)
-        </ThemedText>
-
-        {isNoneSelected ? (
-          <View style={[styles.badge, { backgroundColor: colors.accent }]}>
-            <Feather name="check" size={11} color={isDark ? "#121215" : "#FAF8F5"} />
-          </View>
-        ) : null}
-      </Pressable>
-
-      {/* Curated Library */}
-      {KIZUNA_BACKGROUNDS.map((item) => {
-        const isSelected = currentUri === item.uri;
-
-        return (
-          <Pressable
-            key={item.id}
-            onPress={() => setAppearance({ backgroundImageUri: item.uri })}
-            style={({ pressed }) => [
-              styles.presetCard,
-              {
-                backgroundColor: colors.surfaceMuted,
-                borderColor: isSelected ? colors.accent : colors.separator,
-              },
-              isSelected && styles.presetCardSelected,
-              pressed && press,
-            ]}
-            accessibilityRole="button"
-            accessibilityState={{ selected: isSelected }}
-            accessibilityLabel={`${item.name} background`}
-          >
-            <Image source={{ uri: item.uri }} style={styles.cardThumbnail} resizeMode="cover" />
-
-            <ThemedText
-              weight={isSelected ? "semibold" : "medium"}
-              style={[styles.cardTitle, { color: colors.text }]}
-            >
-              {item.name}
-            </ThemedText>
-
-            {isSelected ? (
-              <View style={[styles.badge, { backgroundColor: colors.accent }]}>
-                <Feather name="check" size={11} color={isDark ? "#121215" : "#FAF8F5"} />
-              </View>
-            ) : null}
-          </Pressable>
-        );
-      })}
-
-      {/* Personal Photo */}
-      <ThemedText weight="medium" style={[styles.customHeading, { color: colors.textSecondary }]}>
-        MY PHOTO
-      </ThemedText>
-
-      {isCustomSelected && currentUri ? (
-        <View style={styles.customActiveContainer}>
-          <View style={[styles.customPreviewFrame, { borderColor: colors.separator }]}>
-            <Image source={{ uri: currentUri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-            <View
-              style={[
-                StyleSheet.absoluteFill,
-                { backgroundColor: colors.background, opacity: 0.35 },
-              ]}
-            />
-          </View>
-
-          <View style={styles.customActionsRow}>
-            <Pressable
-              onPress={handlePickFromGallery}
-              disabled={isLoadingImage}
-              style={({ pressed }) => [
-                styles.pickButton,
-                { backgroundColor: colors.surfaceMuted, borderColor: colors.separator },
-                pressed && press,
-              ]}
-              accessibilityRole="button"
-            >
-              <Feather name="image" size={15} color={colors.text} />
-              <ThemedText weight="medium" style={[styles.btnText, { color: colors.text }]}>
-                {isLoadingImage ? "Loading..." : "Choose Another Photo"}
-              </ThemedText>
-            </Pressable>
-
-            <Pressable
-              onPress={handleClearBackground}
-              style={({ pressed }) => [
-                styles.clearButton,
-                { borderColor: colors.separator },
-                pressed && press,
-              ]}
-              accessibilityRole="button"
-            >
-              <Feather name="trash-2" size={15} color={colors.destructive} />
-              <ThemedText weight="medium" style={[styles.btnText, { color: colors.destructive }]}>
-                Remove
-              </ThemedText>
-            </Pressable>
-          </View>
-        </View>
-      ) : (
+      {/* Top Action Grid: None vs Custom */}
+      <View style={styles.topGrid}>
+        {/* Left: None / Pure Theme */}
         <Pressable
-          onPress={handlePickFromGallery}
-          disabled={isLoadingImage}
+          onPress={handleClearBackground}
           style={({ pressed }) => [
-            styles.uploadBox,
+            styles.topCard,
             {
-              backgroundColor: colors.surfaceMuted,
-              borderColor: colors.separator,
+              backgroundColor: isNoneSelected ? colors.surface : colors.surfaceMuted,
+              borderColor: isNoneSelected ? colors.accent : colors.separator,
             },
+            isNoneSelected && styles.cardSelected,
             pressed && press,
           ]}
           accessibilityRole="button"
-          accessibilityLabel="Choose photo from device gallery"
+          accessibilityState={{ selected: isNoneSelected }}
+          accessibilityLabel="None, pure theme background"
         >
           <View
             style={[
-              styles.uploadIconWrap,
+              styles.noneIconWrap,
               {
-                backgroundColor: colors.surface,
+                backgroundColor: colors.background,
                 borderColor: colors.separator,
               },
             ]}
           >
-            <Feather name="plus" size={20} color={colors.accent} />
+            <Feather name="slash" size={18} color={colors.textSecondary} />
           </View>
 
-          <ThemedText weight="medium" style={[styles.uploadTitle, { color: colors.text }]}>
-            {isLoadingImage ? "Opening Gallery..." : "Select Photo from Gallery"}
-          </ThemedText>
+          <View style={styles.topCardText}>
+            <ThemedText
+              weight={isNoneSelected ? "semibold" : "medium"}
+              style={[styles.topCardTitle, { color: colors.text }]}
+            >
+              None
+            </ThemedText>
+            <ThemedText style={[styles.topCardSubtitle, { color: colors.textSecondary }]}>
+              Pure Theme
+            </ThemedText>
+          </View>
+
+          {isNoneSelected ? (
+            <View style={[styles.checkBadge, { backgroundColor: colors.accent }]}>
+              <Feather name="check" size={10} color={isDark ? "#121215" : "#FAF8F5"} />
+            </View>
+          ) : null}
         </Pressable>
-      )}
+
+        {/* Right: Custom Photo */}
+        <Pressable
+          onPress={handlePickFromGallery}
+          disabled={isLoadingImage}
+          style={({ pressed }) => [
+            styles.topCard,
+            {
+              backgroundColor: isCustomSelected ? colors.surface : colors.surfaceMuted,
+              borderColor: isCustomSelected ? colors.accent : colors.separator,
+            },
+            isCustomSelected && styles.cardSelected,
+            pressed && press,
+          ]}
+          accessibilityRole="button"
+          accessibilityState={{ selected: isCustomSelected }}
+          accessibilityLabel="Custom photo from gallery"
+        >
+          {isCustomSelected && currentUri ? (
+            <Image source={{ uri: currentUri }} style={styles.customThumbnail} resizeMode="cover" />
+          ) : (
+            <View
+              style={[
+                styles.noneIconWrap,
+                {
+                  backgroundColor: colors.background,
+                  borderColor: colors.separator,
+                },
+              ]}
+            >
+              <Feather name="plus" size={18} color={colors.accent} />
+            </View>
+          )}
+
+          <View style={styles.topCardText}>
+            <ThemedText
+              weight={isCustomSelected ? "semibold" : "medium"}
+              style={[styles.topCardTitle, { color: colors.text }]}
+            >
+              {isLoadingImage ? "Loading..." : "Custom"}
+            </ThemedText>
+            <ThemedText style={[styles.topCardSubtitle, { color: colors.textSecondary }]}>
+              {isCustomSelected ? "Tap to change" : "+ Image"}
+            </ThemedText>
+          </View>
+
+          {isCustomSelected ? (
+            <View style={[styles.checkBadge, { backgroundColor: colors.accent }]}>
+              <Feather name="check" size={10} color={isDark ? "#121215" : "#FAF8F5"} />
+            </View>
+          ) : null}
+        </Pressable>
+      </View>
+
+      {/* Opacity Control (Active when background image is chosen) */}
+      {currentUri ? (
+        <View
+          style={[
+            styles.opacityContainer,
+            {
+              backgroundColor: colors.surfaceMuted,
+              borderColor: colors.separator,
+            },
+          ]}
+        >
+          <View style={styles.opacityHeader}>
+            <View style={styles.opacityTitleRow}>
+              <Feather name="sun" size={14} color={colors.textSecondary} />
+              <ThemedText weight="medium" style={[styles.sectionHeading, { color: colors.textSecondary }]}>
+                OPACITY
+              </ThemedText>
+            </View>
+            <View
+              style={[
+                styles.opacityBadge,
+                { backgroundColor: colors.surface, borderColor: colors.separator },
+              ]}
+            >
+              <ThemedText weight="semibold" style={[styles.opacityValueText, { color: colors.text }]}>
+                {Math.round(liveOpacity * 100)}%
+              </ThemedText>
+            </View>
+          </View>
+
+          {/* Native Slider */}
+          <Slider
+            style={styles.slider}
+            minimumValue={0.1}
+            maximumValue={0.95}
+            step={0.01}
+            value={liveOpacity}
+            onValueChange={setLiveOpacity}
+            onSlidingComplete={handleSliderComplete}
+            minimumTrackTintColor={colors.accent}
+            maximumTrackTintColor={colors.separator}
+            thumbTintColor={colors.accent}
+            accessibilityLabel="Background image opacity"
+            accessibilityRole="adjustable"
+          />
+
+          {/* Quick preset chips */}
+          <View style={styles.presetChipsRow}>
+            {OPACITY_PRESETS.map((p) => {
+              const isActive = Math.abs(currentOpacity - p.value) < 0.05;
+              return (
+                <Pressable
+                  key={p.label}
+                  onPress={() => handlePresetOpacity(p.value)}
+                  style={({ pressed }) => [
+                    styles.chip,
+                    {
+                      backgroundColor: isActive ? colors.surface : "transparent",
+                      borderColor: isActive ? colors.accent : colors.separator,
+                    },
+                    pressed && press,
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: isActive }}
+                  accessibilityLabel={`Opacity ${p.label}`}
+                >
+                  <ThemedText
+                    weight={isActive ? "semibold" : "regular"}
+                    style={[
+                      styles.chipText,
+                      { color: isActive ? colors.text : colors.textSecondary },
+                    ]}
+                  >
+                    {p.label}
+                  </ThemedText>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      ) : null}
+
+      {/* Curated Presets Header */}
+      <ThemedText weight="medium" style={[styles.sectionHeading, { color: colors.textSecondary, marginTop: space.xs }]}>
+        CURATED PRESETS
+      </ThemedText>
+
+      {/* Curated Presets Grid */}
+      <View style={styles.presetsGrid}>
+        {KIZUNA_BACKGROUNDS.map((item) => {
+          const isSelected = currentUri === item.uri;
+
+          return (
+            <Pressable
+              key={item.id}
+              onPress={() => handleSelectPreset(item.uri)}
+              style={({ pressed }) => [
+                styles.presetGridCard,
+                {
+                  backgroundColor: colors.surfaceMuted,
+                  borderColor: isSelected ? colors.accent : colors.separator,
+                },
+                isSelected && styles.cardSelected,
+                pressed && press,
+              ]}
+              accessibilityRole="button"
+              accessibilityState={{ selected: isSelected }}
+              accessibilityLabel={`${item.name} background preset`}
+            >
+              <View style={styles.previewContainer}>
+                <Image source={{ uri: item.uri }} style={styles.previewImage} resizeMode="cover" />
+                {isSelected ? (
+                  <View style={[styles.checkBadgeTop, { backgroundColor: colors.accent }]}>
+                    <Feather name="check" size={10} color={isDark ? "#121215" : "#FAF8F5"} />
+                  </View>
+                ) : null}
+              </View>
+
+              <ThemedText
+                weight={isSelected ? "semibold" : "medium"}
+                style={[styles.presetTitle, { color: colors.text }]}
+                numberOfLines={1}
+              >
+                {item.name}
+              </ThemedText>
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    gap: space.md - 2,
+  },
+  topGrid: {
+    flexDirection: "row",
     gap: space.sm,
   },
-  presetCard: {
+  topCard: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    padding: space.sm,
+    padding: space.sm + 2,
     borderRadius: radius.md,
     borderWidth: 1.5,
-    gap: space.md,
+    gap: space.sm,
+    position: "relative",
   },
-  presetCardSelected: {
+  cardSelected: {
     borderWidth: 2,
   },
-  cardThumbnail: {
-    width: 52,
+  noneIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  customThumbnail: {
+    width: 38,
     height: 38,
     borderRadius: radius.sm,
     backgroundColor: "#ccc",
   },
-  noneThumbnail: {
-    width: 52,
-    height: 38,
-    borderRadius: radius.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  cardTitle: {
+  topCardText: {
     flex: 1,
+    gap: 1,
+  },
+  topCardTitle: {
     fontSize: 14,
     lineHeight: 18,
   },
-  badge: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+  topCardSubtitle: {
+    fontSize: 11,
+    lineHeight: 14,
+  },
+  checkBadge: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     alignItems: "center",
     justifyContent: "center",
   },
-  customHeading: {
+  checkBadgeTop: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sectionHeading: {
     fontSize: 11,
     letterSpacing: 0.8,
     textTransform: "uppercase",
-    marginTop: space.xs,
   },
-  customActiveContainer: {
-    gap: space.md,
-  },
-  customPreviewFrame: {
-    height: 140,
+  opacityContainer: {
+    padding: space.md,
     borderRadius: radius.md,
-    overflow: "hidden",
     borderWidth: StyleSheet.hairlineWidth,
+    gap: space.sm + 2,
   },
-  customActionsRow: {
+  opacityHeader: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
+  },
+  opacityTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.xs + 2,
+  },
+  opacityBadge: {
+    paddingHorizontal: space.sm,
+    paddingVertical: 2,
+    borderRadius: radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  opacityValueText: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  slider: {
+    width: "100%",
+    height: 36,
+  },
+  presetChipsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: space.xs,
+  },
+  chip: {
+    flex: 1,
+    paddingVertical: 4,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  chipText: {
+    fontSize: 11,
+    lineHeight: 14,
+  },
+  presetsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: space.sm,
   },
-  pickButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: space.xs + 2,
-    paddingVertical: space.sm + 2,
-    paddingHorizontal: space.md,
-    borderRadius: radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  clearButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: space.xs,
-    paddingVertical: space.sm + 2,
-    paddingHorizontal: space.md,
-    borderRadius: radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  btnText: {
-    fontSize: 13,
-    lineHeight: 17,
-  },
-  uploadBox: {
+  presetGridCard: {
+    width: "48.2%",
+    padding: space.xs + 2,
     borderRadius: radius.md,
     borderWidth: 1.5,
-    borderStyle: "dashed",
-    paddingVertical: space.xl,
-    paddingHorizontal: space.lg,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: space.xs,
+    gap: space.xs + 2,
   },
-  uploadIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: StyleSheet.hairlineWidth,
-    marginBottom: space.xs,
+  previewContainer: {
+    width: "100%",
+    height: 64,
+    borderRadius: radius.sm,
+    overflow: "hidden",
+    backgroundColor: "#ccc",
+    position: "relative",
   },
-  uploadTitle: {
-    fontSize: 14,
-    lineHeight: 18,
+  previewImage: {
+    width: "100%",
+    height: "100%",
+  },
+  presetTitle: {
+    fontSize: 12,
+    lineHeight: 16,
+    paddingHorizontal: 2,
   },
 });
+

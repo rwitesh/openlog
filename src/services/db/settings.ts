@@ -22,6 +22,7 @@ const ACCENT_KEY = "accent_choice";
 const FONT_KEY = "font_choice";
 const TEXT_SIZE_KEY = "text_size";
 const BACKGROUND_IMAGE_KEY = "background_image_uri";
+const BACKGROUND_IMAGE_OPACITY_KEY = "background_image_opacity";
 const TIMELINE_STYLE_KEY = "timeline_style";
 const TIMELINE_DENSITY_KEY = "timeline_density";
 const SHOW_LOCATION_KEY = "show_location_timeline";
@@ -88,6 +89,12 @@ export async function getAllUserPreferences(): Promise<{
       resolvedFont = rawFont;
     }
 
+    const rawOpacity = map.get(BACKGROUND_IMAGE_OPACITY_KEY);
+    const parsedOpacity = rawOpacity ? parseFloat(rawOpacity) : NaN;
+    const opacity = !isNaN(parsedOpacity)
+      ? Math.min(Math.max(parsedOpacity, 0.05), 1.0)
+      : (DEFAULT_PREFERENCES.appearance.backgroundImageOpacity ?? 0.35);
+
     const appearance: AppearancePreferences = {
       accent: (map.get(ACCENT_KEY) as AccentChoice) || DEFAULT_PREFERENCES.appearance.accent,
       mode: (map.get(THEME_KEY) as ThemeMode) || DEFAULT_PREFERENCES.appearance.mode,
@@ -97,6 +104,7 @@ export async function getAllUserPreferences(): Promise<{
         map.get(BACKGROUND_IMAGE_KEY) && map.get(BACKGROUND_IMAGE_KEY) !== "null"
           ? map.get(BACKGROUND_IMAGE_KEY)
           : null,
+      backgroundImageOpacity: opacity,
     };
 
     const entry: EntryPreferences = {
@@ -180,4 +188,5 @@ export {
   MOTION_LEVEL_KEY,
   BIOMETRIC_LOCK_KEY,
   BACKGROUND_IMAGE_KEY,
+  BACKGROUND_IMAGE_OPACITY_KEY,
 };
