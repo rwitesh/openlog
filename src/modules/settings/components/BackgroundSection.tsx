@@ -180,7 +180,7 @@ export function BackgroundSection() {
               None
             </ThemedText>
             <ThemedText style={[styles.topCardSubtitle, { color: colors.textSecondary }]}>
-              Pure Theme
+              Default
             </ThemedText>
           </View>
 
@@ -232,7 +232,7 @@ export function BackgroundSection() {
               {isLoadingImage ? "Loading..." : "Custom"}
             </ThemedText>
             <ThemedText style={[styles.topCardSubtitle, { color: colors.textSecondary }]}>
-              {isCustomSelected ? "Tap to change" : "+ Image"}
+              Photo
             </ThemedText>
           </View>
 
@@ -326,9 +326,9 @@ export function BackgroundSection() {
         </View>
       ) : null}
 
-      {/* Curated Presets Header */}
+      {/* Presets Header */}
       <ThemedText weight="medium" style={[styles.sectionHeading, { color: colors.textSecondary, marginTop: space.xs }]}>
-        CURATED PRESETS
+        PRESETS
       </ThemedText>
 
       {/* Curated Presets Grid */}

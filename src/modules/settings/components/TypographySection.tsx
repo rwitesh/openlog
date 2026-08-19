@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -19,11 +19,11 @@ import { fontManager, getFonts, type FontName } from "@/services/fonts";
 import { SegmentedRow } from "../core/SegmentedRow";
 
 /**
- * Typography picker: text scale plus a searchable typeface list. Fonts are
- * downloaded lazily on selection and cached on device.
+ * Typography picker: text scale plus a curated typeface catalog.
+ * Downloaded & active fonts appear at the top; on-demand fonts below.
  */
 export function TypographySection() {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const { colors } = theme;
   const { preferences, setAppearance } = usePreferences();
   const { appearance } = preferences;
@@ -33,7 +33,7 @@ export function TypographySection() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [loadingFont, setLoadingFont] = useState<string | null>(null);
-  const [, setCacheVersion] = useState(0);
+  const [cacheVersion, setCacheVersion] = useState(0);
 
   const allFonts = useMemo(() => getFonts(), []);
 
@@ -43,55 +43,158 @@ export function TypographySection() {
     return allFonts.filter((f) => f.toLowerCase().includes(q));
   }, [allFonts, searchQuery]);
 
-  const handleSelect = async (fontName: FontName) => {
-    if (fontName === selectedFont) {
-      return;
-    }
+  // Partition filtered fonts into Downloaded (top) vs Explore (on-demand)
+  const { downloadedFonts, availableFonts } = useMemo(() => {
+    // Reference cacheVersion to invalidate when fonts are added/removed
+    void cacheVersion;
+    const downloaded: FontName[] = [];
+    const available: FontName[] = [];
 
-    setLoadingFont(fontName);
-
-    try {
-      const result = await fontManager.load(fontName);
-      if (result.success) {
-        setAppearance({ fontFamily: fontName });
+    for (const fontName of filteredFonts) {
+      if (fontName === "Source Sans 3" || fontManager.isCached(fontName)) {
+        downloaded.push(fontName);
       } else {
-        Alert.alert(
-          "Font Download Failed",
-          result.error ||
-            `Unable to download "${fontName}". Please check your internet connection and try again.`
-        );
+        available.push(fontName);
       }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unexpected error loading font.";
-      Alert.alert("Font Download Failed", message);
-    } finally {
-      setLoadingFont(null);
     }
-  };
 
-  const handleDelete = (fontName: FontName) => {
-    Alert.alert(
-      "Delete Cached Font?",
-      `Remove "${fontName}" from your device?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            await fontManager.remove(fontName);
-            setCacheVersion((v) => v + 1);
-            if (fontName === selectedFont) {
-              setAppearance({ fontFamily: "Source Sans 3" });
-            }
+    return { downloadedFonts: downloaded, availableFonts: available };
+  }, [filteredFonts, cacheVersion]);
+
+  const handleSelect = useCallback(
+    async (fontName: FontName) => {
+      if (fontName === selectedFont) {
+        return;
+      }
+
+      setLoadingFont(fontName);
+
+      try {
+        const result = await fontManager.load(fontName);
+        if (result.success) {
+          setAppearance({ fontFamily: fontName });
+          setCacheVersion((v) => v + 1);
+        } else {
+          Alert.alert(
+            "Font Download Failed",
+            result.error ||
+              `Unable to download "${fontName}". Please check your internet connection and try again.`
+          );
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unexpected error loading font.";
+        Alert.alert("Font Download Failed", message);
+      } finally {
+        setLoadingFont(null);
+      }
+    },
+    [selectedFont, setAppearance]
+  );
+
+  const handleDelete = useCallback(
+    (fontName: FontName) => {
+      Alert.alert(
+        "Delete Cached Font?",
+        `Remove "${fontName}" from your device storage?`,
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete",
+            style: "destructive",
+            onPress: async () => {
+              await fontManager.remove(fontName);
+              setCacheVersion((v) => v + 1);
+              if (fontName === selectedFont) {
+                setAppearance({ fontFamily: "Source Sans 3" });
+              }
+            },
           },
-        },
-      ]
+        ]
+      );
+    },
+    [selectedFont, setAppearance]
+  );
+
+  const renderFontRow = (fontName: FontName, isDownloaded: boolean) => {
+    const isSelected = fontName === selectedFont;
+    const isLoading = loadingFont === fontName;
+    const isBundledDefault = fontName === "Source Sans 3";
+
+    return (
+      <Pressable
+        key={fontName}
+        onPress={() => handleSelect(fontName)}
+        disabled={loadingFont !== null}
+        style={({ pressed }) => [
+          styles.fontRow,
+          {
+            backgroundColor: isSelected ? colors.surface : colors.surfaceMuted,
+            borderColor: isSelected ? colors.accent : colors.separator,
+          },
+          isSelected && styles.fontRowSelected,
+          pressed && press,
+        ]}
+        accessibilityRole="button"
+        accessibilityState={{ selected: isSelected }}
+        accessibilityLabel={`${fontName}${isDownloaded ? ", downloaded" : ", tap to download"}`}
+      >
+        <View style={styles.fontRowLeft}>
+          <ThemedText
+            weight={isSelected ? "semibold" : "medium"}
+            style={[styles.fontRowName, { color: colors.text }]}
+          >
+            {fontName}
+          </ThemedText>
+          {isBundledDefault ? (
+            <View style={[styles.defaultPill, { borderColor: colors.separator }]}>
+              <ThemedText style={[styles.defaultPillText, { color: colors.textSecondary }]}>
+                Default
+              </ThemedText>
+            </View>
+          ) : null}
+        </View>
+
+        <View style={styles.fontRowRight}>
+          {isLoading ? (
+            <ActivityIndicator size="small" color={colors.accent} />
+          ) : (
+            <View style={styles.actionRow}>
+              {isDownloaded && !isBundledDefault ? (
+                <Pressable
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    handleDelete(fontName);
+                  }}
+                  hitSlop={8}
+                  style={({ pressed }) => [styles.deleteButton, pressed && press]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Delete ${fontName}`}
+                >
+                  <Feather name="trash-2" size={14} color={colors.textTertiary} />
+                </Pressable>
+              ) : null}
+
+              {!isDownloaded ? (
+                <View style={styles.iconWrap}>
+                  <Feather name="download-cloud" size={15} color={colors.textTertiary} />
+                </View>
+              ) : null}
+
+              {isSelected ? (
+                <View style={[styles.checkBadge, { backgroundColor: colors.accent }]}>
+                  <Feather name="check" size={11} color={isDark ? "#121215" : "#FAF8F5"} />
+                </View>
+              ) : null}
+            </View>
+          )}
+        </View>
+      </Pressable>
     );
   };
 
   return (
     <View style={styles.container}>
+      {/* Text Size Scale */}
       <SegmentedRow<TextSize>
         items={[
           { id: "compact", label: "Compact" },
@@ -102,6 +205,7 @@ export function TypographySection() {
         onSelect={(t) => setAppearance({ textSize: t })}
       />
 
+      {/* Search Input */}
       <View
         style={[
           styles.searchBar,
@@ -115,7 +219,7 @@ export function TypographySection() {
         <TextInput
           value={searchQuery}
           onChangeText={setSearchQuery}
-          placeholder="Search typefaces..."
+          placeholder="Search fonts..."
           placeholderTextColor={colors.textTertiary}
           style={[styles.searchInput, { color: colors.text }]}
           autoCapitalize="none"
@@ -129,96 +233,57 @@ export function TypographySection() {
         ) : null}
       </View>
 
-      {/* Rendered as a plain list — this section lives inside the settings
-          ScrollView, where a nested FlatList would break virtualization. */}
-      <View style={styles.list}>
-        {filteredFonts.map((fontName) => {
-          const isSelected = fontName === selectedFont;
-          const isLoading = loadingFont === fontName;
-          const isCached = fontManager.isCached(fontName);
-          const isBundledDefault = fontName === "Source Sans 3";
-
-          return (
-            <Pressable
-              key={fontName}
-              onPress={() => handleSelect(fontName)}
-              disabled={loadingFont !== null}
-              style={({ pressed }) => [
-                styles.fontRow,
-                {
-                  backgroundColor: isSelected ? colors.surface : colors.surfaceMuted,
-                  borderColor: isSelected ? colors.accent : colors.separator,
-                },
-                isSelected && styles.fontRowSelected,
-                pressed && press,
-              ]}
-              accessibilityRole="button"
-              accessibilityState={{ selected: isSelected }}
-            >
-              <ThemedText
-                weight={isSelected ? "semibold" : "regular"}
-                style={[styles.fontRowName, { color: colors.text }]}
-              >
-                {fontName}
-              </ThemedText>
-
-              <View style={styles.fontRowRight}>
-                {isLoading ? (
-                  <ActivityIndicator size="small" color={colors.accent} />
-                ) : (
-                  <View style={styles.actionRow}>
-                    {isCached && !isBundledDefault ? (
-                      <Pressable
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          handleDelete(fontName);
-                        }}
-                        hitSlop={8}
-                        style={({ pressed }) => [styles.deleteButton, pressed && press]}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Delete cached font ${fontName}`}
-                      >
-                        <Feather name="trash-2" size={14} color={colors.textTertiary} />
-                      </Pressable>
-                    ) : null}
-
-                    {!isCached && !isBundledDefault ? (
-                      <View style={styles.iconWrap}>
-                        <Feather name="download-cloud" size={14} color={colors.textTertiary} />
-                      </View>
-                    ) : null}
-
-                    {isSelected ? (
-                      <View style={[styles.checkBadge, { backgroundColor: colors.accent }]}>
-                        <Feather
-                          name="check"
-                          size={11}
-                          color={theme.mode === "dark" ? "#121215" : "#FAF8F5"}
-                        />
-                      </View>
-                    ) : null}
-                  </View>
-                )}
-              </View>
-            </Pressable>
-          );
-        })}
-
-        {!filteredFonts.length ? (
-          <View style={styles.emptyState}>
-            <ThemedText style={[styles.emptyText, { color: colors.textSecondary }]}>
-              No typefaces found matching &quot;{searchQuery}&quot;
+      {/* Section 1: Downloaded */}
+      {downloadedFonts.length > 0 ? (
+        <View style={styles.sectionBlock}>
+          <View style={styles.sectionHeaderRow}>
+            <ThemedText weight="medium" style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+              DOWNLOADED
+            </ThemedText>
+            <ThemedText style={[styles.sectionCount, { color: colors.textTertiary }]}>
+              {downloadedFonts.length}
             </ThemedText>
           </View>
-        ) : null}
-      </View>
+
+          <View style={styles.list}>
+            {downloadedFonts.map((fontName) => renderFontRow(fontName, true))}
+          </View>
+        </View>
+      ) : null}
+
+      {/* Section 2: Available */}
+      {availableFonts.length > 0 ? (
+        <View style={styles.sectionBlock}>
+          <View style={styles.sectionHeaderRow}>
+            <ThemedText weight="medium" style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+              AVAILABLE
+            </ThemedText>
+            <ThemedText style={[styles.sectionCount, { color: colors.textTertiary }]}>
+              {availableFonts.length}
+            </ThemedText>
+          </View>
+
+          <View style={styles.list}>
+            {availableFonts.map((fontName) => renderFontRow(fontName, false))}
+          </View>
+        </View>
+      ) : null}
+
+      {/* Empty Search State */}
+      {!downloadedFonts.length && !availableFonts.length ? (
+        <View style={styles.emptyState}>
+          <ThemedText style={[styles.emptyText, { color: colors.textSecondary }]}>
+            No fonts matching &quot;{searchQuery}&quot;
+          </ThemedText>
+        </View>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    gap: space.sm + 2,
+    gap: space.md - 2,
   },
   searchBar: {
     flexDirection: "row",
@@ -233,6 +298,23 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     paddingVertical: 0,
+  },
+  sectionBlock: {
+    gap: space.xs + 2,
+  },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 2,
+  },
+  sectionTitle: {
+    fontSize: 11,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+  },
+  sectionCount: {
+    fontSize: 11,
   },
   list: {
     gap: 6,
@@ -249,10 +331,25 @@ const styles = StyleSheet.create({
   fontRowSelected: {
     borderWidth: 1.5,
   },
+  fontRowLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.sm,
+    flex: 1,
+  },
   fontRowName: {
     fontSize: 14,
     lineHeight: 18,
-    flex: 1,
+  },
+  defaultPill: {
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 4,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  defaultPillText: {
+    fontSize: 10,
+    lineHeight: 12,
   },
   fontRowRight: {
     alignItems: "flex-end",
