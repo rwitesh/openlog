@@ -3,7 +3,7 @@ import { parseUris } from "./uris";
 import { resolveMediaUriList } from "@/services/media/storage";
 import type { Entry, EntryLocation, NewEntryInput, UpdateEntryInput } from "@/shared/types";
 
-interface EntryRecord {
+export interface EntryRecord {
   id: string;
   created_at: number;
   updated_at: number;
@@ -27,7 +27,8 @@ function parseLocation(row: EntryRecord): EntryLocation | undefined {
   };
 }
 
-function toEntry(row: EntryRecord): Entry {
+/** Maps a raw `entries` row onto the app-side {@link Entry} shape. */
+export function toEntry(row: EntryRecord): Entry {
   return {
     id: row.id,
     createdAt: row.created_at,

@@ -8,6 +8,7 @@ import { press } from "@/theme/motion";
 interface HeaderIconActionsProps {
   top: number;
   colors: ThemeColors;
+  onOpenSearch: () => void;
   onOpenCalendar: () => void;
   onOpenSettings: () => void;
 }
@@ -15,11 +16,29 @@ interface HeaderIconActionsProps {
 export function HeaderIconActions({
   top,
   colors,
+  onOpenSearch,
   onOpenCalendar,
   onOpenSettings,
 }: HeaderIconActionsProps) {
   return (
     <View style={[styles.actions, { top }]}>
+      <Pressable
+        onPress={onOpenSearch}
+        hitSlop={space.sm}
+        style={({ pressed }) => [
+          styles.iconBtn,
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.separator,
+          },
+          pressed && press,
+        ]}
+        accessibilityLabel="Search"
+        accessibilityRole="button"
+      >
+        <Feather name="search" size={metrics.iconSm + 2} color={colors.text} />
+      </Pressable>
+
       <Pressable
         onPress={onOpenCalendar}
         hitSlop={space.sm}

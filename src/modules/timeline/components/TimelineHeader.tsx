@@ -14,14 +14,18 @@ import { useStaggeredEntrance } from "../hooks/useStaggeredEntrance";
 interface TimelineHeaderProps {
   selectedMonth?: number;
   onOpenMonth?: () => void;
+  onOpenSearch: () => void;
   onOpenCalendar: () => void;
   onOpenSettings: () => void;
   onLayout: (height: number) => void;
 }
 
+const HEADER_ICON_GAP = space.xs + 2;
+
 export function TimelineHeader({
   selectedMonth,
   onOpenMonth,
+  onOpenSearch,
   onOpenCalendar,
   onOpenSettings,
   onLayout,
@@ -62,6 +66,7 @@ export function TimelineHeader({
         <HeaderIconActions
           top={topInset}
           colors={colors}
+          onOpenSearch={onOpenSearch}
           onOpenCalendar={onOpenCalendar}
           onOpenSettings={onOpenSettings}
         />
@@ -111,7 +116,7 @@ const styles = StyleSheet.create({
   },
   content: {
     alignItems: "flex-start",
-    paddingRight: metrics.btnMd * 2 + space.lg,
+    paddingRight: metrics.btnMd * 3 + HEADER_ICON_GAP * 2 + space.lg,
     marginTop: space.sm,
   },
   subtitleWrap: {
