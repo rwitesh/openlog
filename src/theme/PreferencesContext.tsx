@@ -20,6 +20,7 @@ import {
   setSettingsBatch,
   ACCENT_KEY,
   BIOMETRIC_LOCK_KEY,
+  CONTRAST_KEY,
   EDITOR_TEXT_SIZE_KEY,
   FONT_KEY,
   MOTION_LEVEL_KEY,
@@ -69,6 +70,7 @@ const WRITING_KEYS: Record<keyof WritingPreferences, string> = {
 
 const ACCESSIBILITY_KEYS: Record<keyof AccessibilityPreferences, string> = {
   motionLevel: MOTION_LEVEL_KEY,
+  contrast: CONTRAST_KEY,
 };
 
 const SECURITY_KEYS: Record<keyof SecurityPreferences, string> = {
@@ -149,15 +151,12 @@ export function PreferencesProvider({
     persist(toDbEntries(patch, SECURITY_KEYS));
   }, []);
 
+  /** Resets only what the Appearance screen owns; accessibility prefs stay. */
   const resetAppearanceDefaults = useCallback(() => {
     setPreferences((prev) => ({
       ...prev,
       appearance: { ...DEFAULT_PREFERENCES.appearance },
       entry: { ...DEFAULT_PREFERENCES.entry },
-      writing: {
-        ...prev.writing,
-        editorTextSize: DEFAULT_PREFERENCES.writing.editorTextSize,
-      },
     }));
 
     persist({
@@ -169,7 +168,6 @@ export function PreferencesProvider({
       [TIMELINE_DENSITY_KEY]: DEFAULT_PREFERENCES.entry.timelineDensity,
       [SHOW_TIMESTAMP_KEY]: String(DEFAULT_PREFERENCES.entry.showTimestamp),
       [SHOW_LOCATION_KEY]: String(DEFAULT_PREFERENCES.entry.showLocation),
-      [EDITOR_TEXT_SIZE_KEY]: DEFAULT_PREFERENCES.writing.editorTextSize,
       [BACKGROUND_IMAGE_KEY]: "null",
       [BACKGROUND_IMAGE_OPACITY_KEY]: String(DEFAULT_PREFERENCES.appearance.backgroundImageOpacity ?? 0.35),
     });

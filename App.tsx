@@ -15,7 +15,19 @@ import { Memory } from "@/screens/memory";
 import { Welcome } from "@/screens/welcome";
 import { Day } from "@/screens/day";
 import { Compose } from "@/screens/compose";
-import { Settings } from "@/screens/settings";
+import {
+  Settings,
+  SettingsProfile,
+  SettingsAppearance,
+  SettingsTheme,
+  SettingsAccent,
+  SettingsTypography,
+  SettingsTimeline,
+  SettingsBackground,
+  SettingsAccessibility,
+  SettingsPrivacy,
+  SettingsAbout,
+} from "@/screens/settings";
 import { Layout } from "@/shared/components";
 import { logDevWarning } from "@/shared/utils";
 
@@ -97,6 +109,58 @@ function AppContent({ showWelcome }: { showWelcome: boolean }) {
               headerBackTitle: "Back",
               headerShadowVisible: false,
             }}
+          />
+          {/* Settings categories — each pushes with the default back title
+              ("Settings" on iOS, arrow on Android). */}
+          <Stack.Screen
+            name="SettingsProfile"
+            component={SettingsProfile}
+            options={{ title: "Profile", headerShadowVisible: false }}
+          />
+          <Stack.Screen
+            name="SettingsAppearance"
+            component={SettingsAppearance}
+            options={{ title: "Appearance", headerShadowVisible: false }}
+          />
+          <Stack.Screen
+            name="SettingsTheme"
+            component={SettingsTheme}
+            options={{ title: "Theme", headerShadowVisible: false }}
+          />
+          <Stack.Screen
+            name="SettingsAccent"
+            component={SettingsAccent}
+            options={{ title: "Accent Color", headerShadowVisible: false }}
+          />
+          <Stack.Screen
+            name="SettingsTypography"
+            component={SettingsTypography}
+            options={{ title: "Typography", headerShadowVisible: false }}
+          />
+          <Stack.Screen
+            name="SettingsTimeline"
+            component={SettingsTimeline}
+            options={{ title: "Timeline & Editor", headerShadowVisible: false }}
+          />
+          <Stack.Screen
+            name="SettingsBackground"
+            component={SettingsBackground}
+            options={{ title: "Background", headerShadowVisible: false }}
+          />
+          <Stack.Screen
+            name="SettingsAccessibility"
+            component={SettingsAccessibility}
+            options={{ title: "Accessibility", headerShadowVisible: false }}
+          />
+          <Stack.Screen
+            name="SettingsPrivacy"
+            component={SettingsPrivacy}
+            options={{ title: "Privacy & Data", headerShadowVisible: false }}
+          />
+          <Stack.Screen
+            name="SettingsAbout"
+            component={SettingsAbout}
+            options={{ title: "About", headerShadowVisible: false }}
           />
         </Stack.Navigator>
       </NavigationContainer>

@@ -1,11 +1,13 @@
-/* Generic building blocks shared by every settings editor. */
+/* Generic building blocks shared by every settings screen. */
 export * from "./core/SettingsRow";
-export * from "./core/SettingsSheet";
 export * from "./core/SettingsGroup";
+export * from "./core/SettingsScreenScroll";
+export * from "./core/SettingsEditorScreen";
 export * from "./core/SegmentedRow";
 export * from "./core/ToggleRow";
 
-/* Feature editors — one per settings row, rendered inside the shared sheet. */
+/* Feature editors — one per settings concern, composed onto editor screens. */
+export * from "./components/LiveThemePreview";
 export * from "./components/ProfileSection";
 export * from "./components/ThemeSection";
 export * from "./components/AccentSection";

@@ -22,17 +22,14 @@ export function LockScreen({ prompting, onUnlock }: LockScreenProps) {
   const { colors } = theme;
   const dark = resolvedMode === "dark";
 
+  // Symmetric top/bottom padding (the larger of the two insets) so the
+  // centered block sits at the optical center — asymmetric insets would
+  // bias it toward whichever edge has the smaller inset.
+  const edgeInset = Math.max(insets.top, insets.bottom) + space.xxxl;
+
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
-      <View
-        style={[
-          styles.content,
-          {
-            paddingTop: insets.top + space.xxxl,
-            paddingBottom: insets.bottom + space.xxxl,
-          },
-        ]}
-      >
+      <View style={[styles.content, { paddingTop: edgeInset, paddingBottom: edgeInset }]}>
         <View
           style={[
             styles.lockBadge,

@@ -36,6 +36,7 @@ export type {
   TimelineStyle,
   TimelineDensity,
   EditorTextSize,
+  ContrastLevel,
 } from "./preferences";
 
 /* Theme */
