@@ -1,16 +1,7 @@
-import {
-  Modal,
-  Pressable,
-  StyleSheet,
-  View,
-  type StyleProp,
-  type ViewStyle,
-} from "react-native";
+import { Modal, Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useTheme } from "@/theme";
-import { space } from "@/theme/spacing";
-import { radius } from "@/theme/theme";
+import { radius, space, useTheme } from "@/theme";
 
 interface SheetProps {
   visible: boolean;
@@ -62,11 +53,7 @@ export function Sheet({
 
         <View
           style={[
-            isBottom
-              ? styles.bottomCard
-              : placement === "top"
-                ? styles.topCard
-                : styles.centerCard,
+            isBottom ? styles.bottomCard : placement === "top" ? styles.topCard : styles.centerCard,
             { backgroundColor: colors.surface },
             sheetStyle,
           ]}

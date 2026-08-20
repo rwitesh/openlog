@@ -1,12 +1,9 @@
-import { Pressable, StyleSheet, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
-
-import { useTheme } from "@/theme";
-import { metrics, space } from "@/theme/spacing";
-import { press } from "@/theme/motion";
+import { Pressable, StyleSheet, View } from "react-native";
 import { Toolbar } from "@/shared/components/Toolbar";
-import { LiveRecordingBar } from "./LiveRecordingBar";
+import { metrics, press, space, useTheme } from "@/theme";
 import { MAX_IMAGES } from "../types";
+import { LiveRecordingBar } from "./LiveRecordingBar";
 
 interface FooterBarProps {
   imageCount: number;

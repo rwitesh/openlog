@@ -1,18 +1,15 @@
+import { Feather } from "@expo/vector-icons";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   FlatList,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   Pressable,
   StyleSheet,
   View,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
 } from "react-native";
-import { Feather } from "@expo/vector-icons";
-
-import { useTheme } from "@/theme";
-import { metrics, space } from "@/theme/spacing";
-import { press } from "@/theme/motion";
-import { typography, FONT_SIZE } from "@/theme/typography";
+import { Sheet } from "@/shared/components/Sheet";
+import { ThemedText } from "@/shared/components/ThemedText";
 import {
   addMonths,
   formatMonthYear,
@@ -20,8 +17,7 @@ import {
   monthOffset,
   startOfMonth,
 } from "@/shared/utils/dates";
-import { Sheet } from "@/shared/components/Sheet";
-import { ThemedText } from "@/shared/components/ThemedText";
+import { FONT_SIZE, metrics, press, space, typography, useTheme } from "@/theme";
 
 const ROW_HEIGHT = 44;
 const VISIBLE_ROWS = 6;

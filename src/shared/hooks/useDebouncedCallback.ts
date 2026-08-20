@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef } from "react";
 import debounce from "lodash.debounce";
+import { useEffect, useMemo, useRef } from "react";
 
 type AnyFunction = (...args: never[]) => void;
 
@@ -7,10 +7,7 @@ type AnyFunction = (...args: never[]) => void;
  * Returns a debounced version of `callback` that stays stable across renders.
  * Pending invocations are cancelled on unmount or when `delayMs` changes.
  */
-export function useDebouncedCallback<T extends AnyFunction>(
-  callback: T,
-  delayMs: number
-): T {
+export function useDebouncedCallback<T extends AnyFunction>(callback: T, delayMs: number): T {
   const callbackRef = useRef(callback);
   callbackRef.current = callback;
 

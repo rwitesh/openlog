@@ -1,26 +1,26 @@
 import {
   createContext,
+  type ReactNode,
+  type RefObject,
   useCallback,
   useContext,
   useEffect,
   useMemo,
   useState,
-  type ReactNode,
-  type RefObject,
 } from "react";
 import {
   Dimensions,
   Keyboard,
   Platform,
-  StyleSheet,
-  View,
   type StyleProp,
+  StyleSheet,
   type TextInput,
+  View,
   type ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { space } from "@/theme/spacing";
+import { space } from "@/theme";
 
 interface KeyboardState {
   visible: boolean;
@@ -39,16 +39,11 @@ const SYNC_DELAYS_MS = [50, 150, 350] as const;
 const KeyboardCtx = createContext<KeyboardState | null>(null);
 
 function keyboardOffset(frame: { height: number; screenY: number }) {
-  let overlap =
+  const overlap =
     Platform.OS === "android"
-      ? Math.max(
-          Math.max(0, Dimensions.get("screen").height - frame.screenY),
-          frame.height,
-        ) + space.sm
-      : Math.max(
-          frame.height,
-          Math.max(0, Dimensions.get("window").height - frame.screenY),
-        );
+      ? Math.max(Math.max(0, Dimensions.get("screen").height - frame.screenY), frame.height) +
+        space.sm
+      : Math.max(frame.height, Math.max(0, Dimensions.get("window").height - frame.screenY));
 
   if (Platform.OS === "android") {
     const gap = Dimensions.get("window").height - frame.screenY;
@@ -109,9 +104,7 @@ function ScreenRoot({ children, style }: SlotProps) {
 
 function Body({ children, style }: SlotProps) {
   const { offset } = useKeyboard();
-  return (
-    <View style={[styles.body, style, { paddingBottom: offset }]}>{children}</View>
-  );
+  return <View style={[styles.body, style, { paddingBottom: offset }]}>{children}</View>;
 }
 
 function Main({ children, style }: SlotProps) {
@@ -123,13 +116,7 @@ function Footer({ children, style }: SlotProps) {
   const { visible } = useKeyboard();
 
   return (
-    <View
-      style={[
-        styles.footer,
-        style,
-        { paddingBottom: visible ? 0 : insets.bottom + space.md },
-      ]}
-    >
+    <View style={[styles.footer, style, { paddingBottom: visible ? 0 : insets.bottom + space.md }]}>
       {children}
     </View>
   );

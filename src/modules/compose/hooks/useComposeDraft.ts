@@ -3,8 +3,8 @@ import { Alert } from "react-native";
 
 import { addEntry, patchEntry } from "@/modules/entry";
 import { useLocation } from "@/services/location";
-import { logDevWarning } from "@/shared/utils/devLog";
 import type { Entry } from "@/shared/types";
+import { logDevWarning } from "@/shared/utils/devLog";
 import { canSaveDraft, fromDraft } from "../utils/DraftTransform";
 
 /** What `save` did, so the screen can navigate accordingly. */

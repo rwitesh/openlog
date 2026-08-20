@@ -1,14 +1,13 @@
 import { useMemo } from "react";
 import { StyleSheet, View } from "react-native";
-
-import { useTheme } from "@/theme";
-import { clampRatio } from "@/shared/utils/duration";
 import {
   LIVE_WAVEFORM_BAR_COUNT,
-  WAVEFORM_BAR_COUNT,
   liveWaveformLevels,
+  WAVEFORM_BAR_COUNT,
   waveformHeights,
 } from "@/services/audio";
+import { clampRatio } from "@/shared/utils/duration";
+import { useTheme } from "@/theme";
 
 interface AudioWaveformProps {
   /** Bar heights normalized to 0–1. */

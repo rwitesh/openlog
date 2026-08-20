@@ -1,13 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from "react";
 import {
   requestRecordingPermissionsAsync,
   setAudioModeAsync,
   useAudioRecorder,
   useAudioRecorderState,
 } from "expo-audio";
-
-import { meteringToLevel, liveWaveformLevels } from "./waveform";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { RECORDING_OPTIONS, RECORDING_POLL_MS } from "./constants";
+import { liveWaveformLevels, meteringToLevel } from "./waveform";
 
 const MAX_LIVE_SAMPLES = 48;
 
@@ -99,7 +98,7 @@ export function useRecording() {
 
   const durationMs = recorderState.isRecording
     ? recorderState.durationMillis
-    : recordedDurationMs ?? 0;
+    : (recordedDurationMs ?? 0);
 
   return {
     isRecording: recorderState.isRecording,

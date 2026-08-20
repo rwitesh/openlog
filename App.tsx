@@ -1,35 +1,34 @@
-import { Image, StyleSheet, View } from "react-native";
-import { StatusBar } from "expo-status-bar";
-import * as SplashScreen from "expo-splash-screen";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import * as SplashScreen from "expo-splash-screen";
+import { StatusBar } from "expo-status-bar";
+import { Image, StyleSheet, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-
-import { AppProviders, useNavigationTheme, useTheme } from "@/theme";
-import { ProfileProvider } from "@/modules/profile";
 import { AppLockGate } from "@/modules/auth";
-import { useAppBootstrap } from "@/shared/hooks";
+import { ProfileProvider } from "@/modules/profile";
 import type { RootStackParamList } from "@/navigation";
-import { Timeline } from "@/screens/timeline";
-import { Memory } from "@/screens/memory";
-import { Welcome } from "@/screens/welcome";
-import { Day } from "@/screens/day";
 import { Compose } from "@/screens/compose";
+import { Day } from "@/screens/day";
+import { Memory } from "@/screens/memory";
 import {
   Settings,
-  SettingsProfile,
-  SettingsAppearance,
-  SettingsTheme,
-  SettingsAccent,
-  SettingsTypography,
-  SettingsTimeline,
-  SettingsBackground,
-  SettingsAccessibility,
-  SettingsPrivacy,
   SettingsAbout,
+  SettingsAccent,
+  SettingsAccessibility,
+  SettingsAppearance,
+  SettingsBackground,
+  SettingsPrivacy,
+  SettingsProfile,
+  SettingsTheme,
+  SettingsTimeline,
+  SettingsTypography,
 } from "@/screens/settings";
+import { Timeline } from "@/screens/timeline";
+import { Welcome } from "@/screens/welcome";
 import { Layout } from "@/shared/components";
+import { useAppBootstrap } from "@/shared/hooks";
 import { logDevWarning } from "@/shared/utils";
+import { AppProviders, useNavigationTheme, useTheme } from "@/theme";
 
 SplashScreen.preventAutoHideAsync().catch((error) => {
   logDevWarning("startup:preventAutoHideAsync", error);
@@ -49,10 +48,7 @@ function AppContent({ showWelcome }: { showWelcome: boolean }) {
         <View style={StyleSheet.absoluteFill} pointerEvents="none">
           <Image
             source={{ uri: bgConfig.imageUri }}
-            style={[
-              StyleSheet.absoluteFill,
-              { opacity: bgConfig.opacity ?? 0.35 },
-            ]}
+            style={[StyleSheet.absoluteFill, { opacity: bgConfig.opacity ?? 0.35 }]}
             resizeMode="cover"
           />
         </View>
@@ -66,16 +62,8 @@ function AppContent({ showWelcome }: { showWelcome: boolean }) {
             animation: "slide_from_right",
           }}
         >
-          <Stack.Screen
-            name="Welcome"
-            component={Welcome}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="Timeline"
-            component={Timeline}
-            options={{ headerShown: false }}
-          />
+          <Stack.Screen name="Welcome" component={Welcome} options={{ headerShown: false }} />
+          <Stack.Screen name="Timeline" component={Timeline} options={{ headerShown: false }} />
           <Stack.Screen
             name="Memory"
             component={Memory}

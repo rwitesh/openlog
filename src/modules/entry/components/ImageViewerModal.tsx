@@ -1,22 +1,22 @@
+import { Feather } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Dimensions,
   FlatList,
   Modal,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   Pressable,
   StyleSheet,
   View,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
 } from "react-native";
-import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
 
 import { shareImage } from "@/services/media/share";
-import { metrics, space } from "@/theme/spacing";
 import { ThemedText } from "@/shared/components/ThemedText";
+import { metrics, space } from "@/theme";
 
 interface ImageViewerModalProps {
   uris: string[];

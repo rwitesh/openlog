@@ -1,14 +1,10 @@
+import { Feather } from "@expo/vector-icons";
 import { Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
 
 import { ThemedText } from "@/shared/components/ThemedText";
 import { APP_NAME } from "@/shared/constants";
-import { useTheme } from "@/theme";
-import { metrics, space } from "@/theme/spacing";
-import { radius } from "@/theme/theme";
-import { press } from "@/theme/motion";
-import { typography } from "@/theme/typography";
+import { metrics, press, radius, space, typography, useTheme } from "@/theme";
 
 interface LockScreenProps {
   /** True while the OS prompt is on screen — the button must not re-trigger it. */
@@ -40,10 +36,7 @@ export function LockScreen({ prompting, onUnlock }: LockScreenProps) {
         </View>
 
         <View style={styles.headerBlock}>
-          <ThemedText
-            weight="semibold"
-            style={[typography.headerGreeting, { color: colors.text }]}
-          >
+          <ThemedText weight="semibold" style={[typography.headerGreeting, { color: colors.text }]}>
             {`${APP_NAME} is locked`}
           </ThemedText>
 

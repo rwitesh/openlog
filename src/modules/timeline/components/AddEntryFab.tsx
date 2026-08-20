@@ -1,11 +1,9 @@
+import { Feather } from "@expo/vector-icons";
 import { useEffect, useRef } from "react";
 import { Animated, Pressable, StyleSheet } from "react-native";
-import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useTheme } from "@/theme";
-import { motion, press } from "@/theme/motion";
-import { metrics, space } from "@/theme/spacing";
+import { metrics, motion, press, space, useTheme } from "@/theme";
 
 interface AddEntryFabProps {
   onPress: () => void;
@@ -73,11 +71,7 @@ export function AddEntryFab({ onPress }: AddEntryFabProps) {
         onPress={onPress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
-        style={({ pressed }) => [
-          styles.btn,
-          { backgroundColor: colors.marker },
-          pressed && press,
-        ]}
+        style={({ pressed }) => [styles.btn, { backgroundColor: colors.marker }, pressed && press]}
         accessibilityLabel="Add entry"
         accessibilityRole="button"
       >

@@ -12,12 +12,9 @@ export const APP_VERSION: string | null =
 /**
  * Native build number (iOS CFBundleVersion / Android versionCode).
  */
-export const BUILD_NUMBER: string | null =
-  Application.nativeBuildVersion ?? null;
+export const BUILD_NUMBER: string | null = Application.nativeBuildVersion ?? null;
 
 /**
  * Native application ID / bundle identifier (e.g. "com.anonymous.kizuna").
  */
-export const APPLICATION_ID: string | null =
-  Application.applicationId ?? null;
-
+export const APPLICATION_ID: string | null = Application.applicationId ?? null;

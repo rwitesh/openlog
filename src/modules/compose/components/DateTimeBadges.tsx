@@ -1,13 +1,9 @@
-import { Pressable, StyleSheet, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
-
-import { useTheme } from "@/theme";
-import { metrics, space } from "@/theme/spacing";
-import { press } from "@/theme/motion";
-import { typography } from "@/theme/typography";
-import { formatBadgeDate, formatBadgeTime } from "@/shared/utils/dates";
-import type { EntryLocation } from "@/shared/types";
+import { Pressable, StyleSheet, View } from "react-native";
 import { ThemedText } from "@/shared/components/ThemedText";
+import type { EntryLocation } from "@/shared/types";
+import { formatBadgeDate, formatBadgeTime } from "@/shared/utils/dates";
+import { metrics, press, space, typography, useTheme } from "@/theme";
 
 import { chip } from "../styles/ChipStyles";
 import { LocationBadge } from "./LocationBadge";
@@ -78,7 +74,9 @@ export function DateTimeBadges({
       </Pressable>
 
       {readOnly ? (
-        location ? <LocationBadge location={location} readOnly /> : null
+        location ? (
+          <LocationBadge location={location} readOnly />
+        ) : null
       ) : onLocationPress ? (
         <LocationBadge
           location={location}

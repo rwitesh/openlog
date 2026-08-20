@@ -1,8 +1,6 @@
 import { StyleSheet, Switch, View } from "react-native";
-import { useTheme } from "@/theme";
-import { typography } from "@/theme/typography";
-import { space } from "@/theme/spacing";
 import { ThemedText } from "@/shared/components/ThemedText";
+import { space, typography, useTheme } from "@/theme";
 
 interface ToggleRowProps {
   label: string;
@@ -11,21 +9,14 @@ interface ToggleRowProps {
   onValueChange: (val: boolean) => void;
 }
 
-export function ToggleRow({
-  label,
-  subtitle,
-  value,
-  onValueChange,
-}: ToggleRowProps) {
+export function ToggleRow({ label, subtitle, value, onValueChange }: ToggleRowProps) {
   const { theme } = useTheme();
   const { colors } = theme;
 
   return (
     <View style={styles.toggleRow}>
       <View style={styles.textWrap}>
-        <ThemedText style={[typography.settingLabel, { color: colors.text }]}>
-          {label}
-        </ThemedText>
+        <ThemedText style={[typography.settingLabel, { color: colors.text }]}>{label}</ThemedText>
         {subtitle ? (
           <ThemedText style={[styles.subtitle, { color: colors.textSecondary }]}>
             {subtitle}

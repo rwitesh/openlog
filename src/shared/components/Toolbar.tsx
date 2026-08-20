@@ -1,7 +1,6 @@
 import { StyleSheet, View } from "react-native";
 
-import { useTheme } from "@/theme";
-import { space } from "@/theme/spacing";
+import { space, useTheme } from "@/theme";
 
 interface ToolbarProps {
   children: React.ReactNode;

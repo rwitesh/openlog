@@ -1,15 +1,14 @@
-import { Animated, StyleSheet, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { Animated, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useProfile } from "@/modules/profile";
-import { useTheme } from "@/theme";
-import { metrics, sectionGap, space } from "@/theme/spacing";
-import { formatMonthYear } from "@/shared/utils/dates";
 import { ThemedText } from "@/shared/components/ThemedText";
+import { formatMonthYear } from "@/shared/utils/dates";
+import { metrics, sectionGap, space, useTheme } from "@/theme";
+import { useStaggeredEntrance } from "../hooks/useStaggeredEntrance";
 import { HeaderIconActions } from "./HeaderIconActions";
 import { MonthChip } from "./MonthChip";
-import { useStaggeredEntrance } from "../hooks/useStaggeredEntrance";
 
 interface TimelineHeaderProps {
   selectedMonth?: number;
@@ -44,10 +43,7 @@ export function TimelineHeader({
   const hasBackground = Boolean(theme.backgroundConfig?.imageUri);
 
   return (
-    <View
-      onLayout={(e) => onLayout(e.nativeEvent.layout.height)}
-      style={styles.wrapper}
-    >
+    <View onLayout={(e) => onLayout(e.nativeEvent.layout.height)} style={styles.wrapper}>
       <View style={[styles.header, { paddingTop: topInset }]}>
         {/* Protective scrim gradient when a background image is active */}
         {hasBackground ? (

@@ -1,9 +1,7 @@
-import { Pressable, StyleSheet, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
+import { Pressable, StyleSheet, View } from "react-native";
 
-import type { ThemeColors } from "@/theme/colors";
-import { metrics, space } from "@/theme/spacing";
-import { press } from "@/theme/motion";
+import { metrics, press, space, type ThemeColors } from "@/theme";
 
 interface HeaderIconActionsProps {
   top: number;

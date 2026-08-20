@@ -1,8 +1,7 @@
 import { memo, useMemo } from "react";
 import { StyleSheet, Text } from "react-native";
 
-import { useTheme } from "@/theme";
-import { fontFamily } from "@/theme/typography";
+import { fontFamily, useTheme } from "@/theme";
 import { splitSnippet } from "../utils/highlight";
 
 interface SearchHighlightProps {

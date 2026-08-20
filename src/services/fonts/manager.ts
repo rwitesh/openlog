@@ -1,8 +1,8 @@
 import * as Font from "expo-font";
 
 import { logDevWarning } from "@/shared/utils/devLog";
-import { DEFAULT_FONT, getFonts, hasFont } from "./catalog";
 import { fontCache, getFontFile } from "./cache";
+import { DEFAULT_FONT, getFonts, hasFont } from "./catalog";
 import { resolveFontSource } from "./resolver";
 import type { FontLoadResult, FontName } from "./types";
 

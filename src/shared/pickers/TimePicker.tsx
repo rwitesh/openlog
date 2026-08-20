@@ -1,13 +1,9 @@
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-
-import { useTheme } from "@/theme";
-import { space } from "@/theme/spacing";
-import { press } from "@/theme/motion";
-import { typography } from "@/theme/typography";
-import { clockParts, withClock } from "@/shared/utils/dates";
 import { Sheet } from "@/shared/components/Sheet";
 import { ThemedText } from "@/shared/components/ThemedText";
+import { clockParts, withClock } from "@/shared/utils/dates";
+import { press, space, typography, useTheme } from "@/theme";
 import { Wheel } from "./Wheel";
 
 const HOURS = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] as const;
@@ -47,12 +43,7 @@ export function TimePicker({ visible, value, onChange, onClose }: TimePickerProp
       </ThemedText>
 
       <View style={styles.wheels}>
-        <Wheel
-          items={HOURS}
-          selected={hour}
-          label={(h) => String(h)}
-          onSelect={setHour}
-        />
+        <Wheel items={HOURS} selected={hour} label={(h) => String(h)} onSelect={setHour} />
         <ThemedText style={[styles.colon, { color: colors.textSecondary }]}>:</ThemedText>
         <Wheel
           items={MINUTES}
@@ -60,12 +51,7 @@ export function TimePicker({ visible, value, onChange, onClose }: TimePickerProp
           label={(m) => m.toString().padStart(2, "0")}
           onSelect={setMinute}
         />
-        <Wheel
-          items={PERIODS}
-          selected={pm}
-          label={(p) => (p ? "PM" : "AM")}
-          onSelect={setPm}
-        />
+        <Wheel items={PERIODS} selected={pm} label={(p) => (p ? "PM" : "AM")} onSelect={setPm} />
       </View>
 
       <Pressable

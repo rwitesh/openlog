@@ -1,13 +1,9 @@
 import { useEffect, useRef } from "react";
 import { Animated, StyleSheet, View } from "react-native";
-
-import { useTheme } from "@/theme";
-import { space } from "@/theme/spacing";
-import { radius } from "@/theme/theme";
-import { typography } from "@/theme/typography";
-import { formatDurationMs } from "@/shared/utils/duration";
-import { ThemedText } from "@/shared/components/ThemedText";
 import { AudioWaveform } from "@/shared/components/AudioWaveform";
+import { ThemedText } from "@/shared/components/ThemedText";
+import { formatDurationMs } from "@/shared/utils/duration";
+import { radius, space, typography, useTheme } from "@/theme";
 
 interface RecordingBarProps {
   isRecording: boolean;
@@ -16,11 +12,7 @@ interface RecordingBarProps {
 }
 
 /** Compact live recording strip — timer + waveform only. */
-export function LiveRecordingBar({
-  isRecording,
-  durationMs,
-  levels,
-}: RecordingBarProps) {
+export function LiveRecordingBar({ isRecording, durationMs, levels }: RecordingBarProps) {
   const { theme } = useTheme();
   const { colors } = theme;
   const pulse = useRef(new Animated.Value(1)).current;
@@ -46,9 +38,7 @@ export function LiveRecordingBar({
       <Animated.View
         style={[styles.dot, { backgroundColor: colors.destructive, opacity: pulse }]}
       />
-      <ThemedText
-        style={[typography.caption, styles.timer, { color: colors.text }]}
-      >
+      <ThemedText style={[typography.caption, styles.timer, { color: colors.text }]}>
         {formatDurationMs(durationMs)}
       </ThemedText>
       <AudioWaveform levels={levels} variant="live" height={24} />

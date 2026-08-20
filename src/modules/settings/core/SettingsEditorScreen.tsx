@@ -1,9 +1,8 @@
-import { type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useTheme } from "@/theme";
-import { space } from "@/theme/spacing";
+import { space, useTheme } from "@/theme";
 
 /**
  * Layout for editor screens: a live preview pinned above a scrollable

@@ -1,19 +1,17 @@
-import { useEffect, useState } from "react";
-import { useColorScheme } from "react-native";
-import * as SplashScreen from "expo-splash-screen";
 import {
   SourceSans3_400Regular,
   SourceSans3_500Medium,
   SourceSans3_600SemiBold,
   useFonts,
 } from "@expo-google-fonts/source-sans-3";
-
-import { getAllUserPreferences } from "@/services/db/settings";
+import * as SplashScreen from "expo-splash-screen";
+import { useEffect, useState } from "react";
+import { useColorScheme } from "react-native";
 import { loadEntries } from "@/modules/entry/store/EntryStore";
-import { resolveTheme, resolveThemeMode } from "@/theme/theme";
-import { DEFAULT_PREFERENCES, type UserPreferences } from "@/theme/preferences";
+import { getAllUserPreferences } from "@/services/db/settings";
 import { fontManager } from "@/services/fonts";
 import { logDevWarning } from "@/shared/utils/devLog";
+import { DEFAULT_PREFERENCES, resolveTheme, resolveThemeMode, type UserPreferences } from "@/theme";
 
 export interface AppBootstrapState {
   ready: boolean;
@@ -78,11 +76,7 @@ export function useAppBootstrap(): AppBootstrapState {
 
   const effectivePreferences = preferences ?? DEFAULT_PREFERENCES;
   const resolvedMode = resolveThemeMode(effectivePreferences.appearance.mode, systemScheme);
-  const theme = resolveTheme(
-    effectivePreferences.appearance,
-    effectivePreferences.accessibility.motionLevel,
-    systemScheme
-  );
+  const theme = resolveTheme(effectivePreferences, systemScheme);
   const backgroundColor = theme.colors.background;
   const fontsReady = fontsLoaded || Boolean(fontError);
   const ready = fontsReady && preferences !== null && profileLoaded;

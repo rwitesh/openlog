@@ -1,26 +1,19 @@
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useCallback, useMemo, useRef, useState } from "react";
-import {
-  Animated,
-  ScrollView,
-  StyleSheet,
-  View,
-} from "react-native";
-import { type NativeStackScreenProps } from "@react-navigation/native-stack";
+import { Animated, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-import type { RootStackParamList } from "@/navigation/types";
 import { useEntries } from "@/modules/entry";
 import {
+  getMonthOverview,
+  getMonthPulseData,
   MonthHeader,
   MonthHero,
   MonthPulse,
   MonthStats,
-  getMonthOverview,
-  getMonthPulseData,
 } from "@/modules/memory";
-import { useTheme } from "@/theme";
-import { space } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
+import type { RootStackParamList } from "@/navigation/types";
+import { ThemedText } from "@/shared/components/ThemedText";
+import { MonthPicker } from "@/shared/pickers";
 import {
   addMonths,
   formatMonthYear,
@@ -28,8 +21,7 @@ import {
   startOfDay,
   startOfMonth,
 } from "@/shared/utils/dates";
-import { MonthPicker } from "@/shared/pickers";
-import { ThemedText } from "@/shared/components/ThemedText";
+import { space, typography, useTheme } from "@/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Memory">;
 
@@ -141,10 +133,7 @@ export function MemoryScreen({ route, navigation }: Props) {
             </View>
           ) : (
             <>
-              <MonthPulse
-                data={pulseData}
-                onOpenDay={openDay}
-              />
+              <MonthPulse data={pulseData} onOpenDay={openDay} />
 
               <MonthStats stats={overviewStats} />
             </>

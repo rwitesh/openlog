@@ -25,10 +25,7 @@ export function meteringToLevel(metering?: number): number {
 }
 
 /** Build live waveform levels from metering, padding with a minimum height. */
-export function liveWaveformLevels(
-  samples: number[],
-  count = WAVEFORM_BAR_COUNT
-): number[] {
+export function liveWaveformLevels(samples: number[], count = WAVEFORM_BAR_COUNT): number[] {
   if (!samples.length) {
     return Array.from({ length: count }, () => 0.15);
   }

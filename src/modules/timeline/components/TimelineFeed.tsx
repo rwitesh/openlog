@@ -1,14 +1,11 @@
 import { useMemo } from "react";
 import { FlatList, StyleSheet, View } from "react-native";
-
-import type { Entry } from "@/shared/types";
-import { useTheme } from "@/theme";
-import { space } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
-import { isSameDay } from "@/shared/utils/dates";
-import { toTimelineItems } from "../utils/TimelineTransform";
-import { ThemedText } from "@/shared/components/ThemedText";
 import { EntryRow } from "@/modules/entry";
+import { ThemedText } from "@/shared/components/ThemedText";
+import type { Entry } from "@/shared/types";
+import { isSameDay } from "@/shared/utils/dates";
+import { space, typography, useTheme } from "@/theme";
+import { toTimelineItems } from "../utils/TimelineTransform";
 import { TimelineRail } from "./TimelineRail";
 
 interface TimelineProps {
@@ -34,10 +31,7 @@ export function TimelineFeed({
 }: TimelineProps) {
   const { theme } = useTheme();
 
-  const items = useMemo(
-    () => toTimelineItems(entries, showDates),
-    [entries, showDates]
-  );
+  const items = useMemo(() => toTimelineItems(entries, showDates), [entries, showDates]);
 
   if (!items.length) {
     return (
@@ -70,11 +64,7 @@ export function TimelineFeed({
         >
           <EntryRow
             entry={item.entry}
-            animate={
-              animateFirst &&
-              index === 0 &&
-              isSameDay(item.entry.createdAt, Date.now())
-            }
+            animate={animateFirst && index === 0 && isSameDay(item.entry.createdAt, Date.now())}
           />
         </TimelineRail>
       )}

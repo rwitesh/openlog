@@ -1,12 +1,9 @@
+import { Feather } from "@expo/vector-icons";
 import { memo } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Feather } from "@expo/vector-icons";
-
-import { useTheme } from "@/theme";
-import { metrics, space } from "@/theme/spacing";
-import { press } from "@/theme/motion";
 import { ThemedText } from "@/shared/components/ThemedText";
+import { metrics, press, space, useTheme } from "@/theme";
 
 interface MonthHeaderProps {
   monthLabel: string;

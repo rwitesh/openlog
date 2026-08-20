@@ -1,3 +1,5 @@
+import { Feather } from "@expo/vector-icons";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -7,18 +9,11 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { Feather } from "@expo/vector-icons";
-import { type NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-import type { RootStackParamList } from "@/navigation/types";
 import { useProfile } from "@/modules/profile";
-import { useTheme } from "@/theme";
+import type { RootStackParamList } from "@/navigation/types";
 import { ThemedText } from "@/shared/components/ThemedText";
-import { metrics, space } from "@/theme/spacing";
-import { radius } from "@/theme/theme";
-import { press } from "@/theme/motion";
-import { typography } from "@/theme/typography";
+import { metrics, press, radius, space, typography, useTheme } from "@/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Welcome">;
 
@@ -113,11 +108,7 @@ export function WelcomeScreen({ navigation }: Props) {
                 name="arrow-right"
                 size={metrics.iconMd}
                 color={
-                  canContinue
-                    ? dark
-                      ? colors.background
-                      : colors.surface
-                    : colors.textTertiary
+                  canContinue ? (dark ? colors.background : colors.surface) : colors.textTertiary
                 }
               />
             </Pressable>

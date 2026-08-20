@@ -1,20 +1,15 @@
+import { Feather } from "@expo/vector-icons";
 import { useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
-import { Feather } from "@expo/vector-icons";
-
-import { Sheet } from "@/shared/components/Sheet";
 import {
   formatLocationCoordinates,
   locationAccessibilityLabel,
   locationPlaceTitle,
 } from "@/services/location/location";
-import { press } from "@/theme/motion";
-import { metrics, space } from "@/theme/spacing";
-import { radius } from "@/theme/theme";
-import { FONT_SIZE } from "@/theme/typography";
-import { useTheme } from "@/theme";
-import type { EntryLocation } from "@/shared/types";
+import { Sheet } from "@/shared/components/Sheet";
 import { ThemedText } from "@/shared/components/ThemedText";
+import type { EntryLocation } from "@/shared/types";
+import { FONT_SIZE, metrics, press, radius, space, useTheme } from "@/theme";
 
 import { chip } from "../styles/ChipStyles";
 
@@ -183,7 +178,10 @@ export function LocationBadge({
                   accessibilityLabel="Refresh current location"
                 >
                   <Feather name="refresh-cw" size={16} color={colors.text} />
-                  <ThemedText weight="medium" style={[styles.actionBtnText, { color: colors.text }]}>
+                  <ThemedText
+                    weight="medium"
+                    style={[styles.actionBtnText, { color: colors.text }]}
+                  >
                     {refreshing ? "Refreshing…" : "Refresh"}
                   </ThemedText>
                 </Pressable>
