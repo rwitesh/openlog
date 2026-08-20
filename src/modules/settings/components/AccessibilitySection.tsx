@@ -8,7 +8,7 @@ import { space } from "@/theme/spacing";
 import { ThemedText } from "@/shared/components/ThemedText";
 import { SegmentedRow } from "../core/SegmentedRow";
 
-/** Accessibility & readability: motion, text sizing, and contrast. */
+/** Accessibility & readability: text sizing and animation level. */
 export function AccessibilitySection() {
   const { theme } = useTheme();
   const { colors } = theme;
@@ -43,20 +43,6 @@ export function AccessibilitySection() {
           ]}
           selected={writing.editorTextSize}
           onSelect={(editorTextSize) => setWriting({ editorTextSize })}
-        />
-      </View>
-
-      <View style={styles.field}>
-        <ThemedText weight="medium" style={[styles.heading, { color: colors.textSecondary }]}>
-          CONTRAST
-        </ThemedText>
-        <SegmentedRow
-          items={[
-            { id: "standard", label: "Standard" },
-            { id: "high", label: "High" },
-          ]}
-          selected={accessibility.contrast}
-          onSelect={(contrast) => setAccessibility({ contrast })}
         />
       </View>
 

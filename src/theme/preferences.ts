@@ -7,7 +7,6 @@ import type { ThemeMode } from "./types";
 export type TimelineStyle = "rail" | "minimal" | "clean";
 export type TimelineDensity = "comfortable" | "compact";
 export type EditorTextSize = "regular" | "large";
-export type ContrastLevel = "standard" | "high";
 
 export interface AppearancePreferences {
   accent: AccentChoice;
@@ -31,7 +30,6 @@ export interface WritingPreferences {
 
 export interface AccessibilityPreferences {
   motionLevel: MotionLevel;
-  contrast: ContrastLevel;
 }
 
 export interface SecurityPreferences {
@@ -66,7 +64,6 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   },
   accessibility: {
     motionLevel: "subtle",
-    contrast: "standard",
   },
   security: {
     biometricLock: false,
