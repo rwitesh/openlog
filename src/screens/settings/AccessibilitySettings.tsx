@@ -4,7 +4,7 @@ import {
   SettingsEditorScreen,
 } from "@/modules/settings";
 
-/** Accessibility category — text sizing, contrast, and motion, previewed live. */
+/** Accessibility category — text sizing and motion, previewed live. */
 export function AccessibilitySettingsScreen() {
   return (
     <SettingsEditorScreen preview={<LiveThemePreview />}>

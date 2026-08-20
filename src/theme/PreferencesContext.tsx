@@ -20,7 +20,6 @@ import {
   setSettingsBatch,
   ACCENT_KEY,
   BIOMETRIC_LOCK_KEY,
-  CONTRAST_KEY,
   EDITOR_TEXT_SIZE_KEY,
   FONT_KEY,
   MOTION_LEVEL_KEY,
@@ -70,7 +69,6 @@ const WRITING_KEYS: Record<keyof WritingPreferences, string> = {
 
 const ACCESSIBILITY_KEYS: Record<keyof AccessibilityPreferences, string> = {
   motionLevel: MOTION_LEVEL_KEY,
-  contrast: CONTRAST_KEY,
 };
 
 const SECURITY_KEYS: Record<keyof SecurityPreferences, string> = {

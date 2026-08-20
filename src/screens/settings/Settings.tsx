@@ -61,7 +61,7 @@ export function SettingsScreen({ navigation }: Props) {
         <SettingsRow
           icon="eye"
           title="Accessibility"
-          subtitle="Text size, contrast & motion"
+          subtitle="Text size & animation level"
           onPress={() => navigation.navigate("SettingsAccessibility")}
         />
 

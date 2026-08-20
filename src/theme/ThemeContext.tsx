@@ -3,7 +3,7 @@
  *
  * Subscribes ONLY to the inputs that affect visuals:
  *   - `appearance` (accent, mode, font, text size, background)
- *   - `accessibility` (motion level, contrast)
+ *   - `accessibility.motionLevel`
  *   - the OS color scheme
  *
  * Functional preferences (entry/writing toggles) changing here will NOT
@@ -43,12 +43,12 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const { preferences } = usePreferences();
   const { appearance, accessibility } = preferences;
-  const { motionLevel, contrast } = accessibility;
+  const { motionLevel } = accessibility;
   const systemScheme = useColorScheme();
 
   const theme = useMemo(
-    () => resolveTheme(appearance, motionLevel, contrast, systemScheme),
-    [appearance, motionLevel, contrast, systemScheme]
+    () => resolveTheme(appearance, motionLevel, systemScheme),
+    [appearance, motionLevel, systemScheme]
   );
 
   const value = useMemo<ThemeContextValue>(() => {
