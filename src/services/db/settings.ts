@@ -3,6 +3,7 @@ import type { ThemeMode } from "@/theme/types";
 import type { AccentChoice } from "@/theme/colors";
 import type {
   AppearancePreferences,
+  ContrastLevel,
   EditorTextSize,
   EntryPreferences,
   SecurityPreferences,
@@ -29,6 +30,7 @@ const SHOW_LOCATION_KEY = "show_location_timeline";
 const SHOW_TIMESTAMP_KEY = "show_timestamp_timeline";
 const EDITOR_TEXT_SIZE_KEY = "editor_text_size";
 const MOTION_LEVEL_KEY = "motion_level";
+const CONTRAST_KEY = "contrast";
 const BIOMETRIC_LOCK_KEY = "biometric_lock";
 const USER_NAME_KEY = "user_name";
 
@@ -128,6 +130,9 @@ export async function getAllUserPreferences(): Promise<{
       motionLevel:
         (map.get(MOTION_LEVEL_KEY) as MotionLevel) ||
         DEFAULT_PREFERENCES.accessibility.motionLevel,
+      contrast:
+        (map.get(CONTRAST_KEY) as ContrastLevel) ||
+        DEFAULT_PREFERENCES.accessibility.contrast,
     };
 
     const security: SecurityPreferences = {
@@ -186,6 +191,7 @@ export {
   SHOW_TIMESTAMP_KEY,
   EDITOR_TEXT_SIZE_KEY,
   MOTION_LEVEL_KEY,
+  CONTRAST_KEY,
   BIOMETRIC_LOCK_KEY,
   BACKGROUND_IMAGE_KEY,
   BACKGROUND_IMAGE_OPACITY_KEY,

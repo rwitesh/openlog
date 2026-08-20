@@ -81,6 +81,7 @@ export function useAppBootstrap(): AppBootstrapState {
   const theme = resolveTheme(
     effectivePreferences.appearance,
     effectivePreferences.accessibility.motionLevel,
+    effectivePreferences.accessibility.contrast,
     systemScheme
   );
   const backgroundColor = theme.colors.background;

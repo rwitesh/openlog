@@ -10,17 +10,16 @@ import {
 import { Feather } from "@expo/vector-icons";
 
 import { usePreferences, useTheme } from "@/theme";
-import type { TextSize } from "@/theme/typography";
 import { space } from "@/theme/spacing";
 import { radius } from "@/theme/theme";
 import { press } from "@/theme/motion";
 import { ThemedText } from "@/shared/components/ThemedText";
+import { DEFAULT_FONT_FAMILY } from "@/theme/typography";
 import { fontManager, getFonts, type FontName } from "@/services/fonts";
-import { SegmentedRow } from "../core/SegmentedRow";
 
 /**
- * Typography picker: text scale plus a curated typeface catalog.
- * Downloaded & active fonts appear at the top; on-demand fonts below.
+ * Typography editor: curated typeface catalog. Text size lives in
+ * Accessibility; downloaded & active fonts list first, on-demand below.
  */
 export function TypographySection() {
   const { theme, isDark } = useTheme();
@@ -28,8 +27,7 @@ export function TypographySection() {
   const { preferences, setAppearance } = usePreferences();
   const { appearance } = preferences;
 
-  const selectedFont = appearance.fontFamily || "Source Sans 3";
-  const selectedTextSize = appearance.textSize;
+  const selectedFont = appearance.fontFamily || DEFAULT_FONT_FAMILY;
 
   const [searchQuery, setSearchQuery] = useState("");
   const [loadingFont, setLoadingFont] = useState<string | null>(null);
@@ -51,7 +49,7 @@ export function TypographySection() {
     const available: FontName[] = [];
 
     for (const fontName of filteredFonts) {
-      if (fontName === "Source Sans 3" || fontManager.isCached(fontName)) {
+      if (fontName === DEFAULT_FONT_FAMILY || fontManager.isCached(fontName)) {
         downloaded.push(fontName);
       } else {
         available.push(fontName);
@@ -105,7 +103,7 @@ export function TypographySection() {
               await fontManager.remove(fontName);
               setCacheVersion((v) => v + 1);
               if (fontName === selectedFont) {
-                setAppearance({ fontFamily: "Source Sans 3" });
+                setAppearance({ fontFamily: DEFAULT_FONT_FAMILY });
               }
             },
           },
@@ -118,7 +116,7 @@ export function TypographySection() {
   const renderFontRow = (fontName: FontName, isDownloaded: boolean) => {
     const isSelected = fontName === selectedFont;
     const isLoading = loadingFont === fontName;
-    const isBundledDefault = fontName === "Source Sans 3";
+    const isBundledDefault = fontName === DEFAULT_FONT_FAMILY;
 
     return (
       <Pressable
@@ -194,17 +192,6 @@ export function TypographySection() {
 
   return (
     <View style={styles.container}>
-      {/* Text Size Scale */}
-      <SegmentedRow<TextSize>
-        items={[
-          { id: "compact", label: "Compact" },
-          { id: "regular", label: "Regular" },
-          { id: "generous", label: "Generous" },
-        ]}
-        selected={selectedTextSize}
-        onSelect={(t) => setAppearance({ textSize: t })}
-      />
-
       {/* Search Input */}
       <View
         style={[

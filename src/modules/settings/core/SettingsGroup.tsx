@@ -6,17 +6,26 @@ import { space } from "@/theme/spacing";
 import { ThemedText } from "@/shared/components/ThemedText";
 
 /** Labelled group of rows — the vertical rhythm unit of the settings list. */
-export function SettingsGroup({ label, children }: { label: string; children: ReactNode }) {
+export function SettingsGroup({
+  label,
+  children,
+}: {
+  /** Optional heading; omit for unlabeled groups (e.g. a lone action row). */
+  label?: string;
+  children: ReactNode;
+}) {
   const { theme } = useTheme();
 
   return (
     <View style={styles.group}>
-      <ThemedText
-        weight="medium"
-        style={[styles.label, { color: theme.colors.textSecondary }]}
-      >
-        {label}
-      </ThemedText>
+      {label ? (
+        <ThemedText
+          weight="medium"
+          style={[styles.label, { color: theme.colors.textSecondary }]}
+        >
+          {label}
+        </ThemedText>
+      ) : null}
       <View style={styles.rows}>{children}</View>
     </View>
   );

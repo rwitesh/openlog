@@ -14,6 +14,7 @@ import {
 } from "./typography";
 import type {
   AppearancePreferences,
+  ContrastLevel,
   MotionLevel,
   NavTheme,
   ResolvedThemeMode,
@@ -34,10 +35,11 @@ export function resolveThemeMode(
   return mode;
 }
 
-/** Resolves complete visual tokens from appearance + motion preferences. */
+/** Resolves complete visual tokens from appearance + accessibility preferences. */
 export function resolveTheme(
   appearance: AppearancePreferences,
   motionLevel: MotionLevel,
+  contrast: ContrastLevel,
   systemScheme: SystemScheme
 ): Theme {
   const mode = resolveThemeMode(appearance.mode, systemScheme);
@@ -45,7 +47,7 @@ export function resolveTheme(
 
   return {
     mode,
-    colors: getThemeColors(mode, appearance.accent),
+    colors: getThemeColors(mode, appearance.accent, contrast),
     font: FONT,
     fontSize: BASE_FONT_SIZE,
     fontFamily: activeFont,

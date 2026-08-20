@@ -1,19 +1,19 @@
 import { StyleSheet, View } from "react-native";
 
 import { usePreferences, useTheme } from "@/theme";
-import type { EditorTextSize, TimelineDensity, TimelineStyle } from "@/theme/types";
+import type { TimelineDensity, TimelineStyle } from "@/theme/types";
 import { space } from "@/theme/spacing";
 import { radius } from "@/theme/theme";
 import { ThemedText } from "@/shared/components/ThemedText";
 import { SegmentedRow } from "../core/SegmentedRow";
 import { ToggleRow } from "../core/ToggleRow";
 
-/** Timeline & editor preferences: style, density, metadata toggles, editor size. */
+/** Timeline preferences: style, density, metadata details. */
 export function TimelineSection() {
   const { theme } = useTheme();
   const { colors } = theme;
-  const { preferences, setEntry, setWriting } = usePreferences();
-  const { entry, writing } = preferences;
+  const { preferences, setEntry } = usePreferences();
+  const { entry } = preferences;
 
   return (
     <View style={styles.container}>
@@ -63,20 +63,6 @@ export function TimelineSection() {
             onValueChange={(showLocation) => setEntry({ showLocation })}
           />
         </View>
-      </View>
-
-      <View style={styles.section}>
-        <ThemedText weight="medium" style={[styles.sectionHeading, { color: colors.textSecondary }]}>
-          EDITOR FONT SIZE
-        </ThemedText>
-        <SegmentedRow<EditorTextSize>
-          items={[
-            { id: "regular", label: "Standard" },
-            { id: "large", label: "Large" },
-          ]}
-          selected={writing.editorTextSize}
-          onSelect={(editorTextSize) => setWriting({ editorTextSize })}
-        />
       </View>
     </View>
   );

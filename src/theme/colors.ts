@@ -1,3 +1,5 @@
+import type { ContrastLevel } from "./preferences";
+
 export interface ThemeColors {
   background: string;
   surface: string;
@@ -107,11 +109,33 @@ export const KIZUNA_DARK_THEME: ThemeColors = {
 export const lightColors: ThemeColors = KIZUNA_LIGHT_THEME;
 export const darkColors: ThemeColors = KIZUNA_DARK_THEME;
 
+/** High-contrast overrides — same hues, stronger separation for legibility. */
+const HIGH_CONTRAST_LIGHT: Partial<ThemeColors> = {
+  textSecondary: "#453F37",
+  textTertiary: "#6E675F",
+  separator: "#D6CCBB",
+  line: "#CDC4B2",
+};
+
+const HIGH_CONTRAST_DARK: Partial<ThemeColors> = {
+  textSecondary: "#B9BBC7",
+  textTertiary: "#9697A3",
+  separator: "#3A3C46",
+  line: "#464856",
+};
+
 export function getThemeColors(
   mode: "light" | "dark" = "light",
-  accent: AccentChoice = "default"
+  accent: AccentChoice = "default",
+  contrast: ContrastLevel = "standard"
 ): ThemeColors {
   const base = mode === "dark" ? KIZUNA_DARK_THEME : KIZUNA_LIGHT_THEME;
+  const highContrast =
+    contrast === "high"
+      ? mode === "dark"
+        ? HIGH_CONTRAST_DARK
+        : HIGH_CONTRAST_LIGHT
+      : {};
 
   if (accent !== "default") {
     const option = ACCENT_OPTIONS.find((opt) => opt.id === accent);
@@ -119,11 +143,12 @@ export function getThemeColors(
       const chosenColor = mode === "dark" ? option.colorDark : option.colorLight;
       return {
         ...base,
+        ...highContrast,
         accent: chosenColor,
         marker: chosenColor,
       };
     }
   }
 
-  return base;
+  return { ...base, ...highContrast };
 }
