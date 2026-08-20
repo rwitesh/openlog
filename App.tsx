@@ -27,9 +27,12 @@ import { Timeline } from "@/screens/timeline";
 import { Welcome } from "@/screens/welcome";
 import { Layout } from "@/shared/components";
 import { useAppBootstrap } from "@/shared/hooks";
-import { logDevWarning } from "@/shared/utils";
+import { IS_EXPO_GO, logDevWarning } from "@/shared/utils";
 import { AppProviders, useNavigationTheme, useTheme } from "@/theme";
 
+if (!IS_EXPO_GO) {
+  SplashScreen.setOptions({ duration: 400, fade: true });
+}
 SplashScreen.preventAutoHideAsync().catch((error) => {
   logDevWarning("startup:preventAutoHideAsync", error);
 });
