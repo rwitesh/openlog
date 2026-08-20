@@ -1,15 +1,11 @@
+import { Feather } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { Image } from "expo-image";
-import { Feather } from "@expo/vector-icons";
-
-import { useTheme } from "@/theme";
-import { metrics, space } from "@/theme/spacing";
-import { radius } from "@/theme/theme";
-import { press } from "@/theme/motion";
+import { ImageViewerModal } from "@/modules/entry/components/ImageViewerModal";
+import { metrics, press, radius, space, useTheme } from "@/theme";
 import { MAX_IMAGES } from "../types";
 import { AudioDraftPreview } from "./AudioDraftPreview";
-import { ImageViewerModal } from "@/modules/entry/components/ImageViewerModal";
 
 const PREVIEW_SIZE = 80;
 
@@ -75,10 +71,7 @@ export function ComposeAttachments({
                   >
                     <Image
                       source={{ uri }}
-                      style={[
-                        styles.detailThumbnail,
-                        { backgroundColor: colors.surfaceMuted },
-                      ]}
+                      style={[styles.detailThumbnail, { backgroundColor: colors.surfaceMuted }]}
                       contentFit="cover"
                       accessibilityLabel={`Image ${index + 1} of ${imageUris.length}`}
                     />
@@ -117,9 +110,7 @@ export function ComposeAttachments({
               <AudioDraftPreview
                 key={`${uri}-${index}`}
                 uri={uri}
-                onRemove={
-                  readOnly || !onRemoveAudio ? undefined : () => onRemoveAudio(index)
-                }
+                onRemove={readOnly || !onRemoveAudio ? undefined : () => onRemoveAudio(index)}
               />
             ))}
           </View>

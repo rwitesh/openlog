@@ -1,19 +1,16 @@
-import { Image, StyleSheet, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import { type NativeStackScreenProps } from "@react-navigation/native-stack";
-
-import { ACCENT_OPTIONS } from "@/theme/colors";
-import { usePreferences, useTheme } from "@/theme";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { Image, StyleSheet, View } from "react-native";
 import {
-  KIZUNA_BACKGROUNDS,
+  confirmDestructive,
   SettingsGroup,
   SettingsRow,
   SettingsScreenScroll,
-  confirmDestructive,
 } from "@/modules/settings";
 import type { RootStackParamList } from "@/navigation/types";
 import { ThemedText } from "@/shared/components/ThemedText";
-import { DEFAULT_FONT_FAMILY } from "@/theme/typography";
+import { ACCENT_OPTIONS, DEFAULT_FONT_FAMILY, usePreferences, useTheme } from "@/theme";
+import { KIZUNA_BACKGROUNDS } from "./AppearanceEditors";
 
 type Props = NativeStackScreenProps<RootStackParamList, "SettingsAppearance">;
 
@@ -28,19 +25,16 @@ export function AppearanceSettingsScreen({ navigation }: Props) {
   const { appearance, entry } = preferences;
 
   const activeFont = appearance.fontFamily || DEFAULT_FONT_FAMILY;
-  const currentAccent =
-    ACCENT_OPTIONS.find((a) => a.id === appearance.accent) ?? ACCENT_OPTIONS[0];
+  const currentAccent = ACCENT_OPTIONS.find((a) => a.id === appearance.accent) ?? ACCENT_OPTIONS[0];
   const accentColor = isDark ? currentAccent.colorDark : currentAccent.colorLight;
-  const matchedBackground = KIZUNA_BACKGROUNDS.find(
-    (p) => p.uri === appearance.backgroundImageUri
-  );
+  const matchedBackground = KIZUNA_BACKGROUNDS.find((p) => p.uri === appearance.backgroundImageUri);
 
   const themeSummary =
     appearance.mode === "light"
       ? "Light · Gallery White"
       : appearance.mode === "dark"
-      ? "Dark · Charcoal Black"
-      : "System";
+        ? "Dark · Charcoal Black"
+        : "System";
   const timelineSummary = `${
     entry.timelineStyle.charAt(0).toUpperCase() + entry.timelineStyle.slice(1)
   } · ${entry.timelineDensity === "comfortable" ? "Comfortable" : "Compact"}`;

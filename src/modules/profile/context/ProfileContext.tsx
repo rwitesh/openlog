@@ -1,11 +1,4 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
+import { createContext, type ReactNode, useCallback, useContext, useMemo, useState } from "react";
 
 import { setUserName as persistUserName } from "@/services/db/settings";
 
@@ -33,10 +26,13 @@ export function ProfileProvider({ children, initialName }: ProfileProviderProps)
     void persistUserName(next);
   }, 400);
 
-  const setName = useCallback((next: string) => {
-    setNameState(next || null);
-    debouncedPersist(next);
-  }, [debouncedPersist]);
+  const setName = useCallback(
+    (next: string) => {
+      setNameState(next || null);
+      debouncedPersist(next);
+    },
+    [debouncedPersist]
+  );
 
   const value = useMemo(() => ({ name, setName }), [name, setName]);
 

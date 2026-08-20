@@ -1,36 +1,22 @@
-import { runDb } from "./database";
-import type { ThemeMode } from "@/theme/types";
-import type { AccentChoice } from "@/theme/colors";
-import type {
-  AppearancePreferences,
-  EditorTextSize,
-  EntryPreferences,
-  SecurityPreferences,
-  TimelineDensity,
-  TimelineStyle,
-  UserPreferences,
-  WritingPreferences,
-  AccessibilityPreferences,
+import {
+  ACCENT_KEY,
+  BACKGROUND_IMAGE_KEY,
+  BACKGROUND_IMAGE_OPACITY_KEY,
+  BIOMETRIC_LOCK_KEY,
+  EDITOR_TEXT_SIZE_KEY,
+  FONT_KEY,
+  MOTION_LEVEL_KEY,
+  parseUserPreferences,
+  SHOW_LOCATION_KEY,
+  SHOW_TIMESTAMP_KEY,
+  TEXT_SIZE_KEY,
+  THEME_KEY,
+  TIMELINE_DENSITY_KEY,
+  TIMELINE_STYLE_KEY,
+  USER_NAME_KEY,
+  type UserPreferences,
 } from "@/theme/preferences";
-import { DEFAULT_PREFERENCES } from "@/theme/preferences";
-import type { TextSize } from "@/theme/typography";
-import type { MotionLevel } from "@/theme/motion";
-import { hasFont } from "@/services/fonts";
-
-const THEME_KEY = "theme";
-const ACCENT_KEY = "accent_choice";
-const FONT_KEY = "font_choice";
-const TEXT_SIZE_KEY = "text_size";
-const BACKGROUND_IMAGE_KEY = "background_image_uri";
-const BACKGROUND_IMAGE_OPACITY_KEY = "background_image_opacity";
-const TIMELINE_STYLE_KEY = "timeline_style";
-const TIMELINE_DENSITY_KEY = "timeline_density";
-const SHOW_LOCATION_KEY = "show_location_timeline";
-const SHOW_TIMESTAMP_KEY = "show_timestamp_timeline";
-const EDITOR_TEXT_SIZE_KEY = "editor_text_size";
-const MOTION_LEVEL_KEY = "motion_level";
-const BIOMETRIC_LOCK_KEY = "biometric_lock";
-const USER_NAME_KEY = "user_name";
+import { runDb } from "./database";
 
 export async function getSetting(key: string, fallback: string): Promise<string> {
   return runDb(async (db) => {
@@ -78,71 +64,11 @@ export async function getAllUserPreferences(): Promise<{
     for (const r of rows) map.set(r.key, r.value);
 
     const userName = map.get(USER_NAME_KEY)?.trim() || null;
-
-    const rawFont = map.get(FONT_KEY);
-    let resolvedFont = DEFAULT_PREFERENCES.appearance.fontFamily;
-    if (rawFont === "sans") {
-      resolvedFont = "Source Sans 3";
-    } else if (rawFont === "serif") {
-      resolvedFont = "Source Serif 4";
-    } else if (rawFont && hasFont(rawFont)) {
-      resolvedFont = rawFont;
-    }
-
-    const rawOpacity = map.get(BACKGROUND_IMAGE_OPACITY_KEY);
-    const parsedOpacity = rawOpacity ? parseFloat(rawOpacity) : NaN;
-    const opacity = !isNaN(parsedOpacity)
-      ? Math.min(Math.max(parsedOpacity, 0.05), 1.0)
-      : (DEFAULT_PREFERENCES.appearance.backgroundImageOpacity ?? 0.35);
-
-    const appearance: AppearancePreferences = {
-      accent: (map.get(ACCENT_KEY) as AccentChoice) || DEFAULT_PREFERENCES.appearance.accent,
-      mode: (map.get(THEME_KEY) as ThemeMode) || DEFAULT_PREFERENCES.appearance.mode,
-      fontFamily: resolvedFont,
-      textSize: (map.get(TEXT_SIZE_KEY) as TextSize) || DEFAULT_PREFERENCES.appearance.textSize,
-      backgroundImageUri:
-        map.get(BACKGROUND_IMAGE_KEY) && map.get(BACKGROUND_IMAGE_KEY) !== "null"
-          ? map.get(BACKGROUND_IMAGE_KEY)
-          : null,
-      backgroundImageOpacity: opacity,
-    };
-
-    const entry: EntryPreferences = {
-      timelineStyle:
-        (map.get(TIMELINE_STYLE_KEY) as TimelineStyle) ||
-        DEFAULT_PREFERENCES.entry.timelineStyle,
-      timelineDensity:
-        (map.get(TIMELINE_DENSITY_KEY) as TimelineDensity) ||
-        DEFAULT_PREFERENCES.entry.timelineDensity,
-      showTimestamp: map.get(SHOW_TIMESTAMP_KEY) !== "false",
-      showLocation: map.get(SHOW_LOCATION_KEY) !== "false",
-    };
-
-    const writing: WritingPreferences = {
-      editorTextSize:
-        (map.get(EDITOR_TEXT_SIZE_KEY) as EditorTextSize) ||
-        DEFAULT_PREFERENCES.writing.editorTextSize,
-    };
-
-    const accessibility: AccessibilityPreferences = {
-      motionLevel:
-        (map.get(MOTION_LEVEL_KEY) as MotionLevel) ||
-        DEFAULT_PREFERENCES.accessibility.motionLevel,
-    };
-
-    const security: SecurityPreferences = {
-      biometricLock: map.get(BIOMETRIC_LOCK_KEY) === "true",
-    };
+    const preferences = parseUserPreferences(map);
 
     return {
       userName,
-      preferences: {
-        appearance,
-        entry,
-        writing,
-        accessibility,
-        security,
-      },
+      preferences,
     };
   });
 }
@@ -176,17 +102,18 @@ export async function setUserName(name: string): Promise<void> {
 }
 
 export {
-  THEME_KEY,
   ACCENT_KEY,
-  FONT_KEY,
-  TEXT_SIZE_KEY,
-  TIMELINE_STYLE_KEY,
-  TIMELINE_DENSITY_KEY,
-  SHOW_LOCATION_KEY,
-  SHOW_TIMESTAMP_KEY,
-  EDITOR_TEXT_SIZE_KEY,
-  MOTION_LEVEL_KEY,
-  BIOMETRIC_LOCK_KEY,
   BACKGROUND_IMAGE_KEY,
   BACKGROUND_IMAGE_OPACITY_KEY,
+  BIOMETRIC_LOCK_KEY,
+  EDITOR_TEXT_SIZE_KEY,
+  FONT_KEY,
+  MOTION_LEVEL_KEY,
+  SHOW_LOCATION_KEY,
+  SHOW_TIMESTAMP_KEY,
+  TEXT_SIZE_KEY,
+  THEME_KEY,
+  TIMELINE_DENSITY_KEY,
+  TIMELINE_STYLE_KEY,
+  USER_NAME_KEY,
 };

@@ -1,12 +1,10 @@
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { StyleSheet, View } from "react-native";
-import { type NativeStackScreenProps } from "@react-navigation/native-stack";
-
-import type { RootStackParamList } from "@/navigation/types";
-import { ACCENT_OPTIONS } from "@/theme/colors";
-import { usePreferences, useTheme, type ThemeMode } from "@/theme";
 import { useProfile } from "@/modules/profile";
 import { SettingsGroup, SettingsRow, SettingsScreenScroll } from "@/modules/settings";
+import type { RootStackParamList } from "@/navigation/types";
 import { APP_VERSION } from "@/shared/utils";
+import { ACCENT_OPTIONS, type ThemeMode, usePreferences, useTheme } from "@/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Settings">;
 

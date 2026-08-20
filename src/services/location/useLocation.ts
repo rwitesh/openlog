@@ -1,7 +1,6 @@
 import { useCallback, useRef, useState } from "react";
-
-import { fetchPlace } from "./location";
 import type { EntryLocation } from "@/shared/types";
+import { fetchPlace } from "./location";
 
 /**
  * Location attach state for the compose screen.
@@ -20,32 +19,35 @@ export function useLocation(initialLocation?: EntryLocation | null) {
   // Bumped on every fetch and on detach so stale responses are safely ignored.
   const fetchId = useRef(0);
 
-  const fetchAndAttach = useCallback(async (promptForPermission = true) => {
-    const id = ++fetchId.current;
-    setLoading(true);
-    setFailed(false);
+  const fetchAndAttach = useCallback(
+    async (promptForPermission = true) => {
+      const id = ++fetchId.current;
+      setLoading(true);
+      setFailed(false);
 
-    try {
-      const loc = await fetchPlace({ prompt: promptForPermission });
-      if (id !== fetchId.current) return;
+      try {
+        const loc = await fetchPlace({ prompt: promptForPermission });
+        if (id !== fetchId.current) return;
 
-      setLoading(false);
-      if (loc) {
-        setPlace(loc);
-        setOn(true);
-        setFailed(false);
-      } else {
-        setFailed(true);
-        if (!place) {
-          setOn(false);
+        setLoading(false);
+        if (loc) {
+          setPlace(loc);
+          setOn(true);
+          setFailed(false);
+        } else {
+          setFailed(true);
+          if (!place) {
+            setOn(false);
+          }
         }
+      } catch {
+        if (id !== fetchId.current) return;
+        setLoading(false);
+        setFailed(true);
       }
-    } catch {
-      if (id !== fetchId.current) return;
-      setLoading(false);
-      setFailed(true);
-    }
-  }, [place]);
+    },
+    [place]
+  );
 
   const request = useCallback(async () => {
     await fetchAndAttach(true);

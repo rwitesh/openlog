@@ -1,12 +1,28 @@
 /** Small, allocation-light date helpers for the timeline. */
 
 const MONTHS_LONG = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 
 const WEEKDAYS_LONG = [
-  "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
 ];
 
 export const DAY_MS = 24 * 60 * 60 * 1000;
@@ -83,12 +99,7 @@ export function withTimeOfDay(dayTs: number, timeTs: number): number {
 }
 
 /** Set hour/minute on a calendar day (12-hour clock). */
-export function withClock(
-  dayTs: number,
-  hour12: number,
-  minute: number,
-  pm: boolean
-): number {
+export function withClock(dayTs: number, hour12: number, minute: number, pm: boolean): number {
   const d = new Date(startOfDay(dayTs));
   let hour24 = hour12 % 12;
   if (hour12 === 12) hour24 = pm ? 12 : 0;
@@ -125,10 +136,7 @@ export function formatDateTime(ts: number): string {
 }
 
 /** Entries that fall on the given calendar day, newest first. */
-export function entriesForDay<T extends { createdAt: number }>(
-  entries: T[],
-  dayTs: number
-): T[] {
+export function entriesForDay<T extends { createdAt: number }>(entries: T[], dayTs: number): T[] {
   const start = startOfDay(dayTs);
   const end = addDays(start, 1);
 
@@ -191,10 +199,7 @@ export function calendarCells(monthTs: number): (number | null)[] {
 }
 
 /** Start-of-day timestamps for timeline entries in the given month. */
-export function entryDaysInMonth(
-  entries: { createdAt: number }[],
-  monthTs: number
-): Set<number> {
+export function entryDaysInMonth(entries: { createdAt: number }[], monthTs: number): Set<number> {
   const start = startOfMonth(monthTs);
   const end = addMonths(monthTs, 1);
   const days = new Set<number>();

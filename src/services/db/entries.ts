@@ -1,7 +1,7 @@
-import { runDb } from "./database";
-import { parseUris } from "./uris";
 import { resolveMediaUriList } from "@/services/media/storage";
 import type { Entry, EntryLocation, NewEntryInput, UpdateEntryInput } from "@/shared/types";
+import { runDb } from "./database";
+import { parseUris } from "./uris";
 
 export interface EntryRecord {
   id: string;
@@ -41,11 +41,7 @@ export function toEntry(row: EntryRecord): Entry {
 }
 
 function locationParams(location?: EntryLocation | null) {
-  return [
-    location?.latitude ?? null,
-    location?.longitude ?? null,
-    location?.name ?? null,
-  ] as const;
+  return [location?.latitude ?? null, location?.longitude ?? null, location?.name ?? null] as const;
 }
 
 /** All entries, newest first. */

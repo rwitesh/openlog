@@ -1,17 +1,11 @@
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useCallback, useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { type NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-import type { RootStackParamList } from "@/navigation/types";
 import { useEntries } from "@/modules/entry";
 import { TimelineSearchLayer } from "@/modules/search";
-import {
-  AddEntryFab,
-  FAB_CLEARANCE,
-  TimelineFeed,
-  TimelineHeader,
-} from "@/modules/timeline";
+import { AddEntryFab, FAB_CLEARANCE, TimelineFeed, TimelineHeader } from "@/modules/timeline";
+import type { RootStackParamList } from "@/navigation/types";
 import { CalendarPicker } from "@/shared/pickers";
 import {
   entriesForMonth,
@@ -20,7 +14,7 @@ import {
   startOfDay,
   startOfMonth,
 } from "@/shared/utils/dates";
-import { timelineContentInset } from "@/theme/spacing";
+import { timelineContentInset } from "@/theme";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "Timeline">;
 
@@ -34,10 +28,7 @@ export function TimelineScreen({ navigation }: { navigation: Nav }) {
   const [searchActive, setSearchActive] = useState(false);
 
   const isCurrentMonth = isSameMonth(viewMonth, Date.now());
-  const monthEntries = useMemo(
-    () => entriesForMonth(entries, viewMonth),
-    [entries, viewMonth]
-  );
+  const monthEntries = useMemo(() => entriesForMonth(entries, viewMonth), [entries, viewMonth]);
 
   const openDay = useCallback(
     (ts: number) => navigation.navigate("Day", { dayTs: startOfDay(ts) }),

@@ -33,9 +33,11 @@
     "react-native-screens": "~4.26.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.9",
     "@types/lodash.debounce": "^4.0.9",
     "@types/react": "~19.2.2",
     "babel-preset-expo": "~57.0.0",
+    "prettier": "^3.9.6",
     "typescript": "~6.0.3"
   },
   "scripts": {
@@ -46,6 +48,10 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
+    "lint": "biome check src App.tsx index.ts",
+    "lint:fix": "biome check --write src App.tsx index.ts",
+    "format": "biome format --write src App.tsx index.ts",
+    "format:check": "biome format src App.tsx index.ts",
     "build:apk": "npx eas-cli@latest build --platform android --profile preview",
     "build:apk:local": "bash scripts/build-apk-local.sh"
   },

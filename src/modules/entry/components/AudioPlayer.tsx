@@ -1,16 +1,11 @@
+import { Feather } from "@expo/vector-icons";
 import { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { Feather } from "@expo/vector-icons";
-
-import { useTheme } from "@/theme";
-import { metrics, space } from "@/theme/spacing";
-import { radius } from "@/theme/theme";
-import { press } from "@/theme/motion";
-import { typography } from "@/theme/typography";
-import { clampRatio } from "@/shared/utils/duration";
 import { usePlayback } from "@/services/audio/usePlayback";
-import { ThemedText } from "@/shared/components/ThemedText";
 import { AudioWaveform } from "@/shared/components/AudioWaveform";
+import { ThemedText } from "@/shared/components/ThemedText";
+import { clampRatio } from "@/shared/utils/duration";
+import { metrics, press, radius, space, typography, useTheme } from "@/theme";
 
 interface AudioPlayerProps {
   uri: string;

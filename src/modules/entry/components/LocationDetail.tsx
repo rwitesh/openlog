@@ -1,15 +1,13 @@
 import { StyleSheet, View } from "react-native";
 
 import {
-  LOCATION_UNAVAILABLE,
   formatLocationCoordinates,
+  LOCATION_UNAVAILABLE,
   locationPlaceTitle,
 } from "@/services/location/location";
-import { useTheme } from "@/theme";
-import { space } from "@/theme/spacing";
-import { FONT_SIZE } from "@/theme/typography";
-import type { EntryLocation } from "@/shared/types";
 import { ThemedText } from "@/shared/components/ThemedText";
+import type { EntryLocation } from "@/shared/types";
+import { FONT_SIZE, space, useTheme } from "@/theme";
 
 interface LocationDetailProps {
   location?: EntryLocation | null;
@@ -23,9 +21,7 @@ export function LocationDetail({ location, labeled = false }: LocationDetailProp
   return (
     <View style={labeled ? styles.row : undefined}>
       {labeled ? (
-        <ThemedText style={[styles.label, { color: colors.textSecondary }]}>
-          Location
-        </ThemedText>
+        <ThemedText style={[styles.label, { color: colors.textSecondary }]}>Location</ThemedText>
       ) : null}
 
       {!location ? (

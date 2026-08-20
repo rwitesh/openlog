@@ -1,5 +1,5 @@
-import { useEffect } from "react";
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
+import { useEffect } from "react";
 
 import { clampRatio, formatDurationMs } from "@/shared/utils/duration";
 import { PLAYBACK_POLL_MS } from "./constants";

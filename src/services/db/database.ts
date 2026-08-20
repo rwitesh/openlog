@@ -141,9 +141,7 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
  * Runs a database operation. Work is serialized to avoid Android NPEs from
  * concurrent open/exec calls during startup or fast refresh.
  */
-export async function runDb<T>(
-  fn: (db: SQLite.SQLiteDatabase) => Promise<T>
-): Promise<T> {
+export async function runDb<T>(fn: (db: SQLite.SQLiteDatabase) => Promise<T>): Promise<T> {
   return withLock(async () => {
     const db = await ensureDatabase();
     return await fn(db);

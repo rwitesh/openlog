@@ -1,9 +1,7 @@
 import { memo } from "react";
 import { StyleSheet, View } from "react-native";
-
-import { useTheme } from "@/theme";
-import { space } from "@/theme/spacing";
 import { ThemedText } from "@/shared/components/ThemedText";
+import { space, useTheme } from "@/theme";
 import type { MonthOverviewStats } from "../types";
 
 interface MonthStatsProps {

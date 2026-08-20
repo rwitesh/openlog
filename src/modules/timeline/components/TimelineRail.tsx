@@ -1,11 +1,7 @@
 import { Pressable, StyleSheet, View, type ViewProps } from "react-native";
-
-import { useEntryPreferences, useTheme } from "@/theme";
-import { space } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
-import { press } from "@/theme/motion";
-import { dayOfMonth } from "@/shared/utils/dates";
 import { ThemedText } from "@/shared/components/ThemedText";
+import { dayOfMonth } from "@/shared/utils/dates";
+import { press, space, typography, useEntryPreferences, useTheme } from "@/theme";
 
 const DOT = 6;
 const MARKER = 30;
@@ -67,10 +63,8 @@ export function TimelineRail({
               style={[
                 styles.dateCircle,
                 {
-                  backgroundColor:
-                    timelineStyle === "clean" ? colors.surfaceMuted : colors.marker,
-                  borderColor:
-                    timelineStyle === "clean" ? colors.separator : colors.marker,
+                  backgroundColor: timelineStyle === "clean" ? colors.surfaceMuted : colors.marker,
+                  borderColor: timelineStyle === "clean" ? colors.separator : colors.marker,
                   borderWidth: timelineStyle === "clean" ? StyleSheet.hairlineWidth : 0,
                 },
               ]}
@@ -80,8 +74,7 @@ export function TimelineRail({
                 style={[
                   styles.dateNum,
                   {
-                    color:
-                      timelineStyle === "clean" ? colors.text : colors.background,
+                    color: timelineStyle === "clean" ? colors.text : colors.background,
                   },
                 ]}
               >
@@ -102,14 +95,7 @@ export function TimelineRail({
         )}
       </View>
 
-      <View
-        style={[
-          styles.content,
-          !isLast && { paddingBottom: bottomPadding },
-        ]}
-      >
-        {children}
-      </View>
+      <View style={[styles.content, !isLast && { paddingBottom: bottomPadding }]}>{children}</View>
     </View>
   );
 }

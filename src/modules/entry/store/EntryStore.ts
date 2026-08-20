@@ -1,22 +1,23 @@
 import { useSyncExternalStore } from "react";
-
-import { deleteMedia, deleteMediaList } from "@/services/media";
 import {
   createEntry,
   deleteAllEntries,
   deleteEntry,
   getEntries,
-  updateEntry,
   type NewEntryInput,
   type UpdateEntryInput,
+  updateEntry,
 } from "@/services/db/entries";
+import { deleteMedia, deleteMediaList } from "@/services/media";
 import type { Entry } from "@/shared/types";
 
 let entries: Entry[] = [];
 const listeners = new Set<() => void>();
 
 function emit() {
-  listeners.forEach((listener) => listener());
+  listeners.forEach((listener) => {
+    listener();
+  });
 }
 
 function subscribe(listener: () => void) {
@@ -46,9 +47,7 @@ export async function addEntry(input: NewEntryInput) {
 
 export async function patchEntry(id: string, input: UpdateEntryInput) {
   const entry = await updateEntry(id, input);
-  entries = sortNewestFirst(
-    entries.map((existing) => (existing.id === id ? entry : existing))
-  );
+  entries = sortNewestFirst(entries.map((existing) => (existing.id === id ? entry : existing)));
   emit();
   return entry;
 }

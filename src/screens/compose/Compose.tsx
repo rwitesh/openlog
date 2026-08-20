@@ -1,10 +1,7 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Pressable, View, type TextInput } from "react-native";
-import { type NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
-
-import type { RootStackParamList } from "@/navigation/types";
-import { EntryDetailsModal, useEntries } from "@/modules/entry";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Pressable, type TextInput, View } from "react-native";
 import {
   ComposeAttachments,
   ComposeEditor,
@@ -13,12 +10,12 @@ import {
   useComposeDraft,
   useMediaAttachments,
 } from "@/modules/compose";
-import { withTimeOfDay } from "@/shared/utils/dates";
+import { EntryDetailsModal, useEntries } from "@/modules/entry";
+import type { RootStackParamList } from "@/navigation/types";
 import { Layout, useKeepFocus } from "@/shared/components/Layout";
 import { CalendarPicker, TimePicker } from "@/shared/pickers";
-import { useTheme } from "@/theme";
-import { metrics, space } from "@/theme/spacing";
-import { press } from "@/theme/motion";
+import { withTimeOfDay } from "@/shared/utils/dates";
+import { metrics, press, space, useTheme } from "@/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Compose">;
 
@@ -26,7 +23,9 @@ export function ComposeScreen({ navigation, route }: Props) {
   const { colors } = useTheme().theme;
 
   const entryId = route.params?.entryId;
-  const [mode, setMode] = useState<"view" | "edit">(route.params?.mode ?? (entryId ? "view" : "edit"));
+  const [mode, setMode] = useState<"view" | "edit">(
+    route.params?.mode ?? (entryId ? "view" : "edit")
+  );
   const isReadOnly = Boolean(entryId && mode === "view");
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [timePickerOpen, setTimePickerOpen] = useState(false);
@@ -71,7 +70,11 @@ export function ComposeScreen({ navigation, route }: Props) {
               accessibilityRole="button"
               accessibilityLabel="Entry details"
             >
-              <Feather name="more-vertical" size={metrics.iconSm + 2} color={colors.textSecondary} />
+              <Feather
+                name="more-vertical"
+                size={metrics.iconSm + 2}
+                color={colors.textSecondary}
+              />
             </Pressable>
           </View>
         ),

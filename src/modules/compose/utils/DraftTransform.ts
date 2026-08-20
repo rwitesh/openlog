@@ -1,5 +1,5 @@
-import type { NewEntryInput } from "@/shared/types";
 import { persistMedia } from "@/services/media/storage";
+import type { NewEntryInput } from "@/shared/types";
 import type { Draft } from "../types";
 
 export function canSaveDraft(draft: Draft): boolean {

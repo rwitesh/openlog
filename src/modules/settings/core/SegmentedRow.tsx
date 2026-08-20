@@ -1,7 +1,6 @@
 import { Pressable, StyleSheet, View } from "react-native";
-import { useTheme } from "@/theme";
-import { press } from "@/theme/motion";
 import { ThemedText } from "@/shared/components/ThemedText";
+import { press, useTheme } from "@/theme";
 
 export interface SegmentItem<T> {
   id: T;
@@ -32,10 +31,7 @@ export function SegmentedRow<T extends string>({
             onPress={() => onSelect(item.id)}
             style={({ pressed }) => [
               styles.segmentItem,
-              isSelected && [
-                styles.segmentItemSelected,
-                { backgroundColor: colors.surface },
-              ],
+              isSelected && [styles.segmentItemSelected, { backgroundColor: colors.surface }],
               pressed && press,
             ]}
             accessibilityRole="button"

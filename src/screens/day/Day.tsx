@@ -1,13 +1,12 @@
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useLayoutEffect, useMemo } from "react";
 import { StyleSheet, View } from "react-native";
-import { type NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-import type { RootStackParamList } from "@/navigation/types";
 import { useEntries } from "@/modules/entry";
 import { AddEntryFab, FAB_CLEARANCE, TimelineFeed } from "@/modules/timeline";
+import type { RootStackParamList } from "@/navigation/types";
 import { entriesForDay, formatHeaderDate, isSameDay } from "@/shared/utils/dates";
-import { space } from "@/theme/spacing";
+import { space } from "@/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Day">;
 

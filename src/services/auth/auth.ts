@@ -1,5 +1,5 @@
-import { Platform } from "react-native";
 import * as LocalAuthentication from "expo-local-authentication";
+import { Platform } from "react-native";
 
 /**
  * Hardware capability snapshot for the biometric lock feature.

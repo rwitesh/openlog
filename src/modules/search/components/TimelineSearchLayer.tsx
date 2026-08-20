@@ -2,8 +2,7 @@ import { useEffect, useRef } from "react";
 import { Animated, BackHandler, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useTheme } from "@/theme";
-import { space } from "@/theme/spacing";
+import { space, useTheme } from "@/theme";
 import { useEntrySearch } from "../hooks/useEntrySearch";
 import { SearchBar } from "./SearchBar";
 import { SearchResultsFeed } from "./SearchResultsFeed";
@@ -24,9 +23,7 @@ export function TimelineSearchLayer({ onClose, onOpenEntry }: TimelineSearchLaye
   const { motion, colors } = theme;
   const { query, setQuery, results, searching } = useEntrySearch();
 
-  const opacity = useRef(
-    new Animated.Value(motion.level === "reduced" ? 1 : 0)
-  ).current;
+  const opacity = useRef(new Animated.Value(motion.level === "reduced" ? 1 : 0)).current;
 
   useEffect(() => {
     if (motion.level === "reduced") return;

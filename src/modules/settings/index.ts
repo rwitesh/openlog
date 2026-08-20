@@ -1,22 +1,13 @@
-/* Generic building blocks shared by every settings screen. */
-export * from "./core/SettingsRow";
-export * from "./core/SettingsGroup";
-export * from "./core/SettingsScreenScroll";
-export * from "./core/SettingsEditorScreen";
-export * from "./core/SegmentedRow";
-export * from "./core/ToggleRow";
+/* Generic building blocks shared by settings screens. */
 
-/* Feature editors — one per settings concern, composed onto editor screens. */
+/* Shared live preview component. */
 export * from "./components/LiveThemePreview";
-export * from "./components/ProfileSection";
-export * from "./components/ThemeSection";
-export * from "./components/AccentSection";
-export * from "./components/TypographySection";
-export * from "./components/TimelineSection";
-export * from "./components/BackgroundSection";
-export * from "./components/AccessibilitySection";
-export * from "./components/PrivacySection";
-export * from "./components/DataSection";
+export * from "./core/SegmentedRow";
+export * from "./core/SettingsEditorScreen";
+export * from "./core/SettingsGroup";
+export * from "./core/SettingsRow";
+export * from "./core/SettingsScreenScroll";
+export * from "./core/ToggleRow";
 
 /* Shared behavior. */
 export * from "./utils/confirm";

@@ -1,9 +1,7 @@
-import { type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
-
-import { useTheme } from "@/theme";
-import { space } from "@/theme/spacing";
 import { ThemedText } from "@/shared/components/ThemedText";
+import { space, useTheme } from "@/theme";
 
 /** Labelled group of rows — the vertical rhythm unit of the settings list. */
 export function SettingsGroup({
@@ -19,10 +17,7 @@ export function SettingsGroup({
   return (
     <View style={styles.group}>
       {label ? (
-        <ThemedText
-          weight="medium"
-          style={[styles.label, { color: theme.colors.textSecondary }]}
-        >
+        <ThemedText weight="medium" style={[styles.label, { color: theme.colors.textSecondary }]}>
           {label}
         </ThemedText>
       ) : null}

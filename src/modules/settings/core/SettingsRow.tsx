@@ -1,12 +1,8 @@
-import { type ReactNode } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
-
-import { useTheme } from "@/theme";
-import { space } from "@/theme/spacing";
-import { radius } from "@/theme/theme";
-import { press } from "@/theme/motion";
+import type { ReactNode } from "react";
+import { Pressable, StyleSheet, View } from "react-native";
 import { ThemedText } from "@/shared/components/ThemedText";
+import { press, radius, space, useTheme } from "@/theme";
 
 interface SettingsRowProps {
   icon: keyof typeof Feather.glyphMap;
@@ -67,10 +63,7 @@ export function SettingsRow({
           <ThemedText weight="semibold" style={[styles.title, { color: colors.text }]}>
             {title}
           </ThemedText>
-          <ThemedText
-            style={[styles.subtitle, { color: colors.textSecondary }]}
-            numberOfLines={1}
-          >
+          <ThemedText style={[styles.subtitle, { color: colors.textSecondary }]} numberOfLines={1}>
             {subtitle}
           </ThemedText>
         </View>

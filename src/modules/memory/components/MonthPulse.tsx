@@ -1,14 +1,10 @@
+import { Feather } from "@expo/vector-icons";
 import { memo, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { Feather } from "@expo/vector-icons";
-
-import type { MonthPulseData, PulseDay } from "../types";
-import { formatHeaderDate } from "@/shared/utils/dates";
-import { useTheme } from "@/theme";
-import { metrics, space } from "@/theme/spacing";
-import { radius } from "@/theme/theme";
-import { press } from "@/theme/motion";
 import { ThemedText } from "@/shared/components/ThemedText";
+import { formatHeaderDate } from "@/shared/utils/dates";
+import { metrics, press, radius, space, useTheme } from "@/theme";
+import type { MonthPulseData, PulseDay } from "../types";
 
 const SKYLINE_HEIGHT = 74;
 const MIN_BAR_HEIGHT = 6;
@@ -24,8 +20,7 @@ function MonthPulseBase({ data, onOpenDay }: MonthPulseProps) {
   const dark = resolvedMode === "dark";
 
   // Default to first active day with moments, or first day of month
-  const defaultSelected =
-    data.days.find((d) => d.momentCount > 0) ?? data.days[0] ?? null;
+  const defaultSelected = data.days.find((d) => d.momentCount > 0) ?? data.days[0] ?? null;
   const [selectedDay, setSelectedDay] = useState<PulseDay | null>(defaultSelected);
 
   return (
@@ -144,9 +139,7 @@ function MonthPulseBase({ data, onOpenDay }: MonthPulseProps) {
                     selectedDay.audioCount > 0
                       ? `${selectedDay.audioCount} ${selectedDay.audioCount === 1 ? "recording" : "recordings"}`
                       : null,
-                    selectedDay.places.length > 0
-                      ? selectedDay.places.join(", ")
-                      : null,
+                    selectedDay.places.length > 0 ? selectedDay.places.join(", ") : null,
                   ]
                     .filter(Boolean)
                     .join(" · ")}

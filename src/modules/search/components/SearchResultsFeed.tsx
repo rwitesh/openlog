@@ -1,9 +1,7 @@
 import { FlatList, StyleSheet, View } from "react-native";
-
-import type { EntrySearchResult } from "@/shared/types";
-import { useTheme } from "@/theme";
-import { space } from "@/theme/spacing";
 import { ThemedText } from "@/shared/components/ThemedText";
+import type { EntrySearchResult } from "@/shared/types";
+import { space, useTheme } from "@/theme";
 import { SearchResultRow } from "./SearchResultRow";
 
 const MIN_QUERY_LENGTH = 2;
@@ -66,13 +64,9 @@ export function SearchResultsFeed({
       style={styles.list}
       data={results}
       keyExtractor={(item) => item.entry.id}
-      renderItem={({ item }) => (
-        <SearchResultRow result={item} onOpen={onOpenEntry} />
-      )}
+      renderItem={({ item }) => <SearchResultRow result={item} onOpen={onOpenEntry} />}
       ItemSeparatorComponent={() => (
-        <View
-          style={[styles.separator, { backgroundColor: theme.colors.separator }]}
-        />
+        <View style={[styles.separator, { backgroundColor: theme.colors.separator }]} />
       )}
       contentContainerStyle={[
         styles.content,

@@ -1,15 +1,21 @@
-import type { Entry } from "@/shared/types";
-import {
-  dayOfMonth,
-  getMonthEntries,
-  startOfMonth,
-} from "@/shared/utils/dates";
 import { locationPlaceTitle } from "@/services/location/location";
+import type { Entry } from "@/shared/types";
+import { dayOfMonth, getMonthEntries, startOfMonth } from "@/shared/utils/dates";
 import type { MonthOverviewStats, MonthPulseData, PulseDay } from "../types";
 
 const MONTH_NAMES_UPPER = [
-  "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE",
-  "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"
+  "JANUARY",
+  "FEBRUARY",
+  "MARCH",
+  "APRIL",
+  "MAY",
+  "JUNE",
+  "JULY",
+  "AUGUST",
+  "SEPTEMBER",
+  "OCTOBER",
+  "NOVEMBER",
+  "DECEMBER",
 ];
 
 /** Count total photos in a list of entries (sum of image uris). */

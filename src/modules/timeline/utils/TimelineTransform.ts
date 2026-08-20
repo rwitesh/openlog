@@ -3,10 +3,7 @@ import { startOfDay } from "@/shared/utils/dates";
 import type { TimelineItem } from "../types";
 
 /** Newest-first timeline rows. Date circles appear on the first entry of each day. */
-export function toTimelineItems(
-  entries: Entry[],
-  showDates: boolean
-): TimelineItem[] {
+export function toTimelineItems(entries: Entry[], showDates: boolean): TimelineItem[] {
   if (!entries.length) return [];
 
   const items: TimelineItem[] = [];

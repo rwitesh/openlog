@@ -1,7 +1,7 @@
-import { runDb } from "./database";
-import { toEntry, type EntryRecord } from "./entries";
-import { logDevWarning } from "@/shared/utils/devLog";
 import type { EntrySearchResult } from "@/shared/types";
+import { logDevWarning } from "@/shared/utils/devLog";
+import { runDb } from "./database";
+import { type EntryRecord, toEntry } from "./entries";
 
 /** Match markers embedded in snippets by the SQL below; the UI splits on them to highlight. */
 export const SNIPPET_MARK_START = "\u0001";
@@ -58,8 +58,8 @@ export async function searchEntries(
 
       return rows.map((row) => ({
         entry: toEntry(row),
-        snippet: row.text ? row.text_snippet ?? "" : "",
-        locationSnippet: row.location_name ? row.location_snippet ?? "" : "",
+        snippet: row.text ? (row.text_snippet ?? "") : "",
+        locationSnippet: row.location_name ? (row.location_snippet ?? "") : "",
       }));
     } catch (error) {
       // Defensive: a malformed MATCH expression must never crash the timeline.

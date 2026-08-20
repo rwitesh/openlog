@@ -1,7 +1,6 @@
 import { Text, type TextProps } from "react-native";
 
-import { useTheme } from "@/theme";
-import { fontFamily, type FontWeight } from "@/theme/typography";
+import { type FontWeight, fontFamily, useTheme } from "@/theme";
 
 export interface ThemedTextProps extends TextProps {
   weight?: FontWeight;

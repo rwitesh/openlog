@@ -1,7 +1,6 @@
 import { StyleSheet } from "react-native";
 
-import { metrics, space } from "@/theme/spacing";
-import { radius } from "@/theme/theme";
+import { metrics, radius, space } from "@/theme";
 
 export const chip = StyleSheet.create({
   base: {

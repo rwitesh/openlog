@@ -57,10 +57,7 @@ export function locationAccessibilityLabel(location: EntryLocation): string {
   return `${locationPlaceTitle(location)}, ${formatLocationCoordinates(location)}`;
 }
 
-async function reverseGeocode(
-  latitude: number,
-  longitude: number
-): Promise<string | undefined> {
+async function reverseGeocode(latitude: number, longitude: number): Promise<string | undefined> {
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
       const places = await Location.reverseGeocodeAsync({ latitude, longitude });
@@ -115,7 +112,9 @@ async function readPosition(): Promise<Location.LocationObject | null> {
  *
  * `prompt: true` requests OS permission if not yet granted.
  */
-export async function fetchPlace(options: { prompt?: boolean } = {}): Promise<EntryLocation | null> {
+export async function fetchPlace(
+  options: { prompt?: boolean } = {}
+): Promise<EntryLocation | null> {
   const { prompt = false } = options;
 
   let permission = await Location.getForegroundPermissionsAsync();

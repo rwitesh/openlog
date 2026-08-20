@@ -1,11 +1,8 @@
-import { Image, StyleSheet, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
-
-import { useEntryPreferences, useTheme } from "@/theme";
-import { space } from "@/theme/spacing";
-import { radius } from "@/theme/theme";
-import { ThemedText } from "@/shared/components/ThemedText";
+import { Image, StyleSheet, View } from "react-native";
 import { TimelineRail } from "@/modules/timeline/components/TimelineRail";
+import { ThemedText } from "@/shared/components/ThemedText";
+import { radius, space, useEntryPreferences, useTheme } from "@/theme";
 
 // Stable mock timestamp for predictable preview rendering (15th of the month).
 const MOCK_DAY_TS = 1715767200000;
@@ -55,9 +52,7 @@ export function LiveThemePreview() {
                 </ThemedText>
               ) : null}
               {showTimestamp && showLocation ? (
-                <ThemedText style={[styles.metaDot, { color: colors.textTertiary }]}>
-                  ·
-                </ThemedText>
+                <ThemedText style={[styles.metaDot, { color: colors.textTertiary }]}>·</ThemedText>
               ) : null}
               {showLocation ? (
                 <ThemedText
@@ -90,9 +85,7 @@ export function LiveThemePreview() {
                 </ThemedText>
               ) : null}
               {showTimestamp && showLocation ? (
-                <ThemedText style={[styles.metaDot, { color: colors.textTertiary }]}>
-                  ·
-                </ThemedText>
+                <ThemedText style={[styles.metaDot, { color: colors.textTertiary }]}>·</ThemedText>
               ) : null}
               {showLocation ? (
                 <ThemedText
@@ -118,9 +111,6 @@ export function LiveThemePreview() {
 
 const styles = StyleSheet.create({
   outerContainer: {
-    // Fixed height so density/size toggles (which change rail spacing and
-    // line height) never shift the editor below. 232 fits the worst case:
-    // generous text + comfortable density.
     height: 232,
     borderRadius: radius.md,
     borderWidth: StyleSheet.hairlineWidth,

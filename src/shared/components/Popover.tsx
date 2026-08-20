@@ -1,15 +1,6 @@
-import {
-  Modal,
-  Pressable,
-  StyleSheet,
-  View,
-  type StyleProp,
-  type ViewStyle,
-} from "react-native";
+import { Modal, Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from "react-native";
 
-import { useTheme } from "@/theme";
-import { space } from "@/theme/spacing";
-import { radius } from "@/theme/theme";
+import { radius, space, useTheme } from "@/theme";
 
 interface PopoverProps {
   visible: boolean;

@@ -1,15 +1,11 @@
 import { memo } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-
-import type { EntrySearchResult } from "@/shared/types";
-import { useEntryPreferences, useTheme } from "@/theme";
-import { press } from "@/theme/motion";
-import { space } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
-import { formatSearchWhen } from "@/shared/utils/dates";
-import { locationPlaceTitle } from "@/services/location/location";
 import { entryContentTypeLabel } from "@/modules/entry";
+import { locationPlaceTitle } from "@/services/location/location";
 import { ThemedText } from "@/shared/components/ThemedText";
+import type { EntrySearchResult } from "@/shared/types";
+import { formatSearchWhen } from "@/shared/utils/dates";
+import { press, space, typography, useEntryPreferences, useTheme } from "@/theme";
 import { hasSnippetMatch } from "../utils/highlight";
 import { SearchHighlight } from "./SearchHighlight";
 
@@ -36,10 +32,7 @@ function SearchResultRowBase({ result, onOpen }: SearchResultRowProps) {
       accessibilityRole="button"
     >
       <View style={styles.metaRow}>
-        <ThemedText
-          weight="medium"
-          style={[styles.metaText, { color: colors.textSecondary }]}
-        >
+        <ThemedText weight="medium" style={[styles.metaText, { color: colors.textSecondary }]}>
           {formatSearchWhen(entry.createdAt)}
         </ThemedText>
 
@@ -60,10 +53,7 @@ function SearchResultRowBase({ result, onOpen }: SearchResultRowProps) {
       {hasText ? (
         <SearchHighlight snippet={snippet} numberOfLines={3} />
       ) : (
-        <ThemedText
-          style={[styles.fallback, { color: colors.textSecondary }]}
-          numberOfLines={1}
-        >
+        <ThemedText style={[styles.fallback, { color: colors.textSecondary }]} numberOfLines={1}>
           {entryContentTypeLabel(entry)}
         </ThemedText>
       )}

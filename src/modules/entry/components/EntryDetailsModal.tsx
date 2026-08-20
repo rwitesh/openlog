@@ -1,18 +1,13 @@
-import { Alert, Pressable, StyleSheet, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import type { ComponentProps } from "react";
-
-import type { Entry } from "@/shared/types";
-import { useTheme } from "@/theme";
-import { metrics, space } from "@/theme/spacing";
-import { radius } from "@/theme/theme";
-import { FONT_SIZE } from "@/theme/typography";
-import { press } from "@/theme/motion";
-import { formatDateTime } from "@/shared/utils/dates";
-import { entryContentTypeLabel } from "../utils/EntryLabels";
-import { LocationDetail } from "./LocationDetail";
+import { Alert, Pressable, StyleSheet, View } from "react-native";
 import { Sheet } from "@/shared/components/Sheet";
 import { ThemedText } from "@/shared/components/ThemedText";
+import type { Entry } from "@/shared/types";
+import { formatDateTime } from "@/shared/utils/dates";
+import { FONT_SIZE, metrics, press, radius, space, useTheme } from "@/theme";
+import { entryContentTypeLabel } from "../utils/EntryLabels";
+import { LocationDetail } from "./LocationDetail";
 
 interface DetailsProps {
   entry: Entry;
@@ -27,9 +22,7 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 
   return (
     <View style={styles.row}>
-      <ThemedText style={[styles.label, { color: theme.colors.textSecondary }]}>
-        {label}
-      </ThemedText>
+      <ThemedText style={[styles.label, { color: theme.colors.textSecondary }]}>{label}</ThemedText>
       <ThemedText style={[styles.value, { color: theme.colors.text }]}>{value}</ThemedText>
     </View>
   );
@@ -58,13 +51,7 @@ function ActionIcon({ icon, label, onPress, color, backgroundColor }: ActionIcon
   );
 }
 
-export function EntryDetailsModal({
-  entry,
-  visible,
-  onClose,
-  onEdit,
-  onDelete,
-}: DetailsProps) {
+export function EntryDetailsModal({ entry, visible, onClose, onEdit, onDelete }: DetailsProps) {
   const { theme } = useTheme();
   const { colors } = theme;
 
@@ -93,7 +80,9 @@ export function EntryDetailsModal({
         Entry details
       </ThemedText>
 
-      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.separator }]}>
+      <View
+        style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.separator }]}
+      >
         <DetailRow label="Created" value={formatDateTime(entry.createdAt)} />
         <View style={[styles.divider, { backgroundColor: colors.separator }]} />
         <DetailRow label="Updated" value={formatDateTime(entry.updatedAt)} />

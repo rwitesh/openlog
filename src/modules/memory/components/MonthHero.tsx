@@ -1,10 +1,7 @@
 import { memo } from "react";
 import { StyleSheet, View } from "react-native";
-
-import { usePreferences, useTheme } from "@/theme";
-import { space } from "@/theme/spacing";
-import { fontFamily } from "@/theme/typography";
 import { ThemedText } from "@/shared/components/ThemedText";
+import { fontFamily, space, usePreferences, useTheme } from "@/theme";
 import type { MonthOverviewStats } from "../types";
 
 interface MonthHeroProps {
@@ -30,18 +27,12 @@ function MonthHeroBase({ stats }: MonthHeroProps) {
         >
           {stats.monthNameUpper}
         </ThemedText>
-        <ThemedText
-          weight="medium"
-          style={[styles.yearNumber, { color: colors.textSecondary }]}
-        >
+        <ThemedText weight="medium" style={[styles.yearNumber, { color: colors.textSecondary }]}>
           {stats.yearNumber}
         </ThemedText>
       </View>
 
-      <ThemedText
-        weight="medium"
-        style={[styles.momentCount, { color: colors.text }]}
-      >
+      <ThemedText weight="medium" style={[styles.momentCount, { color: colors.text }]}>
         {stats.momentCount === 0
           ? "A quiet month"
           : `${stats.momentCount} ${stats.momentCount === 1 ? "moment" : "moments"}`}

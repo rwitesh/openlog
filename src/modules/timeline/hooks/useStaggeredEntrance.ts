@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Animated } from "react-native";
 
-import { motion } from "@/theme/motion";
+import { motion } from "@/theme";
 
 export function useStaggeredEntrance(offsets: number[]) {
   const values = useRef(offsets.map(() => new Animated.Value(0))).current;

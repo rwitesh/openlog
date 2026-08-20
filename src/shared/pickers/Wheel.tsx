@@ -1,17 +1,14 @@
 import { useRef } from "react";
 import {
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   Pressable,
   ScrollView,
   StyleSheet,
   View,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
 } from "react-native";
-
-import { useTheme } from "@/theme";
-import { space } from "@/theme/spacing";
-import { typography } from "@/theme/typography";
 import { ThemedText } from "@/shared/components/ThemedText";
+import { space, typography, useTheme } from "@/theme";
 
 const ITEM_HEIGHT = 40;
 const VISIBLE = 5;

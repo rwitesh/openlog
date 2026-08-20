@@ -1,12 +1,7 @@
-import { Pressable, StyleSheet, TextInput, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
-
-import { useTheme } from "@/theme";
-import { press } from "@/theme/motion";
-import { metrics, space } from "@/theme/spacing";
-import { radius } from "@/theme/theme";
-import { fontFamily, typography } from "@/theme/typography";
+import { Pressable, StyleSheet, TextInput, View } from "react-native";
 import { ThemedText } from "@/shared/components/ThemedText";
+import { fontFamily, metrics, press, radius, space, typography, useTheme } from "@/theme";
 
 interface SearchBarProps {
   value: string;

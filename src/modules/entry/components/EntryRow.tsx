@@ -1,24 +1,19 @@
-import { memo, useEffect, useRef, useState } from "react";
-import { Alert, Animated, Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { Image } from "expo-image";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-
-import type { Entry } from "@/shared/types";
+import { Image } from "expo-image";
+import { memo, useEffect, useRef, useState } from "react";
+import { Alert, Animated, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import type { RootStackParamList } from "@/navigation/types";
-import { useEntries } from "../store/EntryStore";
-import { useEntryPreferences, useTheme } from "@/theme";
-import { press } from "@/theme/motion";
-import { space } from "@/theme/spacing";
-import { radius } from "@/theme/theme";
-import { typography } from "@/theme/typography";
-import { formatTime } from "@/shared/utils/dates";
 import { locationPlaceTitle } from "@/services/location/location";
-import { AudioPlayer } from "./AudioPlayer";
 import { ThemedText } from "@/shared/components/ThemedText";
+import type { Entry } from "@/shared/types";
+import { formatTime } from "@/shared/utils/dates";
+import { press, radius, space, typography, useEntryPreferences, useTheme } from "@/theme";
+import { useEntries } from "../store/EntryStore";
+import { AudioPlayer } from "./AudioPlayer";
 import { EntryDetailsModal } from "./EntryDetailsModal";
-import { ImageViewerModal } from "./ImageViewerModal";
 import { EntryMenuButton } from "./EntryMenuButton";
+import { ImageViewerModal } from "./ImageViewerModal";
 
 interface EntryRowProps {
   entry: Entry;
@@ -31,7 +26,9 @@ function EntryRowBase({ entry, animate }: EntryRowProps) {
   const { removeEntry, removeImage } = useEntries();
   const { colors, motion } = theme;
   const opacity = useRef(new Animated.Value(animate && motion.level !== "reduced" ? 0 : 1)).current;
-  const translateY = useRef(new Animated.Value(animate && motion.level !== "reduced" ? 10 : 0)).current;
+  const translateY = useRef(
+    new Animated.Value(animate && motion.level !== "reduced" ? 10 : 0)
+  ).current;
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [imageViewerOpen, setImageViewerOpen] = useState(false);
   const [imageViewerIndex, setImageViewerIndex] = useState(0);
@@ -117,9 +114,7 @@ function EntryRowBase({ entry, animate }: EntryRowProps) {
               </ThemedText>
             ) : null}
             {showTime && showLoc ? (
-              <ThemedText style={[styles.metaDot, { color: colors.textTertiary }]}>
-                ·
-              </ThemedText>
+              <ThemedText style={[styles.metaDot, { color: colors.textTertiary }]}>·</ThemedText>
             ) : null}
             {showLoc ? (
               <ThemedText
@@ -164,10 +159,7 @@ function EntryRowBase({ entry, animate }: EntryRowProps) {
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={[
-                styles.imageRow,
-                hasText ? styles.imageAfterText : undefined,
-              ]}
+              contentContainerStyle={[styles.imageRow, hasText ? styles.imageAfterText : undefined]}
             >
               {images.map((uri, index) => (
                 <Pressable
@@ -190,7 +182,9 @@ function EntryRowBase({ entry, animate }: EntryRowProps) {
         ) : null}
 
         {hasAudio ? (
-          <View style={[styles.audioList, hasText || hasImages ? styles.audioAfterContent : undefined]}>
+          <View
+            style={[styles.audioList, hasText || hasImages ? styles.audioAfterContent : undefined]}
+          >
             {audios.map((uri, index) => (
               <AudioPlayer key={`${uri}-${index}`} uri={uri} />
             ))}

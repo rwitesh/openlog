@@ -1,13 +1,9 @@
+import { Feather } from "@expo/vector-icons";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { Feather } from "@expo/vector-icons";
-
+import { Sheet } from "@/shared/components/Sheet";
+import { ThemedText } from "@/shared/components/ThemedText";
 import type { Entry } from "@/shared/types";
-import { useTheme } from "@/theme";
-import { metrics, space } from "@/theme/spacing";
-import { radius } from "@/theme/theme";
-import { press } from "@/theme/motion";
-import { FONT_SIZE } from "@/theme/typography";
 import {
   addMonths,
   calendarCells,
@@ -16,8 +12,7 @@ import {
   isSameDay,
   startOfMonth,
 } from "@/shared/utils/dates";
-import { Sheet } from "@/shared/components/Sheet";
-import { ThemedText } from "@/shared/components/ThemedText";
+import { FONT_SIZE, metrics, press, radius, space, useTheme } from "@/theme";
 
 const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
 const CELL_GAP = space.sm;
@@ -58,15 +53,11 @@ function CalendarDay({
         accessibilityLabel={new Date(dayTs).toDateString()}
         accessibilityState={{ selected }}
       >
-        <ThemedText
-          style={[styles.dayNum, { color: selected ? colors.background : colors.text }]}
-        >
+        <ThemedText style={[styles.dayNum, { color: selected ? colors.background : colors.text }]}>
           {new Date(dayTs).getDate()}
         </ThemedText>
 
-        {showEntryDot ? (
-          <View style={[styles.dot, { backgroundColor: colors.marker }]} />
-        ) : null}
+        {showEntryDot ? <View style={[styles.dot, { backgroundColor: colors.marker }]} /> : null}
       </Pressable>
     </View>
   );
@@ -87,10 +78,7 @@ export function CalendarPicker({
     setViewMonth(startOfMonth(selectedDate));
   }, [visible, selectedDate]);
 
-  const entryDays = useMemo(
-    () => entryDaysInMonth(entries, viewMonth),
-    [entries, viewMonth]
-  );
+  const entryDays = useMemo(() => entryDaysInMonth(entries, viewMonth), [entries, viewMonth]);
 
   const cells = calendarCells(viewMonth);
 

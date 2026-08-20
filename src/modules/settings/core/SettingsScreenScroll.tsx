@@ -1,9 +1,8 @@
-import { type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useTheme } from "@/theme";
-import { space } from "@/theme/spacing";
+import { space, useTheme } from "@/theme";
 
 /** Shared scroll scaffold for list-style settings screens (hub, categories). */
 export function SettingsScreenScroll({ children }: { children: ReactNode }) {

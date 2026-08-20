@@ -7,8 +7,8 @@
  * lock lifecycle itself lives in `useAppLock`.
  */
 
-import type { ReactNode } from "react";
 import { StatusBar } from "expo-status-bar";
+import type { ReactNode } from "react";
 
 import { useAppLock } from "@/services/auth";
 import { usePreferences, useTheme } from "@/theme";

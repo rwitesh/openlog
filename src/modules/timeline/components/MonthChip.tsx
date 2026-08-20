@@ -1,11 +1,8 @@
-import { Animated, Pressable, StyleSheet } from "react-native";
 import { Feather } from "@expo/vector-icons";
-
-import type { ThemeColors } from "@/theme/colors";
-import { useTheme } from "@/theme";
-import { metrics, sectionGap, space } from "@/theme/spacing";
-import { usePressScale } from "../hooks/usePressScale";
+import { Animated, Pressable, StyleSheet } from "react-native";
 import { ThemedText } from "@/shared/components/ThemedText";
+import { metrics, sectionGap, space, type ThemeColors, useTheme } from "@/theme";
+import { usePressScale } from "../hooks/usePressScale";
 
 interface MonthChipProps {
   label: string;
@@ -39,7 +36,10 @@ export function MonthChip({ label, dark, colors, onPress }: MonthChipProps) {
         accessibilityLabel={`${label}, explore memories`}
         accessibilityRole="button"
       >
-        <ThemedText weight="semibold" style={[theme.typography.headerMonth, { color: colors.text }]}>
+        <ThemedText
+          weight="semibold"
+          style={[theme.typography.headerMonth, { color: colors.text }]}
+        >
           {label}
         </ThemedText>
         <Feather name="chevron-down" size={metrics.iconSm} color={colors.textSecondary} />

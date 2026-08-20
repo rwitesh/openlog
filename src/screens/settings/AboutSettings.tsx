@@ -1,11 +1,8 @@
 import { Image, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-import { useTheme } from "@/theme";
-import { space } from "@/theme/spacing";
-import { radius } from "@/theme/theme";
 import { ThemedText } from "@/shared/components/ThemedText";
 import { APP_VERSION } from "@/shared/utils";
+import { radius, space, useTheme } from "@/theme";
 
 /** About — app identity centered on the page: icon, name, version. */
 export function AboutSettingsScreen() {
