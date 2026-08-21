@@ -8,9 +8,10 @@ import {
   SettingsScreenScroll,
 } from "@/modules/settings";
 import type { RootStackParamList } from "@/navigation/types";
+import { APP_NAME } from "@/shared/constants";
 import { ThemedText } from "@/shared/components/ThemedText";
 import { ACCENT_OPTIONS, DEFAULT_FONT_FAMILY, usePreferences, useTheme } from "@/theme";
-import { KIZUNA_BACKGROUNDS } from "./AppearanceEditors";
+import { CURATED_BACKGROUNDS } from "./AppearanceEditors";
 
 type Props = NativeStackScreenProps<RootStackParamList, "SettingsAppearance">;
 
@@ -27,7 +28,9 @@ export function AppearanceSettingsScreen({ navigation }: Props) {
   const activeFont = appearance.fontFamily || DEFAULT_FONT_FAMILY;
   const currentAccent = ACCENT_OPTIONS.find((a) => a.id === appearance.accent) ?? ACCENT_OPTIONS[0];
   const accentColor = isDark ? currentAccent.colorDark : currentAccent.colorLight;
-  const matchedBackground = KIZUNA_BACKGROUNDS.find((p) => p.uri === appearance.backgroundImageUri);
+  const matchedBackground = CURATED_BACKGROUNDS.find(
+    (p) => p.uri === appearance.backgroundImageUri
+  );
 
   const themeSummary =
     appearance.mode === "light"
@@ -47,7 +50,7 @@ export function AppearanceSettingsScreen({ navigation }: Props) {
   const handleReset = () =>
     confirmDestructive(
       "Reset Appearance?",
-      "This will restore Kizuna's default theme, background, accent, and typography back to their canonical defaults.",
+      `This will restore ${APP_NAME}'s default theme, background, accent, and typography back to their canonical defaults.`,
       "Reset to Defaults",
       async () => resetAppearanceDefaults()
     );

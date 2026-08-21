@@ -107,8 +107,8 @@ async function readPosition(): Promise<Location.LocationObject | null> {
 /**
  * Resolves place label from GPS on explicit user action.
  *
- * Permission determines whether Kizuna is allowed to access location.
- * Compose determines whether Kizuna should actually use it.
+ * Permission determines whether the app is allowed to access location.
+ * Compose determines whether the app should actually use it.
  *
  * `prompt: true` requests OS permission if not yet granted.
  */

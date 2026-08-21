@@ -1,4 +1,4 @@
-# Building Kizuna (Android & iOS)
+# Building Monolog (Android & iOS)
 
 How to run the app in development, create installable builds, and handle signing.
 
@@ -157,7 +157,7 @@ APK_ARCH=armeabi-v7a,arm64-v8a npm run build:apk:local
 
 ```
 android/app/build/outputs/apk/release/app-release.apk
-dist/kizuna-release.apk   ← copy for easy sharing
+dist/monolog-release.apk   ← copy for easy sharing
 ```
 
 First run can take 15–30 minutes (Gradle, NDK, dependencies). Later runs are faster.
@@ -182,7 +182,7 @@ npm run ios
 
 For a **release archive** (App Store / TestFlight without EAS):
 
-1. Open `ios/Kizuna.xcworkspace` in Xcode
+1. Open `ios/Monolog.xcworkspace` in Xcode
 2. Select **Any iOS Device** or a connected device
 3. **Product → Archive**
 4. Distribute via Organizer → TestFlight or App Store Connect
@@ -224,7 +224,7 @@ npx eas-cli@latest credentials -p android
 
 ```bash
 keytool -genkey -v -keystore credentials/android-upload.keystore \
-  -alias kizuna-upload -keyalg RSA -keysize 2048 -validity 10000
+  -alias monolog-upload -keyalg RSA -keysize 2048 -validity 10000
 ```
 
 Store passwords in `~/.gradle/gradle.properties` (never commit). Wire into `android/app/build.gradle` after `prebuild`. See [Expo: local Android production](https://docs.expo.dev/guides/local-app-production/).

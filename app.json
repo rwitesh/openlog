@@ -1,12 +1,12 @@
 {
   "expo": {
-    "name": "Kizuna",
-    "slug": "kizuna",
+    "name": "Monolog",
+    "slug": "monolog",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "scheme": "kizuna",
+    "scheme": "monolog",
     "ios": {
       "supportsTablet": true,
       "deploymentTarget": "15.0",
@@ -16,7 +16,7 @@
         "NSPhotoLibraryUsageDescription": "Attach photos from your library to timeline entries.",
         "NSPhotoLibraryAddUsageDescription": "Save photos from entries to your photo library."
       },
-      "bundleIdentifier": "com.anonymous.kizuna"
+      "bundleIdentifier": "com.rwitesh.monolog"
     },
     "android": {
       "adaptiveIcon": {
@@ -35,7 +35,7 @@
         "android.permission.ACCESS_FINE_LOCATION"
       ],
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.kizuna"
+      "package": "com.rwitesh.monolog"
     },
     "web": {
       "favicon": "./assets/favicon.png",
