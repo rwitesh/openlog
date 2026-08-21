@@ -3,6 +3,9 @@
     "name": "Monolog",
     "slug": "monolog",
     "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -35,7 +38,6 @@
       },
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
-        "RECORD_AUDIO",
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.FOREGROUND_SERVICE",
@@ -86,15 +88,18 @@
         {
           "android": {
             "minSdkVersion": 29,
-            "buildArchs": ["arm64-v8a"]
+            "buildArchs": [
+              "arm64-v8a"
+            ]
           }
         }
       ]
     ],
     "extra": {
       "eas": {
-        "projectId": "cc8b2ca6-1398-4758-8d6d-a05220e2c9eb"
+        "projectId": "b2ceb7d3-aa90-4fee-80f6-04e01c89fb3d"
       }
-    }
+    },
+    "owner": "rwitesh"
   }
 }
