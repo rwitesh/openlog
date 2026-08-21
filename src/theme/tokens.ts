@@ -170,7 +170,7 @@ export const ACCENT_OPTIONS: AccentOption[] = [
   },
 ];
 
-export const KIZUNA_LIGHT_THEME: ThemeColors = {
+export const DEFAULT_LIGHT_THEME: ThemeColors = {
   background: "#FAF8F5",
   surface: "#FFFFFF",
   surfaceMuted: "#F2EFE9",
@@ -185,7 +185,7 @@ export const KIZUNA_LIGHT_THEME: ThemeColors = {
   separator: "#E8E2D6",
 };
 
-export const KIZUNA_DARK_THEME: ThemeColors = {
+export const DEFAULT_DARK_THEME: ThemeColors = {
   background: "#121215",
   surface: "#191A1E",
   surfaceMuted: "#23242A",
@@ -200,14 +200,14 @@ export const KIZUNA_DARK_THEME: ThemeColors = {
   separator: "#222329",
 };
 
-export const lightColors: ThemeColors = KIZUNA_LIGHT_THEME;
-export const darkColors: ThemeColors = KIZUNA_DARK_THEME;
+export const lightColors: ThemeColors = DEFAULT_LIGHT_THEME;
+export const darkColors: ThemeColors = DEFAULT_DARK_THEME;
 
 export function getThemeColors(
   mode: "light" | "dark" = "light",
   accent: AccentChoice = "default"
 ): ThemeColors {
-  const base = mode === "dark" ? KIZUNA_DARK_THEME : KIZUNA_LIGHT_THEME;
+  const base = mode === "dark" ? DEFAULT_DARK_THEME : DEFAULT_LIGHT_THEME;
 
   if (accent !== "default") {
     const option = ACCENT_OPTIONS.find((opt) => opt.id === accent);

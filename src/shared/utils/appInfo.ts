@@ -19,6 +19,6 @@ export const APP_VERSION: string | null =
 export const BUILD_NUMBER: string | null = Application.nativeBuildVersion ?? null;
 
 /**
- * Native application ID / bundle identifier (e.g. "com.anonymous.kizuna").
+ * Native application ID / bundle identifier (e.g. "com.rwitesh.monolog").
  */
 export const APPLICATION_ID: string | null = Application.applicationId ?? null;

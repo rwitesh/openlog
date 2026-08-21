@@ -1,6 +1,7 @@
 {
-  "name": "kizuna",
+  "name": "monolog",
   "version": "1.0.0",
+  "author": "Rwitesh Bera",
   "main": "index.ts",
   "dependencies": {
     "@expo-google-fonts/source-sans-3": "^0.4.1",
@@ -43,7 +44,7 @@
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
-    "android:install": "adb install -r dist/kizuna-release.apk",
+    "android:install": "adb install -r dist/monolog-release.apk",
     "android:release": "npm run build:apk:local && npm run android:install",
     "ios": "expo run:ios",
     "web": "expo start --web",

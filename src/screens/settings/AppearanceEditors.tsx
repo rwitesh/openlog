@@ -19,6 +19,7 @@ import {
 } from "@/modules/settings";
 import { fontManager, getFonts } from "@/services/fonts";
 import { ThemedText } from "@/shared/components/ThemedText";
+import { APP_NAME } from "@/shared/constants";
 import {
   ACCENT_OPTIONS,
   DEFAULT_FONT_FAMILY,
@@ -791,13 +792,13 @@ const timelineStyles = StyleSheet.create({
   },
 });
 
-export interface KizunaBackgroundPreset {
+export interface BackgroundPreset {
   id: string;
   name: string;
   uri: string;
 }
 
-export const KIZUNA_BACKGROUNDS: KizunaBackgroundPreset[] = [
+export const CURATED_BACKGROUNDS: BackgroundPreset[] = [
   {
     id: "washi",
     name: "Washi Paper",
@@ -851,7 +852,7 @@ export function BackgroundSettingsScreen() {
     setLiveOpacity(currentOpacity);
   }, [currentOpacity]);
 
-  const isCuratedSelected = KIZUNA_BACKGROUNDS.some((p) => p.uri === currentUri);
+  const isCuratedSelected = CURATED_BACKGROUNDS.some((p) => p.uri === currentUri);
   const isCustomSelected = Boolean(currentUri && !isCuratedSelected);
   const isNoneSelected = !currentUri;
 
@@ -863,7 +864,7 @@ export function BackgroundSettingsScreen() {
       if (!permissionResult.granted) {
         Alert.alert(
           "Permission Required",
-          "Please grant photo library access to choose a background image for Kizuna."
+          `Please grant photo library access to choose a background image for ${APP_NAME}.`
         );
         return;
       }
@@ -1114,7 +1115,7 @@ export function BackgroundSettingsScreen() {
         </ThemedText>
 
         <View style={bgStyles.presetsGrid}>
-          {KIZUNA_BACKGROUNDS.map((item) => {
+          {CURATED_BACKGROUNDS.map((item) => {
             const isSelected = currentUri === item.uri;
 
             return (
