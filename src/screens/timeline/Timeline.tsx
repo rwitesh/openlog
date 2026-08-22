@@ -8,7 +8,7 @@ import { AddEntryFab, FAB_CLEARANCE, TimelineFeed, TimelineHeader } from "@/modu
 import type { RootStackParamList } from "@/navigation/types";
 import { CalendarPicker } from "@/shared/pickers";
 import { startOfDay, startOfMonth } from "@/shared/utils/dates";
-import { timelineContentInset, useTheme } from "@/theme";
+import { space, useTheme } from "@/theme";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "Timeline">;
 
@@ -18,7 +18,6 @@ export function TimelineScreen({ navigation }: { navigation: Nav }) {
   const bgConfig = theme.backgroundConfig;
 
   const [dayPickerOpen, setDayPickerOpen] = useState(false);
-  const [headerHeight, setHeaderHeight] = useState(0);
   const [searchActive, setSearchActive] = useState(false);
 
   // Continuous newest-to-oldest feed across all time with infinite prefetching
@@ -56,13 +55,12 @@ export function TimelineScreen({ navigation }: { navigation: Nav }) {
         onOpenSearch={() => setSearchActive(true)}
         onOpenCalendar={() => setDayPickerOpen(true)}
         onOpenSettings={() => navigation.navigate("Settings")}
-        onLayout={setHeaderHeight}
       />
 
       <TimelineFeed
         entries={entries}
         showDates
-        paddingTop={timelineContentInset(headerHeight)}
+        paddingTop={space.sm}
         bottomInset={FAB_CLEARANCE + insets.bottom}
         emptyTitle="A quiet timeline"
         emptyBody="Tap + to write, or open the calendar."

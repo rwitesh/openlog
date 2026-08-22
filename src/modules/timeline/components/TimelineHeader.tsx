@@ -16,7 +16,7 @@ interface TimelineHeaderProps {
   onOpenSearch: () => void;
   onOpenCalendar: () => void;
   onOpenSettings: () => void;
-  onLayout: (height: number) => void;
+  onLayout?: (height: number) => void;
 }
 
 const HEADER_ICON_GAP = space.xs + 2;
@@ -43,7 +43,10 @@ export function TimelineHeader({
   const hasBackground = Boolean(theme.backgroundConfig?.imageUri);
 
   return (
-    <View onLayout={(e) => onLayout(e.nativeEvent.layout.height)} style={styles.wrapper}>
+    <View
+      onLayout={onLayout ? (e) => onLayout(e.nativeEvent.layout.height) : undefined}
+      style={styles.wrapper}
+    >
       <View style={[styles.header, { paddingTop: topInset }]}>
         {/* Protective scrim gradient when a background image is active */}
         {hasBackground ? (
@@ -99,14 +102,10 @@ export function TimelineHeader({
 
 const styles = StyleSheet.create({
   wrapper: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
     zIndex: 10,
   },
   header: {
-    paddingBottom: sectionGap,
+    paddingBottom: space.sm,
     paddingHorizontal: space.lg,
     overflow: "hidden",
   },

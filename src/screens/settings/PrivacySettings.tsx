@@ -20,7 +20,7 @@ export function PrivacySettingsScreen() {
   const { clearAll } = useEntries();
   const [support, setSupport] = useState<BiometricSupport | null>(null);
   const [verifying, setVerifying] = useState(false);
-  const [seeding, setSeeding] = useState(false);
+  const [seedingCount, setSeedingCount] = useState<number | null>(null);
 
   const enabled = preferences.security.biometricLock;
 
@@ -70,14 +70,14 @@ export function PrivacySettingsScreen() {
     );
 
   const handleSeed = async (count: number) => {
-    setSeeding(true);
+    setSeedingCount(count);
     try {
       await seedMockEntries(count);
       Alert.alert("Success", `Created ${count.toLocaleString()} test entries.`);
     } catch {
       Alert.alert("Error", "Failed to generate mock entries.");
     } finally {
-      setSeeding(false);
+      setSeedingCount(null);
     }
   };
 
@@ -122,20 +122,24 @@ export function PrivacySettingsScreen() {
           <View style={{ marginTop: space.md, gap: space.sm }}>
             <Pressable
               onPress={() => void handleSeed(1000)}
-              disabled={seeding}
+              disabled={seedingCount !== null}
               style={({ pressed }) => [styles.deleteBtn, pressed && press]}
             >
               <ThemedText style={[typography.settingLabel, { color: colors.marker }]}>
-                {seeding ? "Generating entries…" : "Generate 1,000 test entries (Expo Go)"}
+                {seedingCount === 1000
+                  ? "Generating 1,000 entries…"
+                  : "Generate 1,000 test entries (Expo Go)"}
               </ThemedText>
             </Pressable>
             <Pressable
               onPress={() => void handleSeed(10000)}
-              disabled={seeding}
+              disabled={seedingCount !== null}
               style={({ pressed }) => [styles.deleteBtn, pressed && press]}
             >
               <ThemedText style={[typography.settingLabel, { color: colors.marker }]}>
-                {seeding ? "Generating entries…" : "Generate 10,000 test entries (Expo Go)"}
+                {seedingCount === 10000
+                  ? "Generating 10,000 entries…"
+                  : "Generate 10,000 test entries (Expo Go)"}
               </ThemedText>
             </Pressable>
           </View>

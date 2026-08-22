@@ -63,7 +63,7 @@ export interface PagedEntriesResult {
 export async function getPagedEntries(
   options: PagedEntriesOptions = {}
 ): Promise<PagedEntriesResult> {
-  const { cursor, monthTs, dayTs, limit = 25 } = options;
+  const { cursor, monthTs, dayTs, limit = 50 } = options;
   return runDb(async (db) => {
     const conditions: string[] = [];
     const params: (number | string)[] = [];
