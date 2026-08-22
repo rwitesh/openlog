@@ -9,6 +9,8 @@ interface AddEntryFabProps {
   onPress: () => void;
 }
 
+export const FAB_CLEARANCE = metrics.fabSize + space.xxxl + space.sm;
+
 export function AddEntryFab({ onPress }: AddEntryFabProps) {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
@@ -61,7 +63,7 @@ export function AddEntryFab({ onPress }: AddEntryFabProps) {
       style={[
         styles.wrap,
         {
-          bottom: insets.bottom + space.lg,
+          bottom: insets.bottom + space.xxxl,
           opacity,
           transform: [{ scale }],
         },
@@ -75,13 +77,11 @@ export function AddEntryFab({ onPress }: AddEntryFabProps) {
         accessibilityLabel="Add entry"
         accessibilityRole="button"
       >
-        <Feather name="plus" size={metrics.iconMd} color={colors.background} />
+        <Feather name="plus" size={metrics.iconLg} color={colors.background} />
       </Pressable>
     </Animated.View>
   );
 }
-
-export const FAB_CLEARANCE = metrics.fabSize + space.lg + space.xl;
 
 const styles = StyleSheet.create({
   wrap: {

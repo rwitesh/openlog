@@ -356,16 +356,13 @@ export type SpacingScale = typeof space;
 
 export const sectionGap = space.lg;
 
-export function timelineContentInset(headerHeight: number): number {
-  return headerHeight + sectionGap;
-}
-
 export const metrics = {
   headerRowHeight: 48,
-  fabSize: 48,
+  fabSize: 56,
   iconXs: 14,
   iconSm: 16,
   iconMd: 20,
+  iconLg: 24,
   btnSm: 28,
   btnMd: 36,
 } as const;
