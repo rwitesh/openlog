@@ -1,36 +1,29 @@
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { Image, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useEntries } from "@/modules/entry";
+import { useTimelineEntries } from "@/modules/entry";
 import { TimelineSearchLayer } from "@/modules/search";
 import { AddEntryFab, FAB_CLEARANCE, TimelineFeed, TimelineHeader } from "@/modules/timeline";
 import type { RootStackParamList } from "@/navigation/types";
 import { CalendarPicker } from "@/shared/pickers";
-import {
-  entriesForMonth,
-  formatMonthYear,
-  isSameMonth,
-  startOfDay,
-  startOfMonth,
-} from "@/shared/utils/dates";
+import { formatMonthYear, isSameMonth, startOfDay, startOfMonth } from "@/shared/utils/dates";
 import { timelineContentInset, useTheme } from "@/theme";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "Timeline">;
 
 export function TimelineScreen({ navigation }: { navigation: Nav }) {
   const insets = useSafeAreaInsets();
-  const { entries } = useEntries();
   const { theme, colors } = useTheme();
   const bgConfig = theme.backgroundConfig;
 
-  const [viewMonth, setViewMonth] = useState(() => startOfMonth(Date.now()));
+  const [viewMonth] = useState(() => startOfMonth(Date.now()));
   const [dayPickerOpen, setDayPickerOpen] = useState(false);
   const [headerHeight, setHeaderHeight] = useState(0);
   const [searchActive, setSearchActive] = useState(false);
 
+  const { entries, loadMore } = useTimelineEntries({ monthTs: viewMonth });
   const isCurrentMonth = isSameMonth(viewMonth, Date.now());
-  const monthEntries = useMemo(() => entriesForMonth(entries, viewMonth), [entries, viewMonth]);
 
   const openDay = useCallback(
     (ts: number) => navigation.navigate("Day", { dayTs: startOfDay(ts) }),
@@ -68,7 +61,7 @@ export function TimelineScreen({ navigation }: { navigation: Nav }) {
       />
 
       <TimelineFeed
-        entries={monthEntries}
+        entries={entries}
         showDates
         paddingTop={timelineContentInset(headerHeight)}
         bottomInset={isCurrentMonth ? FAB_CLEARANCE + insets.bottom : insets.bottom}
@@ -80,6 +73,7 @@ export function TimelineScreen({ navigation }: { navigation: Nav }) {
         }
         animateFirst={isCurrentMonth}
         onOpenDay={openDay}
+        onEndReached={loadMore}
       />
 
       {isCurrentMonth && !searchActive ? (
@@ -89,7 +83,6 @@ export function TimelineScreen({ navigation }: { navigation: Nav }) {
       <CalendarPicker
         visible={dayPickerOpen}
         selectedDate={Date.now()}
-        entries={entries}
         onSelectDate={openDay}
         onClose={() => setDayPickerOpen(false)}
       />

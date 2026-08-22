@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 import { Animated, Pressable, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { metrics, motion, press, space, useTheme } from "@/theme";
+import { metrics, press, space, useTheme } from "@/theme";
 
 interface AddEntryFabProps {
   onPress: () => void;

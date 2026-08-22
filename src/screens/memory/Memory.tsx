@@ -1,8 +1,8 @@
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Animated, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useEntries } from "@/modules/entry";
+import { subscribeMutations } from "@/modules/entry";
 import {
   getMonthOverview,
   getMonthPulseData,
@@ -12,15 +12,11 @@ import {
   MonthStats,
 } from "@/modules/memory";
 import type { RootStackParamList } from "@/navigation/types";
+import { getEntriesForMonth } from "@/services/db/entries";
 import { ThemedText } from "@/shared/components/ThemedText";
 import { MonthPicker } from "@/shared/pickers";
-import {
-  addMonths,
-  formatMonthYear,
-  getMonthEntries,
-  startOfDay,
-  startOfMonth,
-} from "@/shared/utils/dates";
+import type { Entry } from "@/shared/types";
+import { addMonths, formatMonthYear, startOfDay, startOfMonth } from "@/shared/utils/dates";
 import { space, typography, useTheme } from "@/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Memory">;
@@ -29,35 +25,43 @@ export function MemoryScreen({ route, navigation }: Props) {
   const initialMonth = route.params?.monthTs ?? Date.now();
   const [currentMonthTs, setCurrentMonthTs] = useState(() => startOfMonth(initialMonth));
   const [monthPickerOpen, setMonthPickerOpen] = useState(false);
+  const [monthEntries, setMonthEntries] = useState<Entry[]>([]);
 
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
   const { colors, motion } = theme;
-  const { entries } = useEntries();
 
   const scrollRef = useRef<ScrollView>(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
+  useEffect(() => {
+    let active = true;
+
+    const reload = () => {
+      getEntriesForMonth(currentMonthTs).then((entries) => {
+        if (active) setMonthEntries(entries);
+      });
+    };
+
+    reload();
+    const unsubscribe = subscribeMutations(reload);
+
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [currentMonthTs]);
+
   const monthLabel = useMemo(() => formatMonthYear(currentMonthTs), [currentMonthTs]);
 
-  const monthEntries = useMemo(
-    () => getMonthEntries(entries, currentMonthTs),
-    [entries, currentMonthTs]
-  );
-
   const overviewStats = useMemo(
-    () => getMonthOverview(entries, currentMonthTs),
-    [entries, currentMonthTs]
+    () => getMonthOverview(monthEntries, currentMonthTs),
+    [monthEntries, currentMonthTs]
   );
 
   const pulseData = useMemo(
-    () => getMonthPulseData(entries, currentMonthTs),
-    [entries, currentMonthTs]
-  );
-
-  const entryMonths = useMemo(
-    () => new Set(entries.map((e) => startOfMonth(e.createdAt))),
-    [entries]
+    () => getMonthPulseData(monthEntries, currentMonthTs),
+    [monthEntries, currentMonthTs]
   );
 
   const prevMonthTs = useMemo(() => addMonths(currentMonthTs, -1), [currentMonthTs]);
@@ -121,10 +125,7 @@ export function MemoryScreen({ route, navigation }: Props) {
 
           {monthEntries.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <ThemedText
-                weight="semibold"
-                style={[typography.emptyTitle, { color: colors.text }]}
-              >
+              <ThemedText weight="semibold" style={[typography.emptyTitle, { color: colors.text }]}>
                 A quiet month
               </ThemedText>
               <ThemedText style={[typography.emptyBody, { color: colors.textSecondary }]}>
@@ -145,7 +146,6 @@ export function MemoryScreen({ route, navigation }: Props) {
         visible={monthPickerOpen}
         selectedMonth={currentMonthTs}
         top={insets.top + space.xxl}
-        entryMonths={entryMonths}
         onSelect={(selected) => {
           changeMonth(selected);
           setMonthPickerOpen(false);

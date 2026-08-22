@@ -8,6 +8,7 @@ import {
   StyleSheet,
   View,
 } from "react-native";
+import { getDistinctEntryMonths } from "@/services/db/entries";
 import { Sheet } from "@/shared/components/Sheet";
 import { ThemedText } from "@/shared/components/ThemedText";
 import {
@@ -46,7 +47,7 @@ export function MonthPicker({
   visible,
   selectedMonth,
   top,
-  entryMonths,
+  entryMonths: propEntryMonths,
   onSelect,
   onClose,
 }: MonthPickerProps) {
@@ -56,6 +57,7 @@ export function MonthPicker({
   const loadingFuture = useRef(false);
 
   const [range, setRange] = useState({ before: BATCH, after: BATCH });
+  const [fetchedMonths, setFetchedMonths] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     if (!visible) {
@@ -68,6 +70,19 @@ export function MonthPicker({
       before: Math.max(BATCH, off < 0 ? -off + BATCH : BATCH),
     });
   }, [visible, selectedMonth, anchor]);
+
+  useEffect(() => {
+    if (!visible || propEntryMonths) return;
+    let active = true;
+    getDistinctEntryMonths().then((months) => {
+      if (active) setFetchedMonths(months);
+    });
+    return () => {
+      active = false;
+    };
+  }, [visible, propEntryMonths]);
+
+  const entryMonths = propEntryMonths ?? fetchedMonths;
 
   const indices = useMemo(() => {
     const list: number[] = [];

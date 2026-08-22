@@ -1,6 +1,6 @@
+import { isRunningInExpoGo } from "expo";
 import * as Application from "expo-application";
 import Constants from "expo-constants";
-import { isRunningInExpoGo } from "expo";
 
 /** True when running inside the Expo Go client (not a dev or store build). */
 export const IS_EXPO_GO = isRunningInExpoGo();

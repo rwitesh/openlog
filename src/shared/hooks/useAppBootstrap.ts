@@ -7,7 +7,6 @@ import {
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useState } from "react";
 import { useColorScheme } from "react-native";
-import { loadEntries } from "@/modules/entry/store/EntryStore";
 import { getAllUserPreferences } from "@/services/db/settings";
 import { fontManager } from "@/services/fonts";
 import { logDevWarning } from "@/shared/utils/devLog";
@@ -64,10 +63,6 @@ export function useAppBootstrap(): AppBootstrapState {
       .finally(() => {
         if (active) setProfileLoaded(true);
       });
-
-    loadEntries().catch((error) => {
-      logDevWarning("bootstrap:loadEntries", error);
-    });
 
     return () => {
       active = false;

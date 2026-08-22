@@ -17,6 +17,7 @@ interface TimelineProps {
   emptyBody: string;
   animateFirst?: boolean;
   onOpenDay?: (dayTs: number) => void;
+  onEndReached?: () => void;
 }
 
 export function TimelineFeed({
@@ -28,6 +29,7 @@ export function TimelineFeed({
   emptyBody,
   animateFirst = false,
   onOpenDay,
+  onEndReached,
 }: TimelineProps) {
   const { theme } = useTheme();
 
@@ -36,10 +38,7 @@ export function TimelineFeed({
   if (!items.length) {
     return (
       <View style={[styles.empty, { paddingTop, paddingBottom: bottomInset }]}>
-        <ThemedText
-          weight="semibold"
-          style={[typography.emptyTitle, { color: theme.colors.text }]}
-        >
+        <ThemedText weight="semibold" style={[typography.emptyTitle, { color: theme.colors.text }]}>
           {emptyTitle}
         </ThemedText>
         <ThemedText style={[typography.emptyBody, { color: theme.colors.textSecondary }]}>
@@ -75,6 +74,8 @@ export function TimelineFeed({
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
+      onEndReached={onEndReached}
+      onEndReachedThreshold={0.7}
     />
   );
 }

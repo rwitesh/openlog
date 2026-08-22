@@ -1,7 +1,5 @@
 import * as SQLite from "expo-sqlite";
 
-import { logDevWarning } from "@/shared/utils/devLog";
-
 const DB_NAME = "app.db";
 
 let dbInstance: SQLite.SQLiteDatabase | null = null;

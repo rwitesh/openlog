@@ -10,7 +10,7 @@ import {
   useComposeDraft,
   useMediaAttachments,
 } from "@/modules/compose";
-import { EntryDetailsModal, useEntries } from "@/modules/entry";
+import { EntryDetailsModal, useEntries, useEntry } from "@/modules/entry";
 import type { RootStackParamList } from "@/navigation/types";
 import { Layout, useKeepFocus } from "@/shared/components/Layout";
 import { CalendarPicker, TimePicker } from "@/shared/pickers";
@@ -31,8 +31,9 @@ export function ComposeScreen({ navigation, route }: Props) {
   const [timePickerOpen, setTimePickerOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
 
-  const { entries, removeEntry } = useEntries();
-  const existing = entryId ? entries.find((entry) => entry.id === entryId) : undefined;
+  const { removeEntry } = useEntries();
+  const entry = useEntry(entryId);
+  const existing = entry ?? undefined;
 
   const inputRef = useRef<TextInput>(null);
   const keepFocus = useKeepFocus(inputRef);
@@ -44,9 +45,14 @@ export function ComposeScreen({ navigation, route }: Props) {
   // Editing an entry that no longer exists — leave.
   useEffect(() => {
     if (!entryId) return;
-    if (existing) return;
-    navigation.goBack();
-  }, [entryId, existing, navigation]);
+    if (entry === null) {
+      // Entry was checked and doesn't exist
+      const timer = setTimeout(() => {
+        navigation.goBack();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [entryId, entry, navigation]);
 
   useLayoutEffect(() => {
     if (isReadOnly) {
