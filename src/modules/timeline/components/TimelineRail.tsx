@@ -32,11 +32,13 @@ export function TimelineRail({
   const isRail = timelineStyle === "rail";
   const isMinimal = timelineStyle === "minimal";
   const isClean = timelineStyle === "clean";
+  const isCompact = timelineDensity === "compact";
 
   const showLine = !isClean;
   const lineWidth = isRail ? 2 : 1;
-  const center = showDate ? MARKER / 2 : 9 + DOT / 2;
-  const bottomPadding = timelineDensity === "compact" ? space.md : space.xl;
+  const dotMarginTop = isCompact ? 5 : 9;
+  const center = showDate ? MARKER / 2 : dotMarginTop + DOT / 2;
+  const bottomPadding = isCompact ? space.xs + 2 : space.xxl;
 
   return (
     <View style={[styles.row, style]} {...rest}>
@@ -110,12 +112,13 @@ export function TimelineRail({
             )}
           </Pressable>
         ) : isRail ? (
-          <View style={[styles.dot, { backgroundColor: colors.marker }]} />
+          <View style={[styles.dot, { marginTop: dotMarginTop, backgroundColor: colors.marker }]} />
         ) : isMinimal ? (
           <View
             style={[
               styles.dotHollow,
               {
+                marginTop: dotMarginTop,
                 borderColor: colors.textTertiary,
                 backgroundColor: colors.background,
               },

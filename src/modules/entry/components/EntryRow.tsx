@@ -96,14 +96,15 @@ function EntryRowBase({ entry, animate }: EntryRowProps) {
       });
   };
 
-  const { showTimestamp, showLocation } = useEntryPreferences();
+  const { showTimestamp, showLocation, timelineDensity } = useEntryPreferences();
+  const isCompact = timelineDensity === "compact";
   const showTime = showTimestamp;
   const showLoc = showLocation && Boolean(locationName);
 
   return (
     <>
       <Animated.View style={{ opacity, transform: [{ translateY }] }}>
-        <View style={styles.headerRow}>
+        <View style={[styles.headerRow, isCompact && styles.headerRowCompact]}>
           <Pressable onPress={handleView} style={styles.meta} hitSlop={space.xs}>
             {showTime ? (
               <ThemedText
@@ -142,7 +143,7 @@ function EntryRowBase({ entry, animate }: EntryRowProps) {
               onPress={() => openImage(0)}
               style={({ pressed }) => [
                 styles.singleImageWrap,
-                hasText ? styles.imageAfterText : undefined,
+                hasText ? (isCompact ? styles.imageAfterTextCompact : styles.imageAfterText) : undefined,
                 pressed && press,
               ]}
             >
@@ -159,7 +160,10 @@ function EntryRowBase({ entry, animate }: EntryRowProps) {
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={[styles.imageRow, hasText ? styles.imageAfterText : undefined]}
+              contentContainerStyle={[
+                styles.imageRow,
+                hasText ? (isCompact ? styles.imageAfterTextCompact : styles.imageAfterText) : undefined,
+              ]}
             >
               {images.map((uri, index) => (
                 <Pressable
@@ -183,7 +187,12 @@ function EntryRowBase({ entry, animate }: EntryRowProps) {
 
         {hasAudio ? (
           <View
-            style={[styles.audioList, hasText || hasImages ? styles.audioAfterContent : undefined]}
+            style={[
+              styles.audioList,
+              hasText || hasImages
+                ? (isCompact ? styles.audioAfterContentCompact : styles.audioAfterContent)
+                : undefined,
+            ]}
           >
             {audios.map((uri, index) => (
               <AudioPlayer key={`${uri}-${index}`} uri={uri} />
@@ -223,6 +232,10 @@ const styles = StyleSheet.create({
     marginBottom: space.xs + 2,
     minHeight: 28,
   },
+  headerRowCompact: {
+    marginBottom: 2,
+    minHeight: 20,
+  },
   meta: {
     flexDirection: "row",
     alignItems: "center",
@@ -247,8 +260,14 @@ const styles = StyleSheet.create({
   imageAfterText: {
     marginTop: space.md,
   },
+  imageAfterTextCompact: {
+    marginTop: space.xs + 2,
+  },
   audioAfterContent: {
     marginTop: space.md,
+  },
+  audioAfterContentCompact: {
+    marginTop: space.xs + 2,
   },
   audioList: {
     gap: space.xs,
