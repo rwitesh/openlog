@@ -1,4 +1,4 @@
-import { Easing } from "react-native";
+import { Easing, type ImageSourcePropType } from "react-native";
 
 export interface ThemeColors {
   background: string;
@@ -17,6 +17,7 @@ export interface ThemeColors {
 
 export interface ThemeBackgroundConfig {
   readonly imageUri?: string | null;
+  readonly imageSource?: ImageSourcePropType | null;
   readonly opacity?: number;
 }
 

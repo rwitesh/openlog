@@ -8,10 +8,15 @@ import {
   SettingsScreenScroll,
 } from "@/modules/settings";
 import type { RootStackParamList } from "@/navigation/types";
-import { APP_NAME } from "@/shared/constants";
 import { ThemedText } from "@/shared/components/ThemedText";
-import { ACCENT_OPTIONS, DEFAULT_FONT_FAMILY, usePreferences, useTheme } from "@/theme";
-import { CURATED_BACKGROUNDS } from "./AppearanceEditors";
+import { APP_NAME } from "@/shared/constants";
+import {
+  ACCENT_OPTIONS,
+  DEFAULT_FONT_FAMILY,
+  resolveBackgroundSource,
+  usePreferences,
+  useTheme,
+} from "@/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "SettingsAppearance">;
 
@@ -28,9 +33,7 @@ export function AppearanceSettingsScreen({ navigation }: Props) {
   const activeFont = appearance.fontFamily || DEFAULT_FONT_FAMILY;
   const currentAccent = ACCENT_OPTIONS.find((a) => a.id === appearance.accent) ?? ACCENT_OPTIONS[0];
   const accentColor = isDark ? currentAccent.colorDark : currentAccent.colorLight;
-  const matchedBackground = CURATED_BACKGROUNDS.find(
-    (p) => p.uri === appearance.backgroundImageUri
-  );
+  const resolvedBgSource = resolveBackgroundSource(appearance.backgroundImageUri);
 
   const themeSummary =
     appearance.mode === "light"
@@ -42,7 +45,7 @@ export function AppearanceSettingsScreen({ navigation }: Props) {
     entry.timelineStyle.charAt(0).toUpperCase() + entry.timelineStyle.slice(1)
   } · ${entry.timelineDensity === "comfortable" ? "Comfortable" : "Compact"}`;
   const backgroundSummary = appearance.backgroundImageUri
-    ? `${matchedBackground ? matchedBackground.name : "Custom"} · ${Math.round(
+    ? `${appearance.backgroundImageUri.startsWith("file://") ? "Custom" : "Wallpaper"} · ${Math.round(
         (appearance.backgroundImageOpacity ?? 0.35) * 100
       )}%`
     : "None";
@@ -112,13 +115,9 @@ export function AppearanceSettingsScreen({ navigation }: Props) {
           subtitle={backgroundSummary}
           onPress={() => navigation.navigate("SettingsBackground")}
           badge={
-            appearance.backgroundImageUri ? (
+            resolvedBgSource ? (
               <View style={[styles.thumbnailWrap, { borderColor: colors.separator }]}>
-                <Image
-                  source={{ uri: appearance.backgroundImageUri }}
-                  style={styles.thumbnailImage}
-                  resizeMode="cover"
-                />
+                <Image source={resolvedBgSource} style={styles.thumbnailImage} resizeMode="cover" />
               </View>
             ) : (
               <View

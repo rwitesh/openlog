@@ -54,6 +54,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "biome check src App.tsx index.ts",
     "lint:fix": "biome check --write src App.tsx index.ts",
+    "assets:clean": "node scripts/clean-assets.js",
     "format": "biome format --write src App.tsx index.ts",
     "format:check": "biome format src App.tsx index.ts"
   },
