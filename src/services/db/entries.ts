@@ -1,5 +1,6 @@
 import { resolveMediaUriList } from "@/services/media/storage";
 import type { Entry, EntryLocation, NewEntryInput, UpdateEntryInput } from "@/shared/types";
+import { IS_EXPO_GO } from "@/shared/utils/appInfo";
 import { addDays, addMonths, startOfDay, startOfMonth } from "@/shared/utils/dates";
 import { runDb } from "./database";
 import { parseUris } from "./uris";
@@ -329,8 +330,11 @@ export async function deleteAllEntries(): Promise<string[]> {
   });
 }
 
-/** Generates realistic mock entries in a single high-speed SQLite transaction for performance testing. */
+/** Generates realistic mock entries in a single high-speed SQLite transaction for performance testing (Expo Go only). */
 export async function seedMockEntries(count: number = 1000): Promise<void> {
+  if (!IS_EXPO_GO) {
+    return;
+  }
   return runDb(async (db) => {
     const now = Date.now();
     const dayMs = 24 * 60 * 60 * 1000;
