@@ -25,7 +25,7 @@ export function TimelineRail({
   style,
   ...rest
 }: RailProps) {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const { timelineStyle, timelineDensity } = useEntryPreferences();
   const { colors } = theme;
 
@@ -39,6 +39,7 @@ export function TimelineRail({
   const dotMarginTop = isCompact ? 5 : 9;
   const center = showDate ? MARKER / 2 : dotMarginTop + DOT / 2;
   const bottomPadding = isCompact ? space.xs + 2 : space.xxl;
+  const lineOpacity = isRail ? (isDark ? 0.38 : 0.28) : (isDark ? 0.24 : 0.18);
 
   return (
     <View style={[styles.row, style]} {...rest}>
@@ -52,7 +53,8 @@ export function TimelineRail({
                 left: (MARKER - lineWidth) / 2,
                 top: isFirst ? center : 0,
                 bottom: isLast ? center : 0,
-                backgroundColor: colors.line,
+                backgroundColor: colors.marker,
+                opacity: lineOpacity,
               },
             ]}
           />
