@@ -1,9 +1,9 @@
 import { Pressable, StyleSheet, View, type ViewProps } from "react-native";
 import { ThemedText } from "@/shared/components/ThemedText";
 import { dayOfMonth } from "@/shared/utils/dates";
-import { press, space, typography, useEntryPreferences, useTheme } from "@/theme";
+import { press, radius, space, typography, useEntryPreferences, useTheme } from "@/theme";
 
-const DOT = 6;
+const DOT = 7;
 const MARKER = 30;
 
 interface RailProps extends ViewProps {
@@ -29,9 +29,13 @@ export function TimelineRail({
   const { timelineStyle, timelineDensity } = useEntryPreferences();
   const { colors } = theme;
 
+  const isRail = timelineStyle === "rail";
+  const isMinimal = timelineStyle === "minimal";
+  const isClean = timelineStyle === "clean";
+
+  const showLine = !isClean;
+  const lineWidth = isRail ? 2 : 1;
   const center = showDate ? MARKER / 2 : 9 + DOT / 2;
-  const showLine = timelineStyle !== "clean";
-  const lineOpacity = timelineStyle === "minimal" ? 0.35 : 1;
   const bottomPadding = timelineDensity === "compact" ? space.md : space.xl;
 
   return (
@@ -42,10 +46,11 @@ export function TimelineRail({
             style={[
               styles.line,
               {
+                width: lineWidth,
+                left: (MARKER - lineWidth) / 2,
                 top: isFirst ? center : 0,
                 bottom: isLast ? center : 0,
                 backgroundColor: colors.line,
-                opacity: lineOpacity,
               },
             ]}
           />
@@ -59,40 +64,64 @@ export function TimelineRail({
             style={({ pressed }) => [pressed && onMarkerPress && press]}
             accessibilityLabel={`Open day ${dayOfMonth(dayTs)}`}
           >
-            <View
-              style={[
-                styles.dateCircle,
-                {
-                  backgroundColor: timelineStyle === "clean" ? colors.surfaceMuted : colors.marker,
-                  borderColor: timelineStyle === "clean" ? colors.separator : colors.marker,
-                  borderWidth: timelineStyle === "clean" ? StyleSheet.hairlineWidth : 0,
-                },
-              ]}
-            >
-              <ThemedText
-                weight="semibold"
+            {isRail ? (
+              <View style={[styles.dateCircle, { backgroundColor: colors.marker }]}>
+                <ThemedText
+                  weight="semibold"
+                  style={[styles.dateNum, { color: colors.background }]}
+                >
+                  {dayOfMonth(dayTs)}
+                </ThemedText>
+              </View>
+            ) : isMinimal ? (
+              <View
                 style={[
-                  styles.dateNum,
+                  styles.dateCircleOutline,
                   {
-                    color: timelineStyle === "clean" ? colors.text : colors.background,
+                    backgroundColor: colors.background,
+                    borderColor: colors.marker,
                   },
                 ]}
               >
-                {dayOfMonth(dayTs)}
-              </ThemedText>
-            </View>
+                <ThemedText
+                  weight="semibold"
+                  style={[styles.dateNum, { color: colors.text }]}
+                >
+                  {dayOfMonth(dayTs)}
+                </ThemedText>
+              </View>
+            ) : (
+              <View
+                style={[
+                  styles.datePillClean,
+                  {
+                    backgroundColor: colors.surfaceMuted,
+                    borderColor: colors.separator,
+                  },
+                ]}
+              >
+                <ThemedText
+                  weight="semibold"
+                  style={[styles.dateNumClean, { color: colors.textSecondary }]}
+                >
+                  {dayOfMonth(dayTs)}
+                </ThemedText>
+              </View>
+            )}
           </Pressable>
-        ) : (
+        ) : isRail ? (
+          <View style={[styles.dot, { backgroundColor: colors.marker }]} />
+        ) : isMinimal ? (
           <View
             style={[
-              styles.dot,
+              styles.dotHollow,
               {
-                backgroundColor: colors.marker,
-                opacity: timelineStyle === "minimal" ? 0.65 : 1,
+                borderColor: colors.textTertiary,
+                backgroundColor: colors.background,
               },
             ]}
           />
-        )}
+        ) : null}
       </View>
 
       <View style={[styles.content, !isLast && { paddingBottom: bottomPadding }]}>{children}</View>
@@ -112,8 +141,6 @@ const styles = StyleSheet.create({
   },
   line: {
     position: "absolute",
-    left: (MARKER - 1) / 2,
-    width: 1,
   },
   dateCircle: {
     width: MARKER,
@@ -122,7 +149,27 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  dateCircleOutline: {
+    width: MARKER,
+    height: MARKER,
+    borderRadius: MARKER / 2,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  datePillClean: {
+    width: MARKER,
+    height: MARKER,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   dateNum: {
+    fontSize: typography.caption.fontSize,
+    lineHeight: typography.caption.lineHeight,
+  },
+  dateNumClean: {
     fontSize: typography.caption.fontSize,
     lineHeight: typography.caption.lineHeight,
   },
@@ -131,6 +178,13 @@ const styles = StyleSheet.create({
     width: DOT,
     height: DOT,
     borderRadius: DOT / 2,
+  },
+  dotHollow: {
+    marginTop: 9,
+    width: DOT,
+    height: DOT,
+    borderRadius: DOT / 2,
+    borderWidth: 1.5,
   },
   content: {
     flex: 1,
