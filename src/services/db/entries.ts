@@ -330,6 +330,123 @@ export async function deleteAllEntries(): Promise<string[]> {
   });
 }
 
+/** Fetches all entries with raw relative media paths for export packaging. */
+export async function getAllRawEntries(): Promise<Entry[]> {
+  return runDb(async (db) => {
+    const rows = await db.getAllAsync<EntryRecord>(
+      `SELECT ${ENTRY_COLUMNS} FROM entries ORDER BY created_at DESC`
+    );
+    return rows.map((row) => ({
+      id: row.id,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      text: row.text ?? undefined,
+      images: row.images ? parseUris(row.images) : [],
+      audios: row.audios ? parseUris(row.audios) : [],
+      location: parseLocation(row),
+    }));
+  });
+}
+
+export interface ImportBatchResult {
+  inserted: number;
+  updated: number;
+}
+
+/** Transactional batch import of entries for archive restoration or merging. */
+export async function importEntriesBatch(
+  entries: Entry[],
+  mode: "replace" | "merge"
+): Promise<ImportBatchResult> {
+  return runDb(async (db) => {
+    let inserted = 0;
+    let updated = 0;
+
+    await db.withTransactionAsync(async () => {
+      if (mode === "replace") {
+        await db.runAsync(`DELETE FROM entries`);
+      }
+
+      for (const entry of entries) {
+        const [lat, lng, locationName] = locationParams(entry.location);
+        const imagesJson = entry.images?.length ? JSON.stringify(entry.images) : null;
+        const audiosJson = entry.audios?.length ? JSON.stringify(entry.audios) : null;
+        const text = entry.text ?? null;
+        const createdAt = entry.createdAt;
+        const updatedAt = entry.updatedAt ?? createdAt;
+
+        if (mode === "replace") {
+          await db.runAsync(
+            `INSERT INTO entries (
+               id, created_at, updated_at, text, images, audios,
+               latitude, longitude, location_name
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            entry.id,
+            createdAt,
+            updatedAt,
+            text,
+            imagesJson,
+            audiosJson,
+            lat,
+            lng,
+            locationName
+          );
+          inserted++;
+        } else {
+          const existing = await db.getFirstAsync<{ updated_at: number }>(
+            `SELECT updated_at FROM entries WHERE id = ?`,
+            entry.id
+          );
+
+          if (!existing) {
+            await db.runAsync(
+              `INSERT INTO entries (
+                 id, created_at, updated_at, text, images, audios,
+                 latitude, longitude, location_name
+               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              entry.id,
+              createdAt,
+              updatedAt,
+              text,
+              imagesJson,
+              audiosJson,
+              lat,
+              lng,
+              locationName
+            );
+            inserted++;
+          } else if (updatedAt >= existing.updated_at) {
+            await db.runAsync(
+              `UPDATE entries
+                  SET created_at = ?,
+                      updated_at = ?,
+                      text = ?,
+                      images = ?,
+                      audios = ?,
+                      latitude = ?,
+                      longitude = ?,
+                      location_name = ?
+                WHERE id = ?`,
+              createdAt,
+              updatedAt,
+              text,
+              imagesJson,
+              audiosJson,
+              lat,
+              lng,
+              locationName,
+              entry.id
+            );
+            updated++;
+          }
+        }
+      }
+    });
+
+    return { inserted, updated };
+  });
+}
+
 /** Generates realistic mock entries in a single high-speed SQLite transaction for performance testing (Expo Go only). */
 export async function seedMockEntries(count: number = 1000): Promise<void> {
   if (!IS_EXPO_GO) {

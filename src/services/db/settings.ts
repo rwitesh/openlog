@@ -52,6 +52,17 @@ export async function setSettingsBatch(entries: Record<string, string>): Promise
   });
 }
 
+export async function getAllSettingsMap(): Promise<Record<string, string>> {
+  return runDb(async (db) => {
+    const rows = await db.getAllAsync<{ key: string; value: string }>(
+      `SELECT key, value FROM settings`
+    );
+    const map: Record<string, string> = {};
+    for (const r of rows) map[r.key] = r.value;
+    return map;
+  });
+}
+
 export async function getAllUserPreferences(): Promise<{
   userName: string | null;
   preferences: UserPreferences;

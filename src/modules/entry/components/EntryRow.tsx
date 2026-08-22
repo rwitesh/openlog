@@ -143,7 +143,11 @@ function EntryRowBase({ entry, animate }: EntryRowProps) {
               onPress={() => openImage(0)}
               style={({ pressed }) => [
                 styles.singleImageWrap,
-                hasText ? (isCompact ? styles.imageAfterTextCompact : styles.imageAfterText) : undefined,
+                hasText
+                  ? isCompact
+                    ? styles.imageAfterTextCompact
+                    : styles.imageAfterText
+                  : undefined,
                 pressed && press,
               ]}
             >
@@ -162,7 +166,11 @@ function EntryRowBase({ entry, animate }: EntryRowProps) {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={[
                 styles.imageRow,
-                hasText ? (isCompact ? styles.imageAfterTextCompact : styles.imageAfterText) : undefined,
+                hasText
+                  ? isCompact
+                    ? styles.imageAfterTextCompact
+                    : styles.imageAfterText
+                  : undefined,
               ]}
             >
               {images.map((uri, index) => (
@@ -190,7 +198,9 @@ function EntryRowBase({ entry, animate }: EntryRowProps) {
             style={[
               styles.audioList,
               hasText || hasImages
-                ? (isCompact ? styles.audioAfterContentCompact : styles.audioAfterContent)
+                ? isCompact
+                  ? styles.audioAfterContentCompact
+                  : styles.audioAfterContent
                 : undefined,
             ]}
           >

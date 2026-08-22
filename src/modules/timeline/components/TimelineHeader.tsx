@@ -69,7 +69,9 @@ export function TimelineHeader({
             </ThemedText>
           </Animated.View>
 
-          <Animated.View style={[subtitleStyle, styles.subtitleWrap, { minHeight: fixedSubtitleHeight }]}>
+          <Animated.View
+            style={[subtitleStyle, styles.subtitleWrap, { minHeight: fixedSubtitleHeight }]}
+          >
             <ThemedText
               numberOfLines={2}
               style={[theme.typography.headerSubtitle, { color: colors.textSecondary }]}

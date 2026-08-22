@@ -1,17 +1,31 @@
 import { useEffect, useState } from "react";
-import { Alert, Pressable, StyleSheet, Switch, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Switch, View } from "react-native";
 
 import { seedMockEntries, useEntries } from "@/modules/entry";
-import { confirmDestructive, SettingsGroup, SettingsScreenScroll } from "@/modules/settings";
+import {
+  confirmDestructive,
+  SettingsGroup,
+  SettingsRow,
+  SettingsScreenScroll,
+} from "@/modules/settings";
 import { authenticate, type BiometricSupport, getBiometricSupport } from "@/services/auth";
+import {
+  exportBackupArchive,
+  importBackupArchive,
+  inspectBackupArchive,
+  pickBackupArchiveFile,
+  saveBackupArchive,
+} from "@/services/backup";
 import { deleteMediaList } from "@/services/media";
+import { notifyBackupExportComplete, notifyBackupImportComplete } from "@/services/notifications";
 import { ThemedText } from "@/shared/components/ThemedText";
-import { IS_EXPO_GO } from "@/shared/utils";
+import { IS_EXPO_GO, logDevWarning } from "@/shared/utils";
 import { press, space, typography, usePreferences, useTheme } from "@/theme";
 
 /**
  * Privacy & data category screen — everything about trust: the biometric
- * app lock under SECURITY, destructive storage controls under STORAGE.
+ * app lock under SECURITY, .monolog backup/export under BACKUP & EXPORT,
+ * and storage management under STORAGE.
  */
 export function PrivacySettingsScreen() {
   const { theme } = useTheme();
@@ -21,6 +35,8 @@ export function PrivacySettingsScreen() {
   const [support, setSupport] = useState<BiometricSupport | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [seedingCount, setSeedingCount] = useState<number | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
 
   const enabled = preferences.security.biometricLock;
 
@@ -58,6 +74,98 @@ export function PrivacySettingsScreen() {
 
     if (confirmed) {
       setSecurity({ biometricLock: true });
+    }
+  };
+
+  const handleExport = async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+    try {
+      const result = await exportBackupArchive();
+      void notifyBackupExportComplete(result.entryCount, result.mediaCount);
+      const saved = await saveBackupArchive(result.fileUri, result.filename);
+      if (saved) {
+        Alert.alert(
+          "Backup Saved",
+          `Backup archive with ${result.entryCount.toLocaleString()} entries and ${result.mediaCount} media files stored successfully.`
+        );
+      }
+    } catch (error) {
+      logDevWarning("settings:exportBackup", error);
+      Alert.alert(
+        "Save Failed",
+        "Could not store backup. Please check available device storage and try again."
+      );
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const performImport = async (fileUri: string, mode: "replace" | "merge") => {
+    setIsImporting(true);
+    try {
+      const result = await importBackupArchive(fileUri, mode);
+      void notifyBackupImportComplete(result.importedCount, result.mediaCount);
+      Alert.alert(
+        "Import Complete",
+        `Successfully restored ${result.importedCount.toLocaleString()} entries and ${result.mediaCount} media files.`
+      );
+    } catch (error) {
+      logDevWarning("settings:importBackup", error);
+      Alert.alert(
+        "Import Failed",
+        "Could not restore backup. Please ensure the file is a valid .monolog archive and try again."
+      );
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const handleImport = async () => {
+    if (isImporting) return;
+    try {
+      const fileUri = await pickBackupArchiveFile();
+      if (!fileUri) return;
+
+      const info = await inspectBackupArchive(fileUri);
+      const dateStr = new Date(info.createdAt).toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+
+      Alert.alert(
+        "Import .monolog Archive",
+        `Archive from ${dateStr} containing ${info.entryCount.toLocaleString()} entries and ${info.mediaCount} media files.\n\nChoose an import option:`,
+        [
+          {
+            text: "Merge (Keep Current)",
+            onPress: () => void performImport(fileUri, "merge"),
+          },
+          {
+            text: "Replace All Data",
+            style: "destructive",
+            onPress: () => {
+              Alert.alert(
+                "Replace Existing Data?",
+                "This will replace all current entries and media with the backup archive data.",
+                [
+                  { text: "Cancel", style: "cancel" },
+                  {
+                    text: "Replace",
+                    style: "destructive",
+                    onPress: () => void performImport(fileUri, "replace"),
+                  },
+                ]
+              );
+            },
+          },
+          { text: "Cancel", style: "cancel" },
+        ]
+      );
+    } catch (error) {
+      logDevWarning("settings:inspectArchive", error);
+      Alert.alert("Invalid File", "Please select a valid .monolog backup archive.");
     }
   };
 
@@ -104,6 +212,32 @@ export function PrivacySettingsScreen() {
             />
           </View>
         </View>
+      </SettingsGroup>
+
+      <SettingsGroup label="DATA BACKUP">
+        <SettingsRow
+          icon="upload"
+          title="Save Backup (.monolog)"
+          subtitle={
+            isExporting ? "Saving backup archive…" : "Store a complete backup of your entire data"
+          }
+          badge={isExporting ? <ActivityIndicator size="small" color={colors.marker} /> : undefined}
+          showChevron={false}
+          onPress={() => void handleExport()}
+        />
+
+        <SettingsRow
+          icon="download"
+          title="Restore Backup (.monolog)"
+          subtitle={
+            isImporting
+              ? "Restoring backup archive…"
+              : "Restore your data from a .monolog backup file"
+          }
+          badge={isImporting ? <ActivityIndicator size="small" color={colors.marker} /> : undefined}
+          showChevron={false}
+          onPress={() => void handleImport()}
+        />
       </SettingsGroup>
 
       <SettingsGroup label="STORAGE">

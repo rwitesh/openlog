@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { useColorScheme } from "react-native";
 import { getAllUserPreferences } from "@/services/db/settings";
 import { fontManager } from "@/services/fonts";
+import { requestNotificationPermission } from "@/services/notifications";
 import { logDevWarning } from "@/shared/utils/devLog";
 import { DEFAULT_PREFERENCES, resolveTheme, resolveThemeMode, type UserPreferences } from "@/theme";
 
@@ -40,6 +41,9 @@ export function useAppBootstrap(): AppBootstrapState {
         if (!active) return;
         setUserName(data.userName);
         setPreferences(data.preferences);
+
+        // Gracefully request notification permissions in background on startup
+        void requestNotificationPermission();
 
         const selectedFont = data.preferences.appearance.fontFamily;
         if (selectedFont && selectedFont !== "Source Sans 3") {
