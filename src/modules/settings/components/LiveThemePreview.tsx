@@ -16,8 +16,9 @@ const MOCK_DAY_TS = 1715767200000;
  */
 export function LiveThemePreview() {
   const { theme } = useTheme();
-  const { showTimestamp, showLocation } = useEntryPreferences();
+  const { showTimestamp, showLocation, timelineDensity } = useEntryPreferences();
   const { colors, typography, backgroundConfig } = theme;
+  const isCompact = timelineDensity === "compact";
 
   const hasBackground = Boolean(backgroundConfig?.imageUri);
 
@@ -41,7 +42,7 @@ export function LiveThemePreview() {
       <View style={styles.feedPreview}>
         {/* Entry 1: opens the day with the date marker. */}
         <TimelineRail dayTs={MOCK_DAY_TS} showDate isFirst={false} isLast={false}>
-          <View style={styles.headerRow}>
+          <View style={[styles.headerRow, isCompact && styles.headerRowCompact]}>
             <View style={styles.meta}>
               {showTimestamp ? (
                 <ThemedText
@@ -74,7 +75,7 @@ export function LiveThemePreview() {
 
         {/* Entry 2: same day, connected by the sub-marker dot. */}
         <TimelineRail dayTs={MOCK_DAY_TS} showDate={false} isFirst={false} isLast>
-          <View style={styles.headerRow}>
+          <View style={[styles.headerRow, isCompact && styles.headerRowCompact]}>
             <View style={styles.meta}>
               {showTimestamp ? (
                 <ThemedText
@@ -128,6 +129,10 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: space.xs + 2,
     minHeight: 28,
+  },
+  headerRowCompact: {
+    marginBottom: 2,
+    minHeight: 20,
   },
   meta: {
     flexDirection: "row",
