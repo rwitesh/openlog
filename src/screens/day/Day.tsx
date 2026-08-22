@@ -1,12 +1,12 @@
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useLayoutEffect, useMemo } from "react";
-import { StyleSheet, View } from "react-native";
+import { Image, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useEntries } from "@/modules/entry";
 import { AddEntryFab, FAB_CLEARANCE, TimelineFeed } from "@/modules/timeline";
 import type { RootStackParamList } from "@/navigation/types";
 import { entriesForDay, formatHeaderDate, isSameDay } from "@/shared/utils/dates";
-import { space } from "@/theme";
+import { space, useTheme } from "@/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Day">;
 
@@ -14,6 +14,8 @@ export function DayTimelineScreen({ route, navigation }: Props) {
   const { dayTs } = route.params;
   const insets = useSafeAreaInsets();
   const { entries } = useEntries();
+  const { theme, colors } = useTheme();
+  const bgConfig = theme.backgroundConfig;
 
   const isToday = isSameDay(dayTs, Date.now());
   const dayEntries = useMemo(() => entriesForDay(entries, dayTs), [entries, dayTs]);
@@ -24,7 +26,17 @@ export function DayTimelineScreen({ route, navigation }: Props) {
   }, [navigation, dayTs]);
 
   return (
-    <View style={styles.flex}>
+    <View style={[styles.flex, { backgroundColor: colors.background }]}>
+      {bgConfig?.imageSource ? (
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+          <Image
+            source={bgConfig.imageSource}
+            style={[StyleSheet.absoluteFill, { opacity: bgConfig.opacity ?? 0.35 }]}
+            resizeMode="cover"
+          />
+        </View>
+      ) : null}
+
       <TimelineFeed
         entries={dayEntries}
         paddingTop={space.lg}

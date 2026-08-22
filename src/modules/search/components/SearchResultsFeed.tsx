@@ -31,12 +31,12 @@ export function SearchResultsFeed({
     return (
       <View style={[styles.empty, { paddingTop, paddingBottom: bottomInset }]}>
         <ThemedText
-          weight="medium"
-          style={[theme.typography.emptyTitle, { color: theme.colors.textSecondary }]}
+          weight="semibold"
+          style={[theme.typography.emptyTitle, { color: theme.colors.text }]}
         >
           Search your memories
         </ThemedText>
-        <ThemedText style={[theme.typography.emptyBody, { color: theme.colors.textTertiary }]}>
+        <ThemedText style={[theme.typography.emptyBody, { color: theme.colors.textSecondary }]}>
           Find moments by any word or place you&apos;ve written.
         </ThemedText>
       </View>
@@ -47,12 +47,12 @@ export function SearchResultsFeed({
     return (
       <View style={[styles.empty, { paddingTop, paddingBottom: bottomInset }]}>
         <ThemedText
-          weight="medium"
-          style={[theme.typography.emptyTitle, { color: theme.colors.textSecondary }]}
+          weight="semibold"
+          style={[theme.typography.emptyTitle, { color: theme.colors.text }]}
         >
           No moments found
         </ThemedText>
-        <ThemedText style={[theme.typography.emptyBody, { color: theme.colors.textTertiary }]}>
+        <ThemedText style={[theme.typography.emptyBody, { color: theme.colors.textSecondary }]}>
           {`Nothing matches \u201C${trimmed}\u201D. Try another word or place.`}
         </ThemedText>
       </View>

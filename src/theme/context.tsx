@@ -136,7 +136,7 @@ export function makeNavTheme(mode: ResolvedThemeMode, colors: ThemeColors): NavT
     },
     colors: {
       primary: colors.text,
-      background: "transparent",
+      background: colors.background,
       card: colors.background,
       text: colors.text,
       border: colors.separator,

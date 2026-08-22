@@ -42,26 +42,15 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 function AppContent({ showWelcome }: { showWelcome: boolean }) {
   const { theme, mode } = useTheme();
   const navTheme = useNavigationTheme();
-  const bgConfig = theme.backgroundConfig;
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
-      {/* Background Image Layer */}
-      {bgConfig?.imageSource ? (
-        <View style={StyleSheet.absoluteFill} pointerEvents="none">
-          <Image
-            source={bgConfig.imageSource}
-            style={[StyleSheet.absoluteFill, { opacity: bgConfig.opacity ?? 0.35 }]}
-            resizeMode="cover"
-          />
-        </View>
-      ) : null}
       <NavigationContainer theme={navTheme}>
         <StatusBar style={mode === "dark" ? "light" : "dark"} />
         <Stack.Navigator
           initialRouteName={showWelcome ? "Welcome" : "Timeline"}
           screenOptions={{
-            contentStyle: { backgroundColor: "transparent" },
+            contentStyle: { backgroundColor: theme.colors.background },
             animation: "slide_from_right",
           }}
         >
@@ -89,7 +78,6 @@ function AppContent({ showWelcome }: { showWelcome: boolean }) {
             options={{
               headerBackTitle: "Back",
               headerShadowVisible: false,
-              contentStyle: { flex: 1 },
             }}
           />
           <Stack.Screen

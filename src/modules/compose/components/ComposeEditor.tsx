@@ -45,7 +45,7 @@ export function ComposeEditor({
         value={value}
         onChangeText={onChangeText}
         placeholder={readOnly ? undefined : "Write something…"}
-        placeholderTextColor={colors.textTertiary}
+        placeholderTextColor={colors.textSecondary}
         multiline
         scrollEnabled={false}
         maxLength={readOnly ? undefined : 2000}

@@ -17,13 +17,13 @@ export function SearchBar({ value, onChange, onCancel }: SearchBarProps) {
   return (
     <View style={styles.row}>
       <View style={[styles.field, { backgroundColor: colors.surfaceMuted }]}>
-        <Feather name="search" size={metrics.iconSm + 2} color={colors.textTertiary} />
+        <Feather name="search" size={metrics.iconSm + 2} color={colors.textSecondary} />
 
         <TextInput
           value={value}
           onChangeText={onChange}
           placeholder="Search your moments"
-          placeholderTextColor={colors.textTertiary}
+          placeholderTextColor={colors.textSecondary}
           style={[
             styles.input,
             {
