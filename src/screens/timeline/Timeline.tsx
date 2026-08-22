@@ -1,21 +1,21 @@
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useCallback, useState } from "react";
-import { Image, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTimelineEntries } from "@/modules/entry";
 import { TimelineSearchLayer } from "@/modules/search";
 import { AddEntryFab, FAB_CLEARANCE, TimelineFeed, TimelineHeader } from "@/modules/timeline";
 import type { RootStackParamList } from "@/navigation/types";
+import { ThemedBackground } from "@/shared/components";
 import { CalendarPicker } from "@/shared/pickers";
-import { startOfDay, startOfMonth } from "@/shared/utils/dates";
+import { startOfDay } from "@/shared/utils/dates";
 import { space, useTheme } from "@/theme";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "Timeline">;
 
 export function TimelineScreen({ navigation }: { navigation: Nav }) {
   const insets = useSafeAreaInsets();
-  const { theme, colors } = useTheme();
-  const bgConfig = theme.backgroundConfig;
+  const { colors } = useTheme();
 
   const [dayPickerOpen, setDayPickerOpen] = useState(false);
   const [searchActive, setSearchActive] = useState(false);
@@ -40,18 +40,8 @@ export function TimelineScreen({ navigation }: { navigation: Nav }) {
 
   return (
     <View style={[styles.flex, { backgroundColor: colors.background }]}>
-      {bgConfig?.imageSource ? (
-        <View style={StyleSheet.absoluteFill} pointerEvents="none">
-          <Image
-            source={bgConfig.imageSource}
-            style={[StyleSheet.absoluteFill, { opacity: bgConfig.opacity ?? 0.35 }]}
-            resizeMode="cover"
-          />
-        </View>
-      ) : null}
+      <ThemedBackground />
       <TimelineHeader
-        selectedMonth={Date.now()}
-        onOpenMonth={() => navigation.navigate("Memory", { monthTs: startOfMonth(Date.now()) })}
         onOpenSearch={() => setSearchActive(true)}
         onOpenCalendar={() => setDayPickerOpen(true)}
         onOpenSettings={() => navigation.navigate("Settings")}

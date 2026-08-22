@@ -91,7 +91,6 @@ export function LocationBadge({
         onPress={handlePress}
         style={({ pressed }) => [
           chip.base,
-          { backgroundColor: colors.surfaceMuted },
           state === "loading" && styles.loading,
           pressed && press,
         ]}
@@ -125,11 +124,7 @@ export function LocationBadge({
             <Pressable
               onPress={() => setSheetOpen(false)}
               hitSlop={space.sm}
-              style={({ pressed }) => [
-                styles.closeButton,
-                { backgroundColor: colors.surfaceMuted },
-                pressed && press,
-              ]}
+              style={({ pressed }) => [styles.closeButton, pressed && press]}
               accessibilityRole="button"
               accessibilityLabel="Close location details"
             >
@@ -170,7 +165,6 @@ export function LocationBadge({
                   disabled={refreshing}
                   style={({ pressed }) => [
                     styles.actionBtn,
-                    { backgroundColor: colors.surfaceMuted },
                     pressed && press,
                     refreshing && { opacity: 0.5 },
                   ]}
@@ -191,11 +185,7 @@ export function LocationBadge({
                 <Pressable
                   onPress={handleRemove}
                   disabled={refreshing}
-                  style={({ pressed }) => [
-                    styles.actionBtn,
-                    { backgroundColor: colors.surfaceMuted },
-                    pressed && press,
-                  ]}
+                  style={({ pressed }) => [styles.actionBtn, pressed && press]}
                   accessibilityRole="button"
                   accessibilityLabel="Remove location from entry"
                 >

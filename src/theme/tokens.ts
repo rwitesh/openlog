@@ -365,6 +365,7 @@ export const metrics = {
   iconLg: 24,
   btnSm: 28,
   btnMd: 36,
+  btnLg: 44,
 } as const;
 
 export type LayoutMetrics = typeof metrics;

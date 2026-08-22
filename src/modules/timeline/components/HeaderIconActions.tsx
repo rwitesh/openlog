@@ -23,52 +23,31 @@ export function HeaderIconActions({
       <Pressable
         onPress={onOpenSearch}
         hitSlop={space.sm}
-        style={({ pressed }) => [
-          styles.iconBtn,
-          {
-            backgroundColor: colors.surface,
-            borderColor: colors.separator,
-          },
-          pressed && press,
-        ]}
+        style={({ pressed }) => [styles.iconBtn, pressed && press]}
         accessibilityLabel="Search"
         accessibilityRole="button"
       >
-        <Feather name="search" size={metrics.iconSm + 2} color={colors.text} />
+        <Feather name="search" size={metrics.iconMd} color={colors.text} />
       </Pressable>
 
       <Pressable
         onPress={onOpenCalendar}
         hitSlop={space.sm}
-        style={({ pressed }) => [
-          styles.iconBtn,
-          {
-            backgroundColor: colors.surface,
-            borderColor: colors.separator,
-          },
-          pressed && press,
-        ]}
+        style={({ pressed }) => [styles.iconBtn, pressed && press]}
         accessibilityLabel="Calendar"
         accessibilityRole="button"
       >
-        <Feather name="calendar" size={metrics.iconSm + 2} color={colors.text} />
+        <Feather name="calendar" size={metrics.iconMd} color={colors.text} />
       </Pressable>
 
       <Pressable
         onPress={onOpenSettings}
         hitSlop={space.sm}
-        style={({ pressed }) => [
-          styles.iconBtn,
-          {
-            backgroundColor: colors.surface,
-            borderColor: colors.separator,
-          },
-          pressed && press,
-        ]}
+        style={({ pressed }) => [styles.iconBtn, pressed && press]}
         accessibilityLabel="Settings"
         accessibilityRole="button"
       >
-        <Feather name="settings" size={metrics.iconSm + 2} color={colors.text} />
+        <Feather name="settings" size={metrics.iconMd} color={colors.text} />
       </Pressable>
     </View>
   );
@@ -84,10 +63,9 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   iconBtn: {
-    width: metrics.btnMd,
-    height: metrics.btnMd,
-    borderRadius: metrics.btnMd / 2,
-    borderWidth: StyleSheet.hairlineWidth,
+    width: metrics.btnLg,
+    height: metrics.btnLg,
+    borderRadius: metrics.btnLg / 2,
     alignItems: "center",
     justifyContent: "center",
   },

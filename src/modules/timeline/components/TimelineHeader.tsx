@@ -9,11 +9,8 @@ import { metrics, space, useTheme } from "@/theme";
 import { useStaggeredEntrance } from "../hooks/useStaggeredEntrance";
 import { getTimelineSubtitle } from "../prompts";
 import { HeaderIconActions } from "./HeaderIconActions";
-import { MonthChip } from "./MonthChip";
 
 interface TimelineHeaderProps {
-  selectedMonth?: number;
-  onOpenMonth?: () => void;
   onOpenSearch: () => void;
   onOpenCalendar: () => void;
   onOpenSettings: () => void;
@@ -23,23 +20,20 @@ interface TimelineHeaderProps {
 const HEADER_ICON_GAP = space.xs + 2;
 
 export function TimelineHeader({
-  selectedMonth,
-  onOpenMonth,
   onOpenSearch,
   onOpenCalendar,
   onOpenSettings,
   onLayout,
 }: TimelineHeaderProps) {
-  const { theme, resolvedMode } = useTheme();
+  const { theme } = useTheme();
   const { name } = useProfile();
   const insets = useSafeAreaInsets();
   const { colors } = theme;
-  const dark = resolvedMode === "dark";
   const [greetingStyle, subtitleStyle, monthStyle] = useStaggeredEntrance([16, 12, 10]);
 
   const firstName = name?.trim().split(/\s+/)[0];
   const greeting = firstName ? `Hi, ${firstName}` : "Hi there";
-  const currentMonth = formatMonthYear(selectedMonth ?? Date.now());
+  const currentMonth = formatMonthYear(Date.now());
   const topInset = insets.top + space.lg;
   const subtitleLineHeight = theme.typography.headerSubtitle.lineHeight ?? 24;
   const fixedSubtitleHeight = subtitleLineHeight * 2;
@@ -81,12 +75,12 @@ export function TimelineHeader({
           </Animated.View>
 
           <Animated.View style={[monthStyle, styles.monthWrap]}>
-            <MonthChip
-              label={currentMonth}
-              dark={dark}
-              colors={colors}
-              onPress={onOpenMonth ?? (() => {})}
-            />
+            <ThemedText
+              weight="semibold"
+              style={[theme.typography.headerMonth, { color: colors.textSecondary }]}
+            >
+              {currentMonth}
+            </ThemedText>
           </Animated.View>
         </View>
       </View>
@@ -105,7 +99,7 @@ const styles = StyleSheet.create({
   },
   content: {
     alignItems: "flex-start",
-    paddingRight: metrics.btnMd * 3 + HEADER_ICON_GAP * 2 + space.lg,
+    paddingRight: metrics.btnLg * 3 + HEADER_ICON_GAP * 2 + space.lg,
     marginTop: space.sm,
   },
   subtitleWrap: {

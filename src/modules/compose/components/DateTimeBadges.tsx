@@ -42,11 +42,7 @@ export function DateTimeBadges({
       <Pressable
         onPress={readOnly ? undefined : onOpenDate}
         disabled={readOnly || !onOpenDate}
-        style={({ pressed }) => [
-          chip.base,
-          { backgroundColor: colors.surfaceMuted },
-          !readOnly && pressed && press,
-        ]}
+        style={({ pressed }) => [chip.base, !readOnly && pressed && press]}
         accessibilityLabel={readOnly ? "Entry date" : "Change entry date"}
         accessibilityRole={readOnly ? undefined : "button"}
       >
@@ -59,11 +55,7 @@ export function DateTimeBadges({
       <Pressable
         onPress={readOnly ? undefined : onOpenTime}
         disabled={readOnly || !onOpenTime}
-        style={({ pressed }) => [
-          chip.base,
-          { backgroundColor: colors.surfaceMuted },
-          !readOnly && pressed && press,
-        ]}
+        style={({ pressed }) => [chip.base, !readOnly && pressed && press]}
         accessibilityLabel={readOnly ? "Entry time" : "Change entry time"}
         accessibilityRole={readOnly ? undefined : "button"}
       >
@@ -98,7 +90,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flexWrap: "nowrap",
     gap: space.sm,
-    marginTop: space.lg,
+    marginTop: space.sm,
     marginBottom: space.sm,
     marginHorizontal: space.xxl,
   },
