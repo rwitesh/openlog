@@ -5,4 +5,5 @@ export * from "./components/TimelineFeed";
 export * from "./components/TimelineHeader";
 export * from "./components/TimelineRail";
 export * from "./types";
+export * from "./prompts";
 export * from "./utils/TimelineTransform";

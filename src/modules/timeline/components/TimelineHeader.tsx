@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Animated, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -6,6 +7,7 @@ import { ThemedText } from "@/shared/components/ThemedText";
 import { formatMonthYear } from "@/shared/utils/dates";
 import { metrics, space, useTheme } from "@/theme";
 import { useStaggeredEntrance } from "../hooks/useStaggeredEntrance";
+import { getTimelineSubtitle } from "../prompts";
 import { HeaderIconActions } from "./HeaderIconActions";
 import { MonthChip } from "./MonthChip";
 
@@ -39,6 +41,9 @@ export function TimelineHeader({
   const greeting = firstName ? `Hi, ${firstName}` : "Hi there";
   const currentMonth = formatMonthYear(selectedMonth ?? Date.now());
   const topInset = insets.top + space.lg;
+  const subtitleLineHeight = theme.typography.headerSubtitle.lineHeight ?? 24;
+  const fixedSubtitleHeight = subtitleLineHeight * 2;
+  const subtitle = useMemo(() => getTimelineSubtitle(), []);
 
   return (
     <View
@@ -64,13 +69,16 @@ export function TimelineHeader({
             </ThemedText>
           </Animated.View>
 
-          <Animated.View style={[subtitleStyle, styles.subtitleWrap]}>
-            <ThemedText style={[theme.typography.headerSubtitle, { color: colors.textSecondary }]}>
-              How&apos;s your day going so far?
+          <Animated.View style={[subtitleStyle, styles.subtitleWrap, { minHeight: fixedSubtitleHeight }]}>
+            <ThemedText
+              numberOfLines={2}
+              style={[theme.typography.headerSubtitle, { color: colors.textSecondary }]}
+            >
+              {subtitle}
             </ThemedText>
           </Animated.View>
 
-          <Animated.View style={monthStyle}>
+          <Animated.View style={[monthStyle, styles.monthWrap]}>
             <MonthChip
               label={currentMonth}
               dark={dark}
@@ -100,5 +108,9 @@ const styles = StyleSheet.create({
   },
   subtitleWrap: {
     marginTop: space.xs,
+    justifyContent: "flex-start",
+  },
+  monthWrap: {
+    marginTop: space.xs + 2,
   },
 });
