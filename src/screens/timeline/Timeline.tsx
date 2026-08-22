@@ -1,6 +1,6 @@
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useCallback, useMemo, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { Image, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useEntries } from "@/modules/entry";
 import { TimelineSearchLayer } from "@/modules/search";
@@ -14,13 +14,15 @@ import {
   startOfDay,
   startOfMonth,
 } from "@/shared/utils/dates";
-import { timelineContentInset } from "@/theme";
+import { timelineContentInset, useTheme } from "@/theme";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "Timeline">;
 
 export function TimelineScreen({ navigation }: { navigation: Nav }) {
   const insets = useSafeAreaInsets();
   const { entries } = useEntries();
+  const { theme, colors } = useTheme();
+  const bgConfig = theme.backgroundConfig;
 
   const [viewMonth, setViewMonth] = useState(() => startOfMonth(Date.now()));
   const [dayPickerOpen, setDayPickerOpen] = useState(false);
@@ -46,7 +48,16 @@ export function TimelineScreen({ navigation }: { navigation: Nav }) {
   );
 
   return (
-    <View style={styles.flex}>
+    <View style={[styles.flex, { backgroundColor: colors.background }]}>
+      {bgConfig?.imageSource ? (
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+          <Image
+            source={bgConfig.imageSource}
+            style={[StyleSheet.absoluteFill, { opacity: bgConfig.opacity ?? 0.35 }]}
+            resizeMode="cover"
+          />
+        </View>
+      ) : null}
       <TimelineHeader
         selectedMonth={viewMonth}
         onOpenMonth={() => navigation.navigate("Memory", { monthTs: viewMonth })}

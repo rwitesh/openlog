@@ -37,12 +37,12 @@ export function TimelineFeed({
     return (
       <View style={[styles.empty, { paddingTop, paddingBottom: bottomInset }]}>
         <ThemedText
-          weight="medium"
-          style={[typography.emptyTitle, { color: theme.colors.textSecondary }]}
+          weight="semibold"
+          style={[typography.emptyTitle, { color: theme.colors.text }]}
         >
           {emptyTitle}
         </ThemedText>
-        <ThemedText style={[typography.emptyBody, { color: theme.colors.textTertiary }]}>
+        <ThemedText style={[typography.emptyBody, { color: theme.colors.textSecondary }]}>
           {emptyBody}
         </ThemedText>
       </View>

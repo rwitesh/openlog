@@ -10,7 +10,7 @@ export function SettingsScreenScroll({ children }: { children: ReactNode }) {
   const { theme } = useTheme();
 
   return (
-    <View style={styles.screen}>
+    <View style={[styles.screen, { backgroundColor: theme.colors.background }]}>
       <ScrollView
         style={{ backgroundColor: theme.colors.background }}
         contentContainerStyle={{

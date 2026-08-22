@@ -326,14 +326,15 @@ export function createTypography(
       lineHeight: s(20),
     },
     emptyTitle: {
-      fontFamily: getF("medium"),
-      fontSize: s(BASE_FONT_SIZE.xl),
-      lineHeight: s(24),
+      fontFamily: getF("semibold"),
+      fontSize: s(20),
+      lineHeight: s(26),
+      letterSpacing: -0.2,
     },
     emptyBody: {
       fontFamily: getF("regular"),
-      fontSize: s(BASE_FONT_SIZE.sm),
-      lineHeight: s(20),
+      fontSize: s(BASE_FONT_SIZE.lg),
+      lineHeight: s(22),
     },
   } as const;
 }

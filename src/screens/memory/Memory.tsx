@@ -99,7 +99,7 @@ export function MemoryScreen({ route, navigation }: Props) {
   );
 
   return (
-    <View style={styles.screen}>
+    <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <MonthHeader
         monthLabel={monthLabel}
         onBack={() => navigation.goBack()}
@@ -122,12 +122,12 @@ export function MemoryScreen({ route, navigation }: Props) {
           {monthEntries.length === 0 ? (
             <View style={styles.emptyContainer}>
               <ThemedText
-                weight="medium"
-                style={[typography.emptyTitle, { color: colors.textSecondary }]}
+                weight="semibold"
+                style={[typography.emptyTitle, { color: colors.text }]}
               >
                 A quiet month
               </ThemedText>
-              <ThemedText style={[typography.emptyBody, { color: colors.textTertiary }]}>
+              <ThemedText style={[typography.emptyBody, { color: colors.textSecondary }]}>
                 Nothing captured in {monthLabel.toLowerCase()}.
               </ThemedText>
             </View>
