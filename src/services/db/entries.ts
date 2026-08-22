@@ -1,5 +1,6 @@
 import { resolveMediaUriList } from "@/services/media/storage";
 import type { Entry, EntryLocation, NewEntryInput, UpdateEntryInput } from "@/shared/types";
+import { addDays, addMonths, startOfDay, startOfMonth } from "@/shared/utils/dates";
 import { runDb } from "./database";
 import { parseUris } from "./uris";
 
@@ -44,14 +45,138 @@ function locationParams(location?: EntryLocation | null) {
   return [location?.latitude ?? null, location?.longitude ?? null, location?.name ?? null] as const;
 }
 
-/** All entries, newest first. */
-export async function getEntries(): Promise<Entry[]> {
+export interface PagedEntriesOptions {
+  cursor?: number;
+  monthTs?: number;
+  dayTs?: number;
+  limit?: number;
+}
+
+export interface PagedEntriesResult {
+  entries: Entry[];
+  nextCursor?: number;
+  hasMore: boolean;
+}
+
+/** Cursor-paginated entries with prefetch support. */
+export async function getPagedEntries(
+  options: PagedEntriesOptions = {}
+): Promise<PagedEntriesResult> {
+  const { cursor, monthTs, dayTs, limit = 25 } = options;
+  return runDb(async (db) => {
+    const conditions: string[] = [];
+    const params: (number | string)[] = [];
+
+    if (cursor !== undefined) {
+      conditions.push("created_at < ?");
+      params.push(cursor);
+    }
+
+    if (dayTs !== undefined) {
+      const start = startOfDay(dayTs);
+      const end = addDays(start, 1);
+      conditions.push("created_at >= ? AND created_at < ?");
+      params.push(start, end);
+    } else if (monthTs !== undefined) {
+      const start = startOfMonth(monthTs);
+      const end = addMonths(monthTs, 1);
+      conditions.push("created_at >= ? AND created_at < ?");
+      params.push(start, end);
+    }
+
+    const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+    const query = `
+      SELECT ${ENTRY_COLUMNS}
+        FROM entries
+       ${whereClause}
+       ORDER BY created_at DESC
+       LIMIT ?
+    `;
+    params.push(limit + 1);
+
+    const rows = await db.getAllAsync<EntryRecord>(query, ...params);
+    const hasMore = rows.length > limit;
+    const resultRows = hasMore ? rows.slice(0, limit) : rows;
+    const entries = resultRows.map(toEntry);
+    const nextCursor = entries.length > 0 ? entries[entries.length - 1].createdAt : undefined;
+
+    return {
+      entries,
+      nextCursor: hasMore ? nextCursor : undefined,
+      hasMore,
+    };
+  });
+}
+
+/** Single entry lookup by ID from SQLite. */
+export async function getEntryById(id: string): Promise<Entry | null> {
+  return runDb(async (db) => {
+    const row = await db.getFirstAsync<EntryRecord>(
+      `SELECT ${ENTRY_COLUMNS} FROM entries WHERE id = ?`,
+      id
+    );
+    return row ? toEntry(row) : null;
+  });
+}
+
+/** Lightweight timestamp scan to highlight active days in a month without loading full entries. */
+export async function getEntryDaysForMonth(monthTs: number): Promise<Set<number>> {
+  const start = startOfMonth(monthTs);
+  const end = addMonths(monthTs, 1);
+  return runDb(async (db) => {
+    const rows = await db.getAllAsync<{ created_at: number }>(
+      `SELECT created_at FROM entries WHERE created_at >= ? AND created_at < ?`,
+      start,
+      end
+    );
+    const days = new Set<number>();
+    for (const row of rows) {
+      days.add(startOfDay(row.created_at));
+    }
+    return days;
+  });
+}
+
+/** Distinct months that have at least one entry, for the month picker. */
+export async function getDistinctEntryMonths(): Promise<Set<number>> {
+  return runDb(async (db) => {
+    const rows = await db.getAllAsync<{ created_at: number }>(
+      `SELECT DISTINCT created_at FROM entries ORDER BY created_at DESC`
+    );
+    const months = new Set<number>();
+    for (const row of rows) {
+      months.add(startOfMonth(row.created_at));
+    }
+    return months;
+  });
+}
+
+/** All entries in a given month. */
+export async function getEntriesForMonth(monthTs: number): Promise<Entry[]> {
+  const start = startOfMonth(monthTs);
+  const end = addMonths(monthTs, 1);
   return runDb(async (db) => {
     const rows = await db.getAllAsync<EntryRecord>(
       `SELECT ${ENTRY_COLUMNS}
          FROM entries
-        ORDER BY created_at DESC`
+        WHERE created_at >= ? AND created_at < ?
+        ORDER BY created_at DESC`,
+      start,
+      end
     );
+    return rows.map(toEntry);
+  });
+}
+
+/** All entries (bounded optionally by limit), newest first. */
+export async function getEntries(limit?: number): Promise<Entry[]> {
+  return runDb(async (db) => {
+    const query = limit
+      ? `SELECT ${ENTRY_COLUMNS} FROM entries ORDER BY created_at DESC LIMIT ?`
+      : `SELECT ${ENTRY_COLUMNS} FROM entries ORDER BY created_at DESC`;
+    const rows = limit
+      ? await db.getAllAsync<EntryRecord>(query, limit)
+      : await db.getAllAsync<EntryRecord>(query);
     return rows.map(toEntry);
   });
 }

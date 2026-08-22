@@ -1,18 +1,18 @@
 import { Feather } from "@expo/vector-icons";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
+import { getEntryDaysForMonth } from "@/services/db/entries";
 import { Sheet } from "@/shared/components/Sheet";
 import { ThemedText } from "@/shared/components/ThemedText";
-import type { Entry } from "@/shared/types";
 import {
   addMonths,
   calendarCells,
-  entryDaysInMonth,
   formatMonthYear,
   isSameDay,
   startOfMonth,
 } from "@/shared/utils/dates";
 import { FONT_SIZE, metrics, press, radius, space, useTheme } from "@/theme";
+import type { ThemeColors } from "@/theme/tokens";
 
 const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
 const CELL_GAP = space.sm;
@@ -20,25 +20,21 @@ const CELL_GAP = space.sm;
 interface CalendarPickerProps {
   visible: boolean;
   selectedDate: number;
-  entries?: Entry[];
   onSelectDate: (ts: number) => void;
   onClose: () => void;
 }
 
-function CalendarDay({
-  dayTs,
-  selected,
-  today,
-  showEntryDot,
-  onPress,
-}: {
+interface CalendarDayProps {
   dayTs: number;
   selected: boolean;
   today: boolean;
-  showEntryDot: boolean;
+  hasEntry: boolean;
+  colors: ThemeColors;
   onPress: () => void;
-}) {
-  const { colors } = useTheme().theme;
+}
+
+function CalendarDay({ dayTs, selected, today, hasEntry, colors, onPress }: CalendarDayProps) {
+  const dayNumber = new Date(dayTs).getDate();
 
   return (
     <View style={styles.cellSlot}>
@@ -54,10 +50,12 @@ function CalendarDay({
         accessibilityState={{ selected }}
       >
         <ThemedText style={[styles.dayNum, { color: selected ? colors.background : colors.text }]}>
-          {new Date(dayTs).getDate()}
+          {dayNumber}
         </ThemedText>
 
-        {showEntryDot ? <View style={[styles.dot, { backgroundColor: colors.marker }]} /> : null}
+        {hasEntry && !selected && !today ? (
+          <View style={[styles.dot, { backgroundColor: colors.marker }]} />
+        ) : null}
       </Pressable>
     </View>
   );
@@ -66,32 +64,48 @@ function CalendarDay({
 export function CalendarPicker({
   visible,
   selectedDate,
-  entries = [],
   onSelectDate,
   onClose,
 }: CalendarPickerProps) {
   const { colors } = useTheme().theme;
   const [viewMonth, setViewMonth] = useState(() => startOfMonth(selectedDate));
+  const [entryDays, setEntryDays] = useState<Set<number>>(new Set());
 
+  // Sync viewed month with selectedDate whenever modal opens
   useEffect(() => {
-    if (!visible) return;
-    setViewMonth(startOfMonth(selectedDate));
+    if (visible) {
+      setViewMonth(startOfMonth(selectedDate));
+    }
   }, [visible, selectedDate]);
 
-  const entryDays = useMemo(() => entryDaysInMonth(entries, viewMonth), [entries, viewMonth]);
+  // Fetch active entry days for the currently visible month
+  useEffect(() => {
+    if (!visible) return;
 
-  const cells = calendarCells(viewMonth);
+    let active = true;
+    getEntryDaysForMonth(viewMonth).then((days) => {
+      if (active) setEntryDays(days);
+    });
 
-  const pickDay = (dayTs: number) => {
+    return () => {
+      active = false;
+    };
+  }, [visible, viewMonth]);
+
+  const cells = useMemo(() => calendarCells(viewMonth), [viewMonth]);
+
+  const handleSelectDay = (dayTs: number) => {
     onSelectDate(dayTs);
     onClose();
   };
+
+  const todayTs = Date.now();
 
   return (
     <Sheet visible={visible} onClose={onClose} placement="center" animationType="fade">
       <View style={styles.monthRow}>
         <Pressable
-          onPress={() => setViewMonth(addMonths(viewMonth, -1))}
+          onPress={() => setViewMonth((prev) => addMonths(prev, -1))}
           hitSlop={space.md}
           style={({ pressed }) => [styles.navBtn, pressed && press]}
           accessibilityLabel="Previous month"
@@ -104,7 +118,7 @@ export function CalendarPicker({
         </ThemedText>
 
         <Pressable
-          onPress={() => setViewMonth(addMonths(viewMonth, 1))}
+          onPress={() => setViewMonth((prev) => addMonths(prev, 1))}
           hitSlop={space.md}
           style={({ pressed }) => [styles.navBtn, pressed && press]}
           accessibilityLabel="Next month"
@@ -129,18 +143,15 @@ export function CalendarPicker({
             return <View key={`blank-${index}`} style={styles.cellSlot} />;
           }
 
-          const selected = isSameDay(dayTs, selectedDate);
-          const today = isSameDay(dayTs, Date.now());
-          const showEntryDot = entryDays.has(dayTs) && !selected && !today;
-
           return (
             <CalendarDay
               key={dayTs}
               dayTs={dayTs}
-              selected={selected}
-              today={today}
-              showEntryDot={showEntryDot}
-              onPress={() => pickDay(dayTs)}
+              selected={isSameDay(dayTs, selectedDate)}
+              today={isSameDay(dayTs, todayTs)}
+              hasEntry={entryDays.has(dayTs)}
+              colors={colors}
+              onPress={() => handleSelectDay(dayTs)}
             />
           );
         })}

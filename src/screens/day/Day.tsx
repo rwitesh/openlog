@@ -1,11 +1,11 @@
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { useLayoutEffect, useMemo } from "react";
+import { useLayoutEffect } from "react";
 import { Image, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useEntries } from "@/modules/entry";
+import { useTimelineEntries } from "@/modules/entry";
 import { AddEntryFab, FAB_CLEARANCE, TimelineFeed } from "@/modules/timeline";
 import type { RootStackParamList } from "@/navigation/types";
-import { entriesForDay, formatHeaderDate, isSameDay } from "@/shared/utils/dates";
+import { formatHeaderDate, isSameDay } from "@/shared/utils/dates";
 import { space, useTheme } from "@/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Day">;
@@ -13,12 +13,11 @@ type Props = NativeStackScreenProps<RootStackParamList, "Day">;
 export function DayTimelineScreen({ route, navigation }: Props) {
   const { dayTs } = route.params;
   const insets = useSafeAreaInsets();
-  const { entries } = useEntries();
+  const { entries, loadMore } = useTimelineEntries({ dayTs });
   const { theme, colors } = useTheme();
   const bgConfig = theme.backgroundConfig;
 
   const isToday = isSameDay(dayTs, Date.now());
-  const dayEntries = useMemo(() => entriesForDay(entries, dayTs), [entries, dayTs]);
   const bottomInset = isToday ? FAB_CLEARANCE + insets.bottom : insets.bottom;
 
   useLayoutEffect(() => {
@@ -38,12 +37,13 @@ export function DayTimelineScreen({ route, navigation }: Props) {
       ) : null}
 
       <TimelineFeed
-        entries={dayEntries}
+        entries={entries}
         paddingTop={space.lg}
         bottomInset={bottomInset}
         emptyTitle="A quiet day"
         emptyBody={isToday ? "Tap + to write." : "Nothing written that day."}
         animateFirst={isToday}
+        onEndReached={loadMore}
       />
 
       {isToday ? <AddEntryFab onPress={() => navigation.navigate("Compose")} /> : null}
