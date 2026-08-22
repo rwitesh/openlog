@@ -7,7 +7,7 @@ import { TimelineSearchLayer } from "@/modules/search";
 import { AddEntryFab, FAB_CLEARANCE, TimelineFeed, TimelineHeader } from "@/modules/timeline";
 import type { RootStackParamList } from "@/navigation/types";
 import { CalendarPicker } from "@/shared/pickers";
-import { formatMonthYear, isSameMonth, startOfDay, startOfMonth } from "@/shared/utils/dates";
+import { startOfDay, startOfMonth } from "@/shared/utils/dates";
 import { timelineContentInset, useTheme } from "@/theme";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "Timeline">;
@@ -17,13 +17,12 @@ export function TimelineScreen({ navigation }: { navigation: Nav }) {
   const { theme, colors } = useTheme();
   const bgConfig = theme.backgroundConfig;
 
-  const [viewMonth] = useState(() => startOfMonth(Date.now()));
   const [dayPickerOpen, setDayPickerOpen] = useState(false);
   const [headerHeight, setHeaderHeight] = useState(0);
   const [searchActive, setSearchActive] = useState(false);
 
-  const { entries, loadMore } = useTimelineEntries({ monthTs: viewMonth });
-  const isCurrentMonth = isSameMonth(viewMonth, Date.now());
+  // Continuous newest-to-oldest feed across all time with infinite prefetching
+  const { entries, loadMore } = useTimelineEntries();
 
   const openDay = useCallback(
     (ts: number) => navigation.navigate("Day", { dayTs: startOfDay(ts) }),
@@ -52,8 +51,8 @@ export function TimelineScreen({ navigation }: { navigation: Nav }) {
         </View>
       ) : null}
       <TimelineHeader
-        selectedMonth={viewMonth}
-        onOpenMonth={() => navigation.navigate("Memory", { monthTs: viewMonth })}
+        selectedMonth={Date.now()}
+        onOpenMonth={() => navigation.navigate("Memory", { monthTs: startOfMonth(Date.now()) })}
         onOpenSearch={() => setSearchActive(true)}
         onOpenCalendar={() => setDayPickerOpen(true)}
         onOpenSettings={() => navigation.navigate("Settings")}
@@ -64,21 +63,15 @@ export function TimelineScreen({ navigation }: { navigation: Nav }) {
         entries={entries}
         showDates
         paddingTop={timelineContentInset(headerHeight)}
-        bottomInset={isCurrentMonth ? FAB_CLEARANCE + insets.bottom : insets.bottom}
-        emptyTitle="A quiet month"
-        emptyBody={
-          isCurrentMonth
-            ? "Tap + to write, or open the calendar."
-            : `Nothing written in ${formatMonthYear(viewMonth).toLowerCase()}.`
-        }
-        animateFirst={isCurrentMonth}
+        bottomInset={FAB_CLEARANCE + insets.bottom}
+        emptyTitle="A quiet timeline"
+        emptyBody="Tap + to write, or open the calendar."
+        animateFirst
         onOpenDay={openDay}
         onEndReached={loadMore}
       />
 
-      {isCurrentMonth && !searchActive ? (
-        <AddEntryFab onPress={() => navigation.navigate("Compose")} />
-      ) : null}
+      {!searchActive ? <AddEntryFab onPress={() => navigation.navigate("Compose")} /> : null}
 
       <CalendarPicker
         visible={dayPickerOpen}
