@@ -49,10 +49,6 @@ export function startOfMonth(ts: number): number {
   return d.getTime();
 }
 
-export function isSameMonth(a: number, b: number): boolean {
-  return startOfMonth(a) === startOfMonth(b);
-}
-
 /** "Today", "Yesterday", or "Friday, August 14" — day label in the month feed. */
 export function formatHeaderDate(ts: number, now = Date.now()): string {
   if (isSameDay(ts, now)) return "Today";
@@ -164,13 +160,6 @@ export function addMonths(ts: number, months: number): number {
   return d.getTime();
 }
 
-/** Month offset from `from` to `to` (each normalized to start-of-month). */
-export function monthOffset(from: number, to: number): number {
-  const a = new Date(startOfMonth(from));
-  const b = new Date(startOfMonth(to));
-  return (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
-}
-
 export function formatMonthYear(ts: number): string {
   const d = new Date(ts);
   return `${MONTHS_LONG[d.getMonth()]} ${d.getFullYear()}`;
@@ -217,14 +206,4 @@ export function entryDaysInMonth(entries: { createdAt: number }[], monthTs: numb
 export function formatMonthName(ts: number): string {
   const d = new Date(ts);
   return MONTHS_LONG[d.getMonth()];
-}
-
-/** Canonical helper to retrieve all entries within a specific calendar month. */
-export function getMonthEntries<T extends { createdAt: number }>(
-  entries: T[],
-  monthTs: number
-): T[] {
-  const start = startOfMonth(monthTs);
-  const end = addMonths(monthTs, 1);
-  return entries.filter((e) => e.createdAt >= start && e.createdAt < end);
 }

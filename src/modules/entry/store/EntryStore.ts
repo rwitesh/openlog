@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   createEntry,
   deleteAllEntries,
@@ -6,7 +6,6 @@ import {
   getEntryById,
   getPagedEntries,
   type NewEntryInput,
-  type PagedEntriesOptions,
   seedMockEntries,
   type UpdateEntryInput,
   updateEntry,

@@ -4,7 +4,6 @@ import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { ImageViewerModal } from "@/modules/entry/components/ImageViewerModal";
 import { metrics, press, radius, space, useTheme } from "@/theme";
-import { MAX_IMAGES } from "../types";
 import { AudioDraftPreview } from "./AudioDraftPreview";
 
 const PREVIEW_SIZE = 80;

@@ -2,14 +2,13 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { Image, StyleSheet, View } from "react-native";
+import { View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AppLockGate } from "@/modules/auth";
 import { ProfileProvider } from "@/modules/profile";
 import type { RootStackParamList } from "@/navigation";
 import { Compose } from "@/screens/compose";
 import { Day } from "@/screens/day";
-import { Memory } from "@/screens/memory";
 import {
   Settings,
   SettingsAbout,
@@ -56,30 +55,8 @@ function AppContent({ showWelcome }: { showWelcome: boolean }) {
         >
           <Stack.Screen name="Welcome" component={Welcome} options={{ headerShown: false }} />
           <Stack.Screen name="Timeline" component={Timeline} options={{ headerShown: false }} />
-          <Stack.Screen
-            name="Memory"
-            component={Memory}
-            options={{
-              headerShown: false,
-              animation: "slide_from_right",
-            }}
-          />
-          <Stack.Screen
-            name="Day"
-            component={Day}
-            options={{
-              headerBackTitle: "Back",
-              headerShadowVisible: false,
-            }}
-          />
-          <Stack.Screen
-            name="Compose"
-            component={Compose}
-            options={{
-              headerBackTitle: "Back",
-              headerShadowVisible: false,
-            }}
-          />
+          <Stack.Screen name="Day" component={Day} options={{ headerShown: false }} />
+          <Stack.Screen name="Compose" component={Compose} options={{ headerShown: false }} />
           <Stack.Screen
             name="Settings"
             component={Settings}

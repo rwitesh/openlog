@@ -9,21 +9,23 @@
 
 ## 0. Execution Status
 
-**Last updated:** August 22, 2026 — all implementation done in AI pair-programming sessions (Antigravity coding agent).
+**Last updated:** August 23, 2026 — all implementation done in AI pair-programming sessions (Antigravity coding agent).
 
 ### ✅ Done
 
-| Item | Audit Ref | Commit | What shipped |
-|---|---|---|---|
-| **Backup / export (`.monolog` archive)** | FIX #1 · Biggest Mistake · Next-Action #1 | `a6fc8af` | Rock-solid portable `.monolog` archive engine: SQLite full dump (`manifest.json` + `db.json`) + all referenced photos and voice memos (`media/`). Sequential disk-streaming pipeline (flat < 25MB RAM on 5+ years of data), in-app Export share sheet, document picker for Import, dry-run archive inspection, transactional batch restoration, and support for both "Merge (Keep Current)" and "Replace All" modes. System design documented in `docs/BACKUP_SYSTEM_DESIGN.md`. |
-| **Timeline UI & Scroll Polish** | Aesthetics & Craft | `e8e2fd7` | Added 60fps spring "Back to top" floating pill (triggered at 400px scroll), scaled `+` FAB with standard `space.xxxl` elevation and 56px touch target, removed artificial header gradient scrim, and contained scroll viewport strictly below header. |
-| **Keyset Pagination & Prefetching** | Performance / Scalability | `73e9878` | Scaled database to 100k+ entries with zero startup lag. Cursor-based keyset pagination (`created_at < cursor LIMIT 50`), 70% threshold scroll prefetching in `TimelineFeed`, reactive mutation subscription in `EntryStore`, and lightweight metadata projections for calendar/month pickers. |
-| **Background & opacity slider** | Aesthetic / Contrast | `b3bf756` | Retained per founder decision; added interactive opacity slider (10%–95%) with preset chips, top 2-column quick action grid (None vs Custom Photo), and curated preset grid. |
-| **Settings consolidation** | DELETE #2 | `8efad27` | All 5 appearance bottom-sheet modals + separate Appearance screen deleted (~2.2k lines removed). One unified Settings screen with direct sections: Profile, Theme, Typography, Accent, Background, Timeline, Privacy, Data, Accessibility. |
-| **Full-text search (FTS5)** | FIX #3 · Next-Action #2 · Week 2 Day 8–11 | `28fe60b` | SQLite FTS5 index over entry text + location names; safe prefix-match query builder (user input can never break MATCH syntax); ranked results with highlight snippets; search layer wired into Timeline header. |
-| **Structure cleanup** | Maintainability | `a037ee3` | `src/features/` → `src/modules/`; imports updated across the app. |
-| **Image downscaling on capture** | FIX #4 · Week 1 Day 4–5 | `475926b` | `expo-image-manipulator` pipeline: longest edge capped at **1920px**, re-encoded as **JPEG @ 80%** (matches audit spec). Skips work when picker assets already carry dimensions. |
-| **ComposeScreen refactor** | FIX #2 · Week 1 Day 6–7 | `6a87345` | Extracted `useComposeDraft` + `useMediaAttachments` hooks; audio/location lifecycles isolated; Compose screen ~180 lines lighter with concerns separated. |
+| Item | Audit Ref | Commit | Date | What shipped |
+|---|---|---|---|---|
+| **Unified themed chrome** | Aesthetics & Craft · UX Simplicity | `64d8b81` | Aug 23, 2026 | New shared `ScreenHeader` (in-app back/title/actions on the applied background) + `ThemedBackground` (single source of truth for palette image layer). Day & Compose dropped native stack headers entirely; entry viewing is identical whether opened from timeline, calendar, or search. All header icon buttons (search/calendar/settings, 44pt) and date/time/location badges render directly on the theme/palette background — zero surface/charcoal button chrome left. |
+| **Month overview screen removed** | Simplification · Ruthless Prioritization | `64d8b81` | Aug 23, 2026 | Deleted the entire Memory screen (`src/screens/memory`, `src/modules/memory`, MonthPicker, ~1.3k lines incl. MonthStats/MonthHero/MonthPulse skyline). Timeline month chip is now a static month+year label — one canonical path: Timeline → Day → Entry. Founder decision: reflection surface deferred until retention loop exists. |
+| **Backup / export (`.monolog` archive)** | FIX #1 · Biggest Mistake · Next-Action #1 | `e82252d` | Aug 22, 2026 | Rock-solid portable `.monolog` archive engine: SQLite full dump (`manifest.json` + `db.json`) + all referenced photos and voice memos (`media/`). Sequential disk-streaming pipeline (flat < 25MB RAM on 5+ years of data), in-app Export share sheet, document picker for Import, dry-run archive inspection, transactional batch restoration, and support for both "Merge (Keep Current)" and "Replace All" modes. System design documented in `docs/BACKUP_SYSTEM_DESIGN.md`. |
+| **Timeline UI & Scroll Polish** | Aesthetics & Craft | `e8e2fd7` | Aug 22, 2026 | Added 60fps spring "Back to top" floating pill (triggered at 400px scroll), scaled `+` FAB with standard `space.xxxl` elevation and 56px touch target, removed artificial header gradient scrim, and contained scroll viewport strictly below header. |
+| **Keyset Pagination & Prefetching** | Performance / Scalability | `73e9878` | Aug 22, 2026 | Scaled database to 100k+ entries with zero startup lag. Cursor-based keyset pagination (`created_at < cursor LIMIT 50`), 70% threshold scroll prefetching in `TimelineFeed`, reactive mutation subscription in `EntryStore`, and lightweight metadata projections for calendar/month pickers. |
+| **Background & opacity slider** | Aesthetic / Contrast | `b3bf756` | Aug 22, 2026 | Retained per founder decision; added interactive opacity slider (10%–95%) with preset chips, top 2-column quick action grid (None vs Custom Photo), and curated preset grid. |
+| **Settings consolidation** | DELETE #2 | `8efad27` | Aug 20, 2026 | All 5 appearance bottom-sheet modals + separate Appearance screen deleted (~2.2k lines removed). One unified Settings screen with direct sections: Profile, Theme, Typography, Accent, Background, Timeline, Privacy, Data, Accessibility. |
+| **Full-text search (FTS5)** | FIX #3 · Next-Action #2 · Week 2 Day 8–11 | `28fe60b` | Aug 20, 2026 | SQLite FTS5 index over entry text + location names; safe prefix-match query builder (user input can never break MATCH syntax); ranked results with highlight snippets; search layer wired into Timeline header. |
+| **Structure cleanup** | Maintainability | `a037ee3` | Aug 20, 2026 | `src/features/` → `src/modules/`; imports updated across the app. |
+| **Image downscaling on capture** | FIX #4 · Week 1 Day 4–5 | `475926b` | Aug 20, 2026 | `expo-image-manipulator` pipeline: longest edge capped at **1920px**, re-encoded as **JPEG @ 80%** (matches audit spec). Skips work when picker assets already carry dimensions. |
+| **ComposeScreen refactor** | FIX #2 · Week 1 Day 6–7 | `6a87345` | Aug 20, 2026 | Extracted `useComposeDraft` + `useMediaAttachments` hooks; audio/location lifecycles isolated; Compose screen ~180 lines lighter with concerns separated. |
 
 > Ahead of the 30-day plan: Week 1 Day 4–7 items shipped Day 3; FTS search (Week 2) shipped a week early; Keyset pagination shipped to guarantee 100k-row scale; Backup & export archive engine shipped with full system design.
 
@@ -37,6 +39,11 @@
 | 4 | Store launch (EAS build & submission) | Week 4 | Not started. |
 
 ### 💬 Developer / Founder Log & Commentary
+
+* **Aug 23, 2026 — Delete Month Stats Screen & Unify Entry Viewing (Decision: ONE PATH, ZERO CHROME)**
+  > *"Developer comment: remove the month stats screen statistics related code and the way tapping on month from header opens a new screen — delete all this relevant code. Only show that month with year. Remove that bg too, show only theme/palette bg. Applicable for calendar/settings/search buttons too. When clicking an entry from calendar date it gives another screen with charcoal header — unify entry viewing so timeline/calendar/search show the same screen with applied bg. No other bg for header or any button (calendar/time/location badges included)."*
+  >
+  > **Shipped:** Removed the Memory screen end-to-end (screen, module, MonthPicker, dead DB/date helpers — ~1.3k lines). Timeline month chip became a static month+year label. Introduced `ScreenHeader` + `ThemedBackground` shared components; Day and Compose now use them with `headerShown: false`, killing the native charcoal headers. All tappable chrome (header icons enlarged to 44pt touch targets, date/time/location badges) sits directly on the themed background with press-opacity feedback only. Net effect: exactly one viewing experience regardless of entry point, and a materially smaller surface area to maintain.
 
 * **Aug 22, 2026 — Portable `.monolog` Archive Export & Import (Decision: SHIP ROCK-SOLID BACKUP & RESTORE)**
   > *"Developer comment: Build a rock-solid .monolog export/import archive (SQLite dump + media folder). The file is .monolog can be exported and imported. Make sure it scales to 5+ years of data without memory spikes, handles errors cleanly, and includes a full system design document."*
@@ -178,7 +185,7 @@ Because doing nothing results in total memory decay. Traditional journaling fail
 1. **Local-first SQLite with `useSyncExternalStore`:** Lightning-fast, private, and works anywhere on earth.
 2. **Timeline Rail UI:** The vertical chronological line with date markers is visually distinctive and rewarding.
 3. **Multimodal Single Entry (Text + Audio Waveform + Photos + Location):** The right data model for real human memory.
-4. **Month Pulse Skyline Visualizer:** Visual gamification that turns monthly consistency into a beautiful skyline.
+4. ~~**Month Pulse Skyline Visualizer:**~~ *(Removed by Developer/Founder Decision, Aug 23)* — Month overview screen deleted to keep one canonical navigation path; revisit a reflection surface only after the retention loop exists.
 5. **Biometric App Lock (`useAppLock` + `AppState` threshold):** Vital for diary trust.
 
 ### 🟠 FIX
@@ -284,7 +291,7 @@ gantt
 ### ⚠️ The Single Biggest Mistake
 > **"You built a private journal with zero backup or export mechanism."**
 > 
-> ✅ **Status: RESOLVED (Commit `9d0a523`)** — Built rock-solid streaming `.monolog` export/import archive engine with zero memory spike risk, atomic SQLite batch restoration, dry-run inspector, and full system design documentation (`docs/BACKUP_SYSTEM_DESIGN.md`).
+> ✅ **Status: RESOLVED (Commit `e82252d`, Aug 22, 2026)** — Built rock-solid streaming `.monolog` export/import archive engine with zero memory spike risk, atomic SQLite batch restoration, dry-run inspector, and full system design documentation (`docs/BACKUP_SYSTEM_DESIGN.md`).
 
 **Why this was fatal:**  
 Journaling requires extreme psychological vulnerability. A user will only write their deepest personal thoughts, attach family photos, and record intimate voice notes if they have **100% confidence that the data will survive for 10+ years**. 

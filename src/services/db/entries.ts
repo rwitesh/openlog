@@ -138,37 +138,6 @@ export async function getEntryDaysForMonth(monthTs: number): Promise<Set<number>
   });
 }
 
-/** Distinct months that have at least one entry, for the month picker. */
-export async function getDistinctEntryMonths(): Promise<Set<number>> {
-  return runDb(async (db) => {
-    const rows = await db.getAllAsync<{ created_at: number }>(
-      `SELECT DISTINCT created_at FROM entries ORDER BY created_at DESC`
-    );
-    const months = new Set<number>();
-    for (const row of rows) {
-      months.add(startOfMonth(row.created_at));
-    }
-    return months;
-  });
-}
-
-/** All entries in a given month. */
-export async function getEntriesForMonth(monthTs: number): Promise<Entry[]> {
-  const start = startOfMonth(monthTs);
-  const end = addMonths(monthTs, 1);
-  return runDb(async (db) => {
-    const rows = await db.getAllAsync<EntryRecord>(
-      `SELECT ${ENTRY_COLUMNS}
-         FROM entries
-        WHERE created_at >= ? AND created_at < ?
-        ORDER BY created_at DESC`,
-      start,
-      end
-    );
-    return rows.map(toEntry);
-  });
-}
-
 /** All entries (bounded optionally by limit), newest first. */
 export async function getEntries(limit?: number): Promise<Entry[]> {
   return runDb(async (db) => {

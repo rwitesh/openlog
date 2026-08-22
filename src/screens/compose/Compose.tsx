@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Pressable, type TextInput, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Pressable, StyleSheet, type TextInput, View } from "react-native";
 import {
   ComposeAttachments,
   ComposeEditor,
@@ -12,6 +12,7 @@ import {
 } from "@/modules/compose";
 import { EntryDetailsModal, useEntries, useEntry } from "@/modules/entry";
 import type { RootStackParamList } from "@/navigation/types";
+import { ScreenHeader, ThemedBackground } from "@/shared/components";
 import { Layout, useKeepFocus } from "@/shared/components/Layout";
 import { CalendarPicker, TimePicker } from "@/shared/pickers";
 import { withTimeOfDay } from "@/shared/utils/dates";
@@ -21,7 +22,6 @@ type Props = NativeStackScreenProps<RootStackParamList, "Compose">;
 
 export function ComposeScreen({ navigation, route }: Props) {
   const { colors } = useTheme().theme;
-
   const entryId = route.params?.entryId;
   const [mode, setMode] = useState<"view" | "edit">(
     route.params?.mode ?? (entryId ? "view" : "edit")
@@ -54,63 +54,44 @@ export function ComposeScreen({ navigation, route }: Props) {
     }
   }, [entryId, entry, navigation]);
 
-  useLayoutEffect(() => {
-    if (isReadOnly) {
-      navigation.setOptions({
-        title: "Entry",
-        headerRight: () => (
-          <View style={{ flexDirection: "row", alignItems: "center", gap: space.md }}>
-            <Pressable
-              onPress={() => setMode("edit")}
-              hitSlop={space.md}
-              style={({ pressed }) => pressed && press}
-              accessibilityRole="button"
-              accessibilityLabel="Edit"
-            >
-              <Feather name="edit-2" size={metrics.iconSm + 2} color={colors.text} />
-            </Pressable>
-            <Pressable
-              onPress={() => setDetailsOpen(true)}
-              hitSlop={space.md}
-              style={({ pressed }) => pressed && press}
-              accessibilityRole="button"
-              accessibilityLabel="Entry details"
-            >
-              <Feather
-                name="more-vertical"
-                size={metrics.iconSm + 2}
-                color={colors.textSecondary}
-              />
-            </Pressable>
-          </View>
-        ),
-      });
-    } else if (existing) {
-      navigation.setOptions({
-        title: "Edit entry",
-        headerRight: () => (
-          <Pressable
-            onPress={() => {
-              draft.reset();
-              media.reset();
-              setMode("view");
-            }}
-            hitSlop={space.md}
-            style={({ pressed }) => pressed && press}
-            accessibilityRole="button"
-            accessibilityLabel="Cancel"
-          >
-            <Feather name="x" size={metrics.iconMd} color={colors.textSecondary} />
-          </Pressable>
-        ),
-      });
-    } else {
-      navigation.setOptions({
-        title: "New entry",
-        headerRight: undefined,
-      });
-    }
-  }, [navigation, isReadOnly, existing, colors]);
+  const title = isReadOnly ? "Entry" : existing ? "Edit entry" : "New entry";
+
+  const headerRight = isReadOnly ? (
+    <View style={styles.headerActions}>
+      <Pressable
+        onPress={() => setMode("edit")}
+        hitSlop={space.md}
+        style={({ pressed }) => pressed && press}
+        accessibilityRole="button"
+        accessibilityLabel="Edit"
+      >
+        <Feather name="edit-2" size={metrics.iconMd} color={colors.text} />
+      </Pressable>
+      <Pressable
+        onPress={() => setDetailsOpen(true)}
+        hitSlop={space.md}
+        style={({ pressed }) => pressed && press}
+        accessibilityRole="button"
+        accessibilityLabel="Entry details"
+      >
+        <Feather name="more-vertical" size={metrics.iconMd} color={colors.textSecondary} />
+      </Pressable>
+    </View>
+  ) : existing ? (
+    <Pressable
+      onPress={() => {
+        draft.reset();
+        media.reset();
+        setMode("view");
+      }}
+      hitSlop={space.md}
+      style={({ pressed }) => pressed && press}
+      accessibilityRole="button"
+      accessibilityLabel="Cancel"
+    >
+      <Feather name="x" size={metrics.iconLg} color={colors.textSecondary} />
+    </Pressable>
+  ) : undefined;
 
   const handleSave = async () => {
     const outcome = await draft.save();
@@ -134,7 +115,11 @@ export function ComposeScreen({ navigation, route }: Props) {
   };
 
   return (
-    <Layout.Screen>
+    <Layout.Screen style={[styles.screen, { backgroundColor: colors.background }]}>
+      <ThemedBackground />
+
+      <ScreenHeader title={title} onBack={() => navigation.goBack()} right={headerRight} />
+
       <DateTimeBadges
         when={draft.when}
         onOpenDate={isReadOnly ? undefined : () => setDatePickerOpen(true)}
@@ -227,3 +212,14 @@ export function ComposeScreen({ navigation, route }: Props) {
     </Layout.Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.md,
+  },
+});
