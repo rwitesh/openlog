@@ -19,7 +19,8 @@ export type EntryMutation =
   | { type: "add"; entry: Entry }
   | { type: "update"; entry: Entry }
   | { type: "delete"; id: string }
-  | { type: "clear" };
+  | { type: "clear" }
+  | { type: "reload" };
 
 const mutationListeners = new Set<(mutation: EntryMutation) => void>();
 
@@ -27,6 +28,11 @@ function notifyMutation(mutation: EntryMutation) {
   mutationListeners.forEach((listener) => {
     listener(mutation);
   });
+}
+
+export function notifyStoreReload() {
+  entryCache.clear();
+  notifyMutation({ type: "reload" });
 }
 
 export function subscribeMutations(listener: (mutation: EntryMutation) => void) {
@@ -182,6 +188,11 @@ export function useTimelineEntries(options: UseTimelineEntriesOptions = {}) {
         setEntries([]);
         setHasMore(false);
         nextCursorRef.current = undefined;
+        return;
+      }
+
+      if (mutation.type === "reload") {
+        void loadInitial();
         return;
       }
 
