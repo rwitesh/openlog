@@ -42,7 +42,7 @@ export function formatGeocodedAddress(
  */
 export function locationPlaceTitle(location?: EntryLocation | null): string {
   if (!location) return LOCATION_UNAVAILABLE;
-  if (location.name && location.name.trim()) {
+  if (location.name?.trim()) {
     return location.name.trim();
   }
   return "Location";

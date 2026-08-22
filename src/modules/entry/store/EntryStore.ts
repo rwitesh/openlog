@@ -5,9 +5,9 @@ import {
   deleteEntry,
   getEntryById,
   getPagedEntries,
-  seedMockEntries,
   type NewEntryInput,
   type PagedEntriesOptions,
+  seedMockEntries,
   type UpdateEntryInput,
   updateEntry,
 } from "@/services/db/entries";

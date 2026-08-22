@@ -1,11 +1,10 @@
-import { LinearGradient } from "expo-linear-gradient";
 import { Animated, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useProfile } from "@/modules/profile";
 import { ThemedText } from "@/shared/components/ThemedText";
 import { formatMonthYear } from "@/shared/utils/dates";
-import { metrics, sectionGap, space, useTheme } from "@/theme";
+import { metrics, space, useTheme } from "@/theme";
 import { useStaggeredEntrance } from "../hooks/useStaggeredEntrance";
 import { HeaderIconActions } from "./HeaderIconActions";
 import { MonthChip } from "./MonthChip";
@@ -29,7 +28,7 @@ export function TimelineHeader({
   onOpenSettings,
   onLayout,
 }: TimelineHeaderProps) {
-  const { theme, resolvedMode, isDark } = useTheme();
+  const { theme, resolvedMode } = useTheme();
   const { name } = useProfile();
   const insets = useSafeAreaInsets();
   const { colors } = theme;
@@ -40,7 +39,6 @@ export function TimelineHeader({
   const greeting = firstName ? `Hi, ${firstName}` : "Hi there";
   const currentMonth = formatMonthYear(selectedMonth ?? Date.now());
   const topInset = insets.top + space.lg;
-  const hasBackground = Boolean(theme.backgroundConfig?.imageUri);
 
   return (
     <View
@@ -48,20 +46,6 @@ export function TimelineHeader({
       style={styles.wrapper}
     >
       <View style={[styles.header, { paddingTop: topInset }]}>
-        {/* Protective scrim gradient when a background image is active */}
-        {hasBackground ? (
-          <LinearGradient
-            colors={
-              isDark
-                ? ["rgba(18, 18, 21, 0.88)", "rgba(18, 18, 21, 0.35)", "transparent"]
-                : ["rgba(250, 248, 245, 0.92)", "rgba(250, 248, 245, 0.45)", "transparent"]
-            }
-            locations={[0, 0.75, 1]}
-            style={StyleSheet.absoluteFill}
-            pointerEvents="none"
-          />
-        ) : null}
-
         <HeaderIconActions
           top={topInset}
           colors={colors}

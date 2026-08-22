@@ -21,8 +21,8 @@
 | **Settings consolidation** | DELETE #2 | `8efad27` | All 5 appearance bottom-sheet modals + separate Appearance screen deleted (~2.2k lines removed). One unified Settings screen with direct sections: Profile, Theme, Typography, Accent, Background, Timeline, Privacy, Data, Accessibility. |
 | **Structure cleanup** | Maintainability | `a037ee3` | `src/features/` → `src/modules/`; imports updated across the app. |
 | **Background & opacity slider** | Aesthetic / Contrast | Current | Retained per founder decision; added interactive opacity slider (10%–95%) with preset chips, top 2-column quick action grid (None vs Custom Photo), and curated preset grid. |
-| **Curated On-Demand Typography** | DELETE #1 / Upgraded | Current | Curated 120 → top 32 iconic typefaces across Sans, Serif, Mono, and Script; partitioned typography sheet to pin **Downloaded & Saved** fonts on top with trash/delete controls, and **Explore** fonts below with search. |
 | **Keyset Pagination & Prefetching** | Performance / Scalability | `73e9878` | Scaled database to 100k+ entries with zero startup lag. Cursor-based keyset pagination (`created_at < cursor LIMIT 50`), 70% threshold scroll prefetching in `TimelineFeed`, reactive mutation subscription in `EntryStore`, and lightweight metadata projections for calendar/month pickers. |
+| **Timeline UI & Scroll Polish** | Aesthetics & Craft | Current | Added 60fps spring "Back to top" floating pill (triggered at 400px scroll), scaled `+` FAB with standard `space.xxxl` elevation and 56px touch target, removed artificial header gradient scrim, and contained scroll viewport strictly below header. |
 
 > Ahead of the 30-day plan: Week 1 Day 4–7 items shipped Day 3; FTS search (Week 2) shipped a week early; Keyset pagination shipped to guarantee 100k-row scale.
 
