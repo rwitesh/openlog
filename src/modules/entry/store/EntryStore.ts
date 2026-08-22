@@ -5,6 +5,7 @@ import {
   deleteEntry,
   getEntryById,
   getPagedEntries,
+  seedMockEntries,
   type NewEntryInput,
   type PagedEntriesOptions,
   type UpdateEntryInput,
@@ -259,5 +260,8 @@ export function useEntries() {
     removeAudio,
     clearAll,
     getEntry: fetchEntry,
+    seedMockEntries,
   };
 }
+
+export { seedMockEntries };
