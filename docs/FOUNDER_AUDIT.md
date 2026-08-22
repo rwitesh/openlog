@@ -22,7 +22,7 @@
 | **Structure cleanup** | Maintainability | `a037ee3` | `src/features/` → `src/modules/`; imports updated across the app. |
 | **Background & opacity slider** | Aesthetic / Contrast | Current | Retained per founder decision; added interactive opacity slider (10%–95%) with preset chips, top 2-column quick action grid (None vs Custom Photo), and curated preset grid. |
 | **Curated On-Demand Typography** | DELETE #1 / Upgraded | Current | Curated 120 → top 32 iconic typefaces across Sans, Serif, Mono, and Script; partitioned typography sheet to pin **Downloaded & Saved** fonts on top with trash/delete controls, and **Explore** fonts below with search. |
-| **Keyset Pagination & Prefetching** | Performance / Scalability | `73e9878` | Scaled database to 100k+ entries with zero startup lag. Cursor-based keyset pagination (`created_at < cursor LIMIT 25`), 70% threshold scroll prefetching in `TimelineFeed`, reactive mutation subscription in `EntryStore`, and lightweight metadata projections for calendar/month pickers. |
+| **Keyset Pagination & Prefetching** | Performance / Scalability | `73e9878` | Scaled database to 100k+ entries with zero startup lag. Cursor-based keyset pagination (`created_at < cursor LIMIT 50`), 70% threshold scroll prefetching in `TimelineFeed`, reactive mutation subscription in `EntryStore`, and lightweight metadata projections for calendar/month pickers. |
 
 > Ahead of the 30-day plan: Week 1 Day 4–7 items shipped Day 3; FTS search (Week 2) shipped a week early; Keyset pagination shipped to guarantee 100k-row scale.
 
@@ -41,7 +41,7 @@
 * **Aug 22, 2026 — Keyset Pagination & 100k Entry Scalability (Decision: PAGINATE & PREFETCH)**
   > *"Developer comment: I want paginated in such way that it will prefetch more entry while scrolling, but paginated, it should not fetch all into memory, that's too bad. Find the best approach."*
   > 
-  > **Shipped:** Implemented SQLite cursor-based keyset pagination with `idx_entries_created_at` index (< 1ms query time across 100,000+ entries). Switched `TimelineFeed` to prefetch the next 25-item batch when scrolling reaches 70% of the active list. Converted Calendar and Month pickers to use lightweight timestamp projections (`getEntryDaysForMonth`, `getDistinctEntryMonths`) instead of loading full in-memory objects.
+  > **Shipped:** Implemented SQLite cursor-based keyset pagination with `idx_entries_created_at` index (< 1ms query time across 100,000+ entries). Switched `TimelineFeed` to prefetch the next 50-item batch when scrolling reaches 70% of the active list. Converted Calendar and Month pickers to use lightweight timestamp projections (`getEntryDaysForMonth`, `getDistinctEntryMonths`) instead of loading full in-memory objects.
 
 * **Aug 20, 2026 — Background Image & Opacity (Decision: KEEP & ENHANCE)**
   > *"Developer comment: Let's give user a slider to select opacity too, but let's keep this feature because one user fault doesn't make the app bad if they forget. Keep add image on top of settings sheet modal in background: at first keep both buttons in a grid shape (Left: 'None / Pure Theme', Right: 'Custom / + Image') and below there will be presets. Follow clean code patterns, no hacks, no verbosity."*

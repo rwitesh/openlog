@@ -119,7 +119,7 @@ export interface UseTimelineEntriesOptions {
  * updates in-memory items automatically on mutations.
  */
 export function useTimelineEntries(options: UseTimelineEntriesOptions = {}) {
-  const { monthTs, dayTs, pageSize = 25 } = options;
+  const { monthTs, dayTs, pageSize = 50 } = options;
   const [entries, setEntries] = useState<Entry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
