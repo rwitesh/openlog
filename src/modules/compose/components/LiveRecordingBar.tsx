@@ -51,10 +51,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: space.sm,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     paddingHorizontal: space.md,
-    paddingVertical: space.sm,
-    minHeight: 36,
+    paddingVertical: space.xs,
+    minHeight: 34,
   },
   dot: {
     width: space.sm,

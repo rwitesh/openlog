@@ -47,10 +47,10 @@ function AppContent({ showWelcome }: { showWelcome: boolean }) {
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       {/* Background Image Layer */}
-      {bgConfig?.imageUri ? (
+      {bgConfig?.imageSource ? (
         <View style={StyleSheet.absoluteFill} pointerEvents="none">
           <Image
-            source={{ uri: bgConfig.imageUri }}
+            source={bgConfig.imageSource}
             style={[StyleSheet.absoluteFill, { opacity: bgConfig.opacity ?? 0.35 }]}
             resizeMode="cover"
           />

@@ -101,11 +101,13 @@ export function ComposeFooterBar({
   );
 }
 
+const BUTTON_SIZE = 40;
+
 const styles = StyleSheet.create({
   toolBtn: {
-    width: metrics.fabSize,
-    height: metrics.fabSize,
-    borderRadius: metrics.fabSize / 2,
+    width: BUTTON_SIZE,
+    height: BUTTON_SIZE,
+    borderRadius: BUTTON_SIZE / 2,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -113,9 +115,9 @@ const styles = StyleSheet.create({
     opacity: 0.45,
   },
   sendBtn: {
-    width: metrics.fabSize,
-    height: metrics.fabSize,
-    borderRadius: metrics.fabSize / 2,
+    width: BUTTON_SIZE,
+    height: BUTTON_SIZE,
+    borderRadius: BUTTON_SIZE / 2,
     alignItems: "center",
     justifyContent: "center",
   },

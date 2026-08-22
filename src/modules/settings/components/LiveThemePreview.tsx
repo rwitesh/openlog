@@ -30,9 +30,9 @@ export function LiveThemePreview() {
       accessibilityLabel="Live preview of timeline appearance"
     >
       {/* Background image layer — mirrors App.tsx treatment exactly. */}
-      {hasBackground && backgroundConfig?.imageUri ? (
+      {hasBackground && backgroundConfig?.imageSource ? (
         <Image
-          source={{ uri: backgroundConfig.imageUri }}
+          source={backgroundConfig.imageSource}
           style={[StyleSheet.absoluteFill, { opacity: backgroundConfig.opacity ?? 0.35 }]}
           resizeMode="cover"
         />

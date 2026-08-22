@@ -3,6 +3,7 @@ import { createContext, type ReactNode, useCallback, useContext, useMemo, useSta
 import { type ColorSchemeName, useColorScheme } from "react-native";
 
 import { setSettingsBatch } from "@/services/db/settings";
+import { resolveBackgroundSource } from "./backgrounds";
 import {
   ACCESSIBILITY_KEYS,
   type AccessibilityPreferences,
@@ -114,6 +115,7 @@ export function resolveTheme(preferences: UserPreferences, systemScheme: SystemS
     backgroundConfig: appearance.backgroundImageUri
       ? {
           imageUri: appearance.backgroundImageUri,
+          imageSource: resolveBackgroundSource(appearance.backgroundImageUri),
           opacity:
             typeof appearance.backgroundImageOpacity === "number"
               ? appearance.backgroundImageOpacity

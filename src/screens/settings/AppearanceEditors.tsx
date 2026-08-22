@@ -22,10 +22,12 @@ import { ThemedText } from "@/shared/components/ThemedText";
 import { APP_NAME } from "@/shared/constants";
 import {
   ACCENT_OPTIONS,
+  BACKGROUND_PRESETS,
   DEFAULT_FONT_FAMILY,
   type FontName,
   press,
   radius,
+  resolveBackgroundSource,
   space,
   type ThemeMode,
   type TimelineDensity,
@@ -792,44 +794,7 @@ const timelineStyles = StyleSheet.create({
   },
 });
 
-export interface BackgroundPreset {
-  id: string;
-  name: string;
-  uri: string;
-}
-
-export const CURATED_BACKGROUNDS: BackgroundPreset[] = [
-  {
-    id: "washi",
-    name: "Washi Paper",
-    uri: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=1200&auto=format&fit=crop&q=80",
-  },
-  {
-    id: "mist",
-    name: "Bamboo Mist",
-    uri: "https://images.unsplash.com/photo-1503899036084-c55cdd92da26?w=1200&auto=format&fit=crop&q=80",
-  },
-  {
-    id: "zen",
-    name: "Stone Garden",
-    uri: "https://images.unsplash.com/photo-1528164344705-475426879c0d?w=1200&auto=format&fit=crop&q=80",
-  },
-  {
-    id: "dusk",
-    name: "Kyoto Dusk",
-    uri: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=1200&auto=format&fit=crop&q=80",
-  },
-  {
-    id: "linen",
-    name: "Warm Linen",
-    uri: "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=1200&auto=format&fit=crop&q=80",
-  },
-  {
-    id: "cedar",
-    name: "Cedar Canopy",
-    uri: "https://images.unsplash.com/photo-1448375240586-882707db888b?w=1200&auto=format&fit=crop&q=80",
-  },
-];
+export { BACKGROUND_PRESETS, type BackgroundPreset } from "@/theme";
 
 const OPACITY_PRESETS = [
   { label: "15%", value: 0.15 },
@@ -852,8 +817,10 @@ export function BackgroundSettingsScreen() {
     setLiveOpacity(currentOpacity);
   }, [currentOpacity]);
 
-  const isCuratedSelected = CURATED_BACKGROUNDS.some((p) => p.uri === currentUri);
-  const isCustomSelected = Boolean(currentUri && !isCuratedSelected);
+  const isPresetSelected = Boolean(
+    currentUri && BACKGROUND_PRESETS.some((p) => p.id === currentUri)
+  );
+  const isCustomSelected = Boolean(currentUri && !isPresetSelected);
   const isNoneSelected = !currentUri;
 
   const handlePickFromGallery = useCallback(async () => {
@@ -893,8 +860,8 @@ export function BackgroundSettingsScreen() {
   }, [setAppearance]);
 
   const handleSelectPreset = useCallback(
-    (uri: string) => {
-      setAppearance({ backgroundImageUri: uri });
+    (id: string) => {
+      setAppearance({ backgroundImageUri: id });
     },
     [setAppearance]
   );
@@ -915,6 +882,8 @@ export function BackgroundSettingsScreen() {
     },
     [setAppearance]
   );
+
+  const customSource = isCustomSelected && currentUri ? resolveBackgroundSource(currentUri) : null;
 
   return (
     <SettingsEditorScreen preview={<LiveThemePreview />}>
@@ -982,12 +951,8 @@ export function BackgroundSettingsScreen() {
             accessibilityState={{ selected: isCustomSelected }}
             accessibilityLabel="Custom photo from gallery"
           >
-            {isCustomSelected && currentUri ? (
-              <Image
-                source={{ uri: currentUri }}
-                style={bgStyles.customThumbnail}
-                resizeMode="cover"
-              />
+            {customSource ? (
+              <Image source={customSource} style={bgStyles.customThumbnail} resizeMode="cover" />
             ) : (
               <View
                 style={[
@@ -1115,13 +1080,13 @@ export function BackgroundSettingsScreen() {
         </ThemedText>
 
         <View style={bgStyles.presetsGrid}>
-          {CURATED_BACKGROUNDS.map((item) => {
-            const isSelected = currentUri === item.uri;
+          {BACKGROUND_PRESETS.map((item, index) => {
+            const isSelected = currentUri === item.id;
 
             return (
               <Pressable
                 key={item.id}
-                onPress={() => handleSelectPreset(item.uri)}
+                onPress={() => handleSelectPreset(item.id)}
                 style={({ pressed }) => [
                   bgStyles.presetGridCard,
                   {
@@ -1133,28 +1098,15 @@ export function BackgroundSettingsScreen() {
                 ]}
                 accessibilityRole="button"
                 accessibilityState={{ selected: isSelected }}
-                accessibilityLabel={`${item.name} background preset`}
+                accessibilityLabel={`Background preset ${index + 1}`}
               >
-                <View style={bgStyles.previewContainer}>
-                  <Image
-                    source={{ uri: item.uri }}
-                    style={bgStyles.previewImage}
-                    resizeMode="cover"
-                  />
-                  {isSelected ? (
-                    <View style={[bgStyles.checkBadgeTop, { backgroundColor: colors.accent }]}>
-                      <Feather name="check" size={10} color={isDark ? "#121215" : "#FAF8F5"} />
-                    </View>
-                  ) : null}
-                </View>
+                <Image source={item.source} style={bgStyles.presetImage} resizeMode="cover" />
 
-                <ThemedText
-                  weight={isSelected ? "semibold" : "medium"}
-                  style={[bgStyles.presetTitle, { color: colors.text }]}
-                  numberOfLines={1}
-                >
-                  {item.name}
-                </ThemedText>
+                {isSelected ? (
+                  <View style={[bgStyles.checkBadgeTop, { backgroundColor: colors.accent }]}>
+                    <Feather name="check" size={11} color={isDark ? "#121215" : "#FAF8F5"} />
+                  </View>
+                ) : null}
               </Pressable>
             );
           })}
@@ -1220,13 +1172,19 @@ const bgStyles = StyleSheet.create({
   },
   checkBadgeTop: {
     position: "absolute",
-    top: 6,
-    right: 6,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    top: 8,
+    right: 8,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     alignItems: "center",
     justifyContent: "center",
+    zIndex: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.25,
+    shadowRadius: 2,
+    elevation: 3,
   },
   sectionHeading: {
     fontSize: 11,
@@ -1283,30 +1241,19 @@ const bgStyles = StyleSheet.create({
   presetsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: space.sm,
+    justifyContent: "space-between",
+    rowGap: space.md,
   },
   presetGridCard: {
-    width: "48.2%",
-    padding: space.xs + 2,
+    width: "48%",
+    aspectRatio: 9 / 14,
     borderRadius: radius.md,
     borderWidth: 1.5,
-    gap: space.xs + 2,
-  },
-  previewContainer: {
-    width: "100%",
-    height: 64,
-    borderRadius: radius.sm,
     overflow: "hidden",
-    backgroundColor: "#ccc",
     position: "relative",
   },
-  previewImage: {
+  presetImage: {
     width: "100%",
     height: "100%",
-  },
-  presetTitle: {
-    fontSize: 12,
-    lineHeight: 16,
-    paddingHorizontal: 2,
   },
 });

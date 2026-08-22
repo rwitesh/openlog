@@ -25,7 +25,7 @@ export function SettingsEditorScreen({
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: space.xl,
-          paddingTop: space.md,
+          paddingTop: space.xs,
           paddingBottom: insets.bottom + space.xxxl,
         }}
         showsVerticalScrollIndicator={false}
@@ -44,5 +44,6 @@ const styles = StyleSheet.create({
   preview: {
     paddingHorizontal: space.xl,
     paddingTop: space.md,
+    paddingBottom: space.md,
   },
 });
