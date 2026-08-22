@@ -6,6 +6,7 @@ import { confirmDestructive, SettingsGroup, SettingsScreenScroll } from "@/modul
 import { authenticate, type BiometricSupport, getBiometricSupport } from "@/services/auth";
 import { deleteMediaList } from "@/services/media";
 import { ThemedText } from "@/shared/components/ThemedText";
+import { IS_EXPO_GO } from "@/shared/utils";
 import { press, space, typography, usePreferences, useTheme } from "@/theme";
 
 /**
@@ -117,7 +118,7 @@ export function PrivacySettingsScreen() {
           </ThemedText>
         </Pressable>
 
-        {__DEV__ ? (
+        {IS_EXPO_GO ? (
           <View style={{ marginTop: space.md, gap: space.sm }}>
             <Pressable
               onPress={() => void handleSeed(1000)}
@@ -125,7 +126,7 @@ export function PrivacySettingsScreen() {
               style={({ pressed }) => [styles.deleteBtn, pressed && press]}
             >
               <ThemedText style={[typography.settingLabel, { color: colors.marker }]}>
-                {seeding ? "Generating entries…" : "Generate 1,000 test entries (Dev)"}
+                {seeding ? "Generating entries…" : "Generate 1,000 test entries (Expo Go)"}
               </ThemedText>
             </Pressable>
             <Pressable
@@ -134,7 +135,7 @@ export function PrivacySettingsScreen() {
               style={({ pressed }) => [styles.deleteBtn, pressed && press]}
             >
               <ThemedText style={[typography.settingLabel, { color: colors.marker }]}>
-                {seeding ? "Generating entries…" : "Generate 10,000 test entries (Dev)"}
+                {seeding ? "Generating entries…" : "Generate 10,000 test entries (Expo Go)"}
               </ThemedText>
             </Pressable>
           </View>
