@@ -328,3 +328,53 @@ export async function deleteAllEntries(): Promise<string[]> {
     return mediaUris;
   });
 }
+
+/** Generates realistic mock entries in a single high-speed SQLite transaction for performance testing. */
+export async function seedMockEntries(count: number = 1000): Promise<void> {
+  return runDb(async (db) => {
+    const now = Date.now();
+    const dayMs = 24 * 60 * 60 * 1000;
+    const sampleSentences = [
+      "Morning coffee in Tokyo and quiet thoughts on architecture.",
+      "Walking through the rainy streets, listening to ambient music.",
+      "Captured a fleeting idea about memory anchors.",
+      "Met an old friend at the bakery. Discussed typography and minimalism.",
+      "Late night recording session. The rain outside is soothing.",
+      "Reflecting on today's progress. Simple code is best.",
+      "Sunrise hike through the hills. Clear skies and fresh air.",
+      "Quick memo: simplify data structures before adding features.",
+      "Quiet evening reading beside the window.",
+      "Explored the old library downtown.",
+    ];
+    const sampleLocations = [
+      "Tokyo, Japan",
+      "Brooklyn, NY",
+      "Kyoto",
+      "Berlin",
+      "San Francisco",
+      "London",
+      "Paris",
+      "Zurich",
+    ];
+
+    await db.withTransactionAsync(async () => {
+      for (let i = 0; i < count; i++) {
+        const offset = Math.floor((i / count) * 365 * dayMs + Math.random() * dayMs);
+        const createdAt = now - offset;
+        const text = sampleSentences[i % sampleSentences.length];
+        const locationName = sampleLocations[i % sampleLocations.length];
+        const id = `mock-${i}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+        await db.runAsync(
+          `INSERT INTO entries (id, created_at, updated_at, text, images, audios, latitude, longitude, location_name)
+           VALUES (?, ?, ?, ?, NULL, NULL, 35.6762, 139.6503, ?)`,
+          id,
+          createdAt,
+          createdAt,
+          text,
+          locationName
+        );
+      }
+    });
+  });
+}
