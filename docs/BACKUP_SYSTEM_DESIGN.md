@@ -49,8 +49,9 @@ backup-20260822-1330.monolog (ZIP Container)
 
 * **The Problem:** A user with 5 years of daily journaling can accumulate 1–2 GB of photos and audio clips. Loading all binary buffers into JavaScript heap memory (`Uint8Array`) simultaneously causes immediate Out-of-Memory (OOM) app termination on mobile devices.
 * **The Solution:**
-  - **Export Streaming:** Media files are read from disk individually, piped into a streaming zip worker directly writing chunks to a disk file handle, and immediately released for garbage collection. Peak memory usage remains flat (< 25 MB RAM) regardless of archive size.
-  - **Import Streaming:** During decompression, media streams bypass memory buffering and write directly to target storage chunk-by-chunk.
+  - **Export Streaming:** Media files are read in 256 KB chunks via `FileHandle.readBytes()`, piped into `fflate`'s streaming `ZipPassThrough` entries writing directly to a disk file handle, and each chunk is immediately eligible for garbage collection. Peak memory stays flat regardless of individual file size or total archive size.
+  - **Import Streaming:** The compressed archive is read in 256 KB chunks via `FileHandle.readBytes()` and pushed through `fflate`'s streaming `Unzip`. Media entries stream chunk-by-chunk directly to disk via `FileHandle.writeBytes()`, bypassing in-memory buffering entirely.
+  - **Inspect (Dry-Run):** Uses the same streaming `Unzip` pipeline but only processes `manifest.json` and `db.json` entries — media files are counted but never decompressed or buffered.
 
 ---
 
@@ -64,6 +65,7 @@ backup-20260822-1330.monolog (ZIP Container)
 ### D. Transactional SQLite Batching & Automatic Search Indexing
 
 * **Single Transaction Safety:** All inserts during restoration execute inside a single SQLite transaction (`db.withTransactionAsync`). If an error occurs midway, SQLite rolls back completely, leaving existing data untouched.
+* **Prepared Statement Reuse:** SQL statements (`INSERT`, `SELECT`, `UPDATE`) are prepared once via `db.prepareAsync()` and executed repeatedly with different parameter bindings per entry, avoiding per-row SQL parsing overhead. Statements are finalized in a `finally` block to prevent resource leaks.
 * **FTS5 Search Sync:** Inserting entries into the primary `entries` table automatically triggers SQLite FTS5 index synchronization via native database triggers (`entries_fts_ai` / `entries_fts_au`), eliminating redundant full-text re-indexing sweeps.
 
 ---

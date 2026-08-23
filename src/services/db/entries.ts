@@ -334,45 +334,23 @@ export async function importEntriesBatch(
     await db.withTransactionAsync(async () => {
       if (mode === "replace") {
         await db.runAsync(`DELETE FROM entries`);
-      }
+        const insertStmt = await db.prepareAsync(
+          `INSERT INTO entries (
+             id, created_at, updated_at, text, images, audios,
+             latitude, longitude, location_name
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        );
 
-      for (const entry of entries) {
-        const [lat, lng, locationName] = locationParams(entry.location);
-        const imagesJson = entry.images?.length ? JSON.stringify(entry.images) : null;
-        const audiosJson = entry.audios?.length ? JSON.stringify(entry.audios) : null;
-        const text = entry.text ?? null;
-        const createdAt = entry.createdAt;
-        const updatedAt = entry.updatedAt ?? createdAt;
+        try {
+          for (const entry of entries) {
+            const [lat, lng, locationName] = locationParams(entry.location);
+            const imagesJson = entry.images?.length ? JSON.stringify(entry.images) : null;
+            const audiosJson = entry.audios?.length ? JSON.stringify(entry.audios) : null;
+            const text = entry.text ?? null;
+            const createdAt = entry.createdAt;
+            const updatedAt = entry.updatedAt ?? createdAt;
 
-        if (mode === "replace") {
-          await db.runAsync(
-            `INSERT INTO entries (
-               id, created_at, updated_at, text, images, audios,
-               latitude, longitude, location_name
-             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            entry.id,
-            createdAt,
-            updatedAt,
-            text,
-            imagesJson,
-            audiosJson,
-            lat,
-            lng,
-            locationName
-          );
-          inserted++;
-        } else {
-          const existing = await db.getFirstAsync<{ updated_at: number }>(
-            `SELECT updated_at FROM entries WHERE id = ?`,
-            entry.id
-          );
-
-          if (!existing) {
-            await db.runAsync(
-              `INSERT INTO entries (
-                 id, created_at, updated_at, text, images, audios,
-                 latitude, longitude, location_name
-               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            await insertStmt.executeAsync([
               entry.id,
               createdAt,
               updatedAt,
@@ -381,33 +359,78 @@ export async function importEntriesBatch(
               audiosJson,
               lat,
               lng,
-              locationName
-            );
-            inserted++;
-          } else if (updatedAt >= existing.updated_at) {
-            await db.runAsync(
-              `UPDATE entries
-                  SET created_at = ?,
-                      updated_at = ?,
-                      text = ?,
-                      images = ?,
-                      audios = ?,
-                      latitude = ?,
-                      longitude = ?,
-                      location_name = ?
-                WHERE id = ?`,
-              createdAt,
-              updatedAt,
-              text,
-              imagesJson,
-              audiosJson,
-              lat,
-              lng,
               locationName,
-              entry.id
-            );
-            updated++;
+            ]);
+            inserted++;
           }
+        } finally {
+          await insertStmt.finalizeAsync();
+        }
+      } else {
+        const checkStmt = await db.prepareAsync(`SELECT updated_at FROM entries WHERE id = ?`);
+        const insertStmt = await db.prepareAsync(
+          `INSERT INTO entries (
+             id, created_at, updated_at, text, images, audios,
+             latitude, longitude, location_name
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        );
+        const updateStmt = await db.prepareAsync(
+          `UPDATE entries
+              SET created_at = ?,
+                  updated_at = ?,
+                  text = ?,
+                  images = ?,
+                  audios = ?,
+                  latitude = ?,
+                  longitude = ?,
+                  location_name = ?
+            WHERE id = ?`
+        );
+
+        try {
+          for (const entry of entries) {
+            const [lat, lng, locationName] = locationParams(entry.location);
+            const imagesJson = entry.images?.length ? JSON.stringify(entry.images) : null;
+            const audiosJson = entry.audios?.length ? JSON.stringify(entry.audios) : null;
+            const text = entry.text ?? null;
+            const createdAt = entry.createdAt;
+            const updatedAt = entry.updatedAt ?? createdAt;
+
+            const result = await checkStmt.executeAsync<{ updated_at: number }>([entry.id]);
+            const existing = await result.getFirstAsync();
+
+            if (!existing) {
+              await insertStmt.executeAsync([
+                entry.id,
+                createdAt,
+                updatedAt,
+                text,
+                imagesJson,
+                audiosJson,
+                lat,
+                lng,
+                locationName,
+              ]);
+              inserted++;
+            } else if (updatedAt >= existing.updated_at) {
+              await updateStmt.executeAsync([
+                createdAt,
+                updatedAt,
+                text,
+                imagesJson,
+                audiosJson,
+                lat,
+                lng,
+                locationName,
+                entry.id,
+              ]);
+              updated++;
+            }
+          }
+        } finally {
+          await checkStmt.finalizeAsync();
+          await insertStmt.finalizeAsync();
+          await updateStmt.finalizeAsync();
         }
       }
     });
