@@ -7,7 +7,6 @@ import {
   Unzip,
   UnzipInflate,
   UnzipPassThrough,
-  unzipSync,
   Zip,
   ZipDeflate,
   ZipPassThrough,
@@ -86,6 +85,17 @@ interface MediaCollector {
   seen: Set<string>;
 }
 
+function concatChunks(chunks: Uint8Array[]): Uint8Array {
+  const totalLen = chunks.reduce((acc, c) => acc + c.length, 0);
+  const result = new Uint8Array(totalLen);
+  let offset = 0;
+  for (const c of chunks) {
+    result.set(c, offset);
+    offset += c.length;
+  }
+  return result;
+}
+
 function normalizeMediaList(
   uris: string[] | undefined,
   collector: MediaCollector,
@@ -162,15 +172,30 @@ export async function exportBackupArchive(): Promise<ExportBackupResult> {
     zipStream.add(dbEntry);
     dbEntry.push(strToU8(JSON.stringify(dbDump, null, 2)), true);
 
-    // 3. Sequentially read and stream each media file without buffering all in memory
+    const CHUNK_SIZE = 256 * 1024;
+
     for (const item of collector.entries) {
       try {
         const sourceFile = new File(item.localUri);
         if (sourceFile.exists) {
-          const mediaBytes = await sourceFile.bytes();
           const mediaEntry = new ZipPassThrough(item.relativePath);
           zipStream.add(mediaEntry);
-          mediaEntry.push(mediaBytes, true);
+          const readHandle = sourceFile.open(FileMode.ReadOnly);
+          try {
+            const fileSize = readHandle.size ?? 0;
+            let bytesRead = 0;
+            while (bytesRead < fileSize) {
+              const chunk = readHandle.readBytes(Math.min(CHUNK_SIZE, fileSize - bytesRead));
+              if (chunk.length === 0) break;
+              bytesRead += chunk.length;
+              mediaEntry.push(chunk, bytesRead >= fileSize);
+            }
+            if (fileSize === 0) {
+              mediaEntry.push(new Uint8Array(0), true);
+            }
+          } finally {
+            readHandle.close();
+          }
         }
       } catch (err) {
         logDevWarning("exportBackupArchive:streamMedia", err);
@@ -226,38 +251,69 @@ export async function inspectBackupArchive(fileUri: string): Promise<InspectBack
     throw new Error("Selected backup file could not be found.");
   }
 
-  let unzipped: Record<string, Uint8Array>;
+  let manifest: Partial<MonologArchiveManifest> = {};
+  let dbData: MonologArchiveDb | null = null;
+  let mediaCount = 0;
+
+  const unzipper = new Unzip();
+  unzipper.register(UnzipInflate);
+  unzipper.register(UnzipPassThrough);
+
+  unzipper.onfile = (file) => {
+    if (file.name === "manifest.json") {
+      const chunks: Uint8Array[] = [];
+      file.ondata = (_err, chunk, final) => {
+        chunks.push(chunk);
+        if (final) {
+          try {
+            manifest = JSON.parse(strFromU8(concatChunks(chunks))) as MonologArchiveManifest;
+          } catch {
+            // Fallback — manifest is optional for validation
+          }
+        }
+      };
+      file.start();
+    } else if (file.name === "db.json") {
+      const chunks: Uint8Array[] = [];
+      file.ondata = (_err, chunk, final) => {
+        chunks.push(chunk);
+        if (final) {
+          dbData = JSON.parse(strFromU8(concatChunks(chunks))) as MonologArchiveDb;
+        }
+      };
+      file.start();
+    } else if (file.name.startsWith("media/")) {
+      mediaCount++;
+    }
+  };
+
+  const CHUNK_SIZE = 256 * 1024;
+  const readHandle = sourceFile.open(FileMode.ReadOnly);
   try {
-    const archiveBytes = await sourceFile.bytes();
-    unzipped = unzipSync(archiveBytes);
-  } catch {
-    throw new Error("Invalid or corrupted .monolog backup file.");
+    const fileSize = readHandle.size ?? 0;
+    let bytesRead = 0;
+    while (bytesRead < fileSize) {
+      const chunk = readHandle.readBytes(Math.min(CHUNK_SIZE, fileSize - bytesRead));
+      if (chunk.length === 0) break;
+      bytesRead += chunk.length;
+      unzipper.push(chunk, bytesRead >= fileSize);
+    }
+    if (fileSize === 0) {
+      unzipper.push(new Uint8Array(0), true);
+    }
+  } finally {
+    readHandle.close();
   }
 
-  if (!unzipped["manifest.json"] && !unzipped["db.json"]) {
+  if (!manifest.format && !dbData) {
     throw new Error("Invalid file: This is not a valid .monolog archive.");
   }
 
-  let manifest: Partial<MonologArchiveManifest> = {};
-  if (unzipped["manifest.json"]) {
-    try {
-      manifest = JSON.parse(strFromU8(unzipped["manifest.json"])) as MonologArchiveManifest;
-    } catch {
-      // Fallback
-    }
-  }
-
-  if (!unzipped["db.json"]) {
+  if (!dbData || !Array.isArray((dbData as MonologArchiveDb).entries)) {
     throw new Error("Corrupted backup file: archive data is missing.");
   }
 
-  const dbData = JSON.parse(strFromU8(unzipped["db.json"])) as MonologArchiveDb;
-  if (!Array.isArray(dbData.entries)) {
-    throw new Error("Corrupted backup file: invalid entries payload.");
-  }
-
-  const entries = dbData.entries;
-  const mediaCount = Object.keys(unzipped).filter((k) => k.startsWith("media/")).length;
+  const entries = (dbData as MonologArchiveDb).entries;
 
   const previewEntries = entries.slice(0, 3).map((e) => ({
     id: e.id,
@@ -292,7 +348,6 @@ export async function importBackupArchive(
     throw new Error("Selected backup file does not exist.");
   }
 
-  const archiveBytes = await sourceFile.bytes();
   const mediaDir = new Directory(Paths.document, "media");
   mediaDir.create({ idempotent: true, intermediates: true });
 
@@ -310,14 +365,7 @@ export async function importBackupArchive(
         if (err) throw err;
         chunks.push(chunk);
         if (final) {
-          const totalLen = chunks.reduce((acc, c) => acc + c.length, 0);
-          const fullBuf = new Uint8Array(totalLen);
-          let offset = 0;
-          for (const c of chunks) {
-            fullBuf.set(c, offset);
-            offset += c.length;
-          }
-          dbData = JSON.parse(strFromU8(fullBuf)) as MonologArchiveDb;
+          dbData = JSON.parse(strFromU8(concatChunks(chunks))) as MonologArchiveDb;
         }
       };
       file.start();
@@ -348,7 +396,23 @@ export async function importBackupArchive(
     }
   };
 
-  unzipper.push(archiveBytes, true);
+  const CHUNK_SIZE = 256 * 1024;
+  const readHandle = sourceFile.open(FileMode.ReadOnly);
+  try {
+    const fileSize = readHandle.size ?? 0;
+    let bytesRead = 0;
+    while (bytesRead < fileSize) {
+      const chunk = readHandle.readBytes(Math.min(CHUNK_SIZE, fileSize - bytesRead));
+      if (chunk.length === 0) break;
+      bytesRead += chunk.length;
+      unzipper.push(chunk, bytesRead >= fileSize);
+    }
+    if (fileSize === 0) {
+      unzipper.push(new Uint8Array(0), true);
+    }
+  } finally {
+    readHandle.close();
+  }
 
   const parsedDbData = dbData as unknown as MonologArchiveDb | null;
   if (!parsedDbData || !Array.isArray(parsedDbData.entries)) {
