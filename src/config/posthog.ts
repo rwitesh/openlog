@@ -1,21 +1,17 @@
 import PostHog from "posthog-react-native";
-import { IS_EXPO_GO } from "@/shared/utils";
 
 const projectToken = process.env.EXPO_PUBLIC_POSTHOG_PROJECT_TOKEN;
-const host = process.env.EXPO_PUBLIC_POSTHOG_HOST;
 
-if (__DEV__ && !IS_EXPO_GO && !projectToken) {
-  throw new Error("Missing EXPO_PUBLIC_POSTHOG_PROJECT_TOKEN in environment");
-}
+// Set by eas.json build profiles; anything not built as production is preview.
+const env = process.env.EXPO_PUBLIC_APP_ENV === "production" ? "production" : "preview";
 
-if (__DEV__ && !IS_EXPO_GO && !host) {
-  throw new Error("Missing EXPO_PUBLIC_POSTHOG_HOST in environment");
-}
+const client = projectToken
+  ? new PostHog(projectToken, {
+      host: "https://us.i.posthog.com",
+      captureAppLifecycleEvents: true,
+    })
+  : null;
 
-export const posthog =
-  !IS_EXPO_GO && projectToken && host
-    ? new PostHog(projectToken, {
-        host,
-        captureAppLifecycleEvents: true,
-      })
-    : null;
+client?.register({ app_env: env });
+
+export const posthog = client;

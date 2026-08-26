@@ -14,6 +14,9 @@ if [[ -z "${ANDROID_HOME:-}" && -d "${HOME}/Library/Android/sdk" ]]; then
   export ANDROID_HOME="${HOME}/Library/Android/sdk"
 fi
 
+# adb lives in platform-tools, not on PATH by default
+export PATH="${ANDROID_HOME:-${HOME}/Library/Android/sdk}/platform-tools:${PATH}"
+
 if [[ -z "${JAVA_HOME:-}" ]]; then
   echo "JAVA_HOME is not set. Install Android Studio or export JAVA_HOME." >&2
   exit 1
@@ -27,14 +30,12 @@ fi
 echo "Using JAVA_HOME=$JAVA_HOME"
 echo "Using ANDROID_HOME=$ANDROID_HOME"
 
-# Dev build only — production ships via EAS.
-# Loads .env as base, then .env.dev overrides. Exported vars win in child processes.
+echo "Building dev APK"
+
+# Exported so Metro inlines EXPO_PUBLIC_* into the bundle
 set -a
 [[ -f ".env" ]] && source ".env"
-[[ -f ".env.dev" ]] && source ".env.dev"
 set +a
-
-echo "Building dev environment"
 
 export NODE_ENV=production
 
@@ -70,6 +71,11 @@ if [[ -f "$APK" ]]; then
   echo "APK ready ($SIZE):"
   echo "  $APK"
   echo "  $DIST_APK"
+  if adb get-state &>/dev/null; then
+    adb install -r "$DIST_APK"
+  else
+    echo "No device connected — install manually: adb install -r $DIST_APK"
+  fi
 else
   echo "Build finished but APK not found at $APK" >&2
   exit 1

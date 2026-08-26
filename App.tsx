@@ -49,16 +49,14 @@ function AppContent({ showWelcome }: { showWelcome: boolean }) {
       <NavigationContainer theme={navTheme}>
         <StatusBar style={mode === "dark" ? "light" : "dark"} />
         {posthog ? (
-          <PostHogProvider client={posthog}>
+          <PostHogProvider client={posthog} autocapture={{ captureScreens: false }}>
             <PostHogErrorBoundary
               fallback={<View style={{ flex: 1, backgroundColor: theme.colors.background }} />}
             >
               <AppNavigator showWelcome={showWelcome} backgroundColor={theme.colors.background} />
             </PostHogErrorBoundary>
           </PostHogProvider>
-        ) : (
-          <AppNavigator showWelcome={showWelcome} backgroundColor={theme.colors.background} />
-        )}
+        ) : null}
       </NavigationContainer>
     </View>
   );
