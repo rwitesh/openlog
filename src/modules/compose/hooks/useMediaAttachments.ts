@@ -1,6 +1,7 @@
 import * as ImagePicker from "expo-image-picker";
 import { useCallback, useEffect, useState } from "react";
 
+import { posthog } from "@/config/posthog";
 import { useRecording } from "@/services/audio";
 import { downscaleImage } from "@/services/media";
 import type { Entry } from "@/shared/types";
@@ -52,6 +53,7 @@ export function useMediaAttachments(existing?: Entry) {
         result.assets.map((asset) => downscaleImage(asset.uri, asset))
       );
       setImages((prev) => [...prev, ...downscaled]);
+      posthog?.capture("photo_attached", { photo_count: downscaled.length });
     }
   }, [images.length]);
 

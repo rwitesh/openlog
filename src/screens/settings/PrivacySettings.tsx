@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Switch, View } from "react-native";
 
+import { posthog } from "@/config/posthog";
 import { seedMockEntries, useEntries } from "@/modules/entry";
 import {
   confirmDestructive,
@@ -74,6 +75,7 @@ export function PrivacySettingsScreen() {
 
     if (confirmed) {
       setSecurity({ biometricLock: true });
+      posthog?.capture("biometric_lock_enabled");
     }
   };
 
@@ -85,6 +87,11 @@ export function PrivacySettingsScreen() {
       void notifyBackupExportComplete(result.entryCount, result.mediaCount);
       const saved = await saveBackupArchive(result.fileUri, result.filename);
       if (saved) {
+        posthog?.capture("backup_exported", {
+          entry_count: result.entryCount,
+          media_count: result.mediaCount,
+          byte_size: result.byteSize,
+        });
         void notifyBackupExportComplete(result.entryCount, result.mediaCount);
         Alert.alert(
           "Backup Saved",
@@ -106,6 +113,10 @@ export function PrivacySettingsScreen() {
     setIsImporting(true);
     try {
       const result = await importBackupArchive(fileUri);
+      posthog?.capture("backup_imported", {
+        entry_count: result.importedCount,
+        media_count: result.mediaCount,
+      });
       void notifyBackupImportComplete(result.importedCount, result.mediaCount);
       Alert.alert(
         "Import Complete",

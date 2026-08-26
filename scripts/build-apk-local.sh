@@ -27,6 +27,15 @@ fi
 echo "Using JAVA_HOME=$JAVA_HOME"
 echo "Using ANDROID_HOME=$ANDROID_HOME"
 
+# Dev build only — production ships via EAS.
+# Loads .env as base, then .env.dev overrides. Exported vars win in child processes.
+set -a
+[[ -f ".env" ]] && source ".env"
+[[ -f ".env.dev" ]] && source ".env.dev"
+set +a
+
+echo "Building dev environment"
+
 export NODE_ENV=production
 
 # Phone ABIs only — arm64 for 2020+ devices (see app.json expo-build-properties).
@@ -51,7 +60,7 @@ cd "$ANDROID_DIR"
 
 APK="$ANDROID_DIR/app/build/outputs/apk/release/app-release.apk"
 DIST="$ROOT/dist"
-DIST_APK="$DIST/openlog-release.apk"
+DIST_APK="$DIST/openlog-dev.apk"
 
 if [[ -f "$APK" ]]; then
   mkdir -p "$DIST"

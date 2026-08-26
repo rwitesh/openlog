@@ -5,6 +5,7 @@ import {
   useAudioRecorderState,
 } from "expo-audio";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { posthog } from "@/config/posthog";
 import { RECORDING_OPTIONS, RECORDING_POLL_MS } from "./constants";
 import { liveWaveformLevels, meteringToLevel } from "./waveform";
 
@@ -56,6 +57,7 @@ export function useRecording() {
 
     await recorder.prepareToRecordAsync();
     recorder.record();
+    posthog?.capture("audio_recording_started");
     return true;
   }, [recorder]);
 
@@ -68,6 +70,7 @@ export function useRecording() {
       setRecordedUri(recorder.uri);
       setRecordedDurationMs(status.durationMillis);
       setRecordedLevels(levels);
+      posthog?.capture("audio_recording_stopped", { duration_ms: status.durationMillis });
     }
   }, [recorder]);
 
