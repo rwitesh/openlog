@@ -2,8 +2,10 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
+import { PostHogErrorBoundary, PostHogProvider } from "posthog-react-native";
 import { View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { posthog } from "@/config/posthog";
 import { AppLockGate } from "@/modules/auth";
 import { ProfileProvider } from "@/modules/profile";
 import type { RootStackParamList } from "@/navigation";
@@ -46,81 +48,103 @@ function AppContent({ showWelcome }: { showWelcome: boolean }) {
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <NavigationContainer theme={navTheme}>
         <StatusBar style={mode === "dark" ? "light" : "dark"} />
-        <Stack.Navigator
-          initialRouteName={showWelcome ? "Welcome" : "Timeline"}
-          screenOptions={{
-            contentStyle: { backgroundColor: theme.colors.background },
-            animation: "slide_from_right",
-          }}
-        >
-          <Stack.Screen name="Welcome" component={Welcome} options={{ headerShown: false }} />
-          <Stack.Screen name="Timeline" component={Timeline} options={{ headerShown: false }} />
-          <Stack.Screen name="Day" component={Day} options={{ headerShown: false }} />
-          <Stack.Screen name="Compose" component={Compose} options={{ headerShown: false }} />
-          <Stack.Screen
-            name="Settings"
-            component={Settings}
-            options={{
-              title: "Settings",
-              headerBackTitle: "Back",
-              headerShadowVisible: false,
-            }}
-          />
-          {/* Settings categories — each pushes with the default back title
-              ("Settings" on iOS, arrow on Android). */}
-          <Stack.Screen
-            name="SettingsProfile"
-            component={SettingsProfile}
-            options={{ title: "Profile", headerShadowVisible: false }}
-          />
-          <Stack.Screen
-            name="SettingsAppearance"
-            component={SettingsAppearance}
-            options={{ title: "Appearance", headerShadowVisible: false }}
-          />
-          <Stack.Screen
-            name="SettingsTheme"
-            component={SettingsTheme}
-            options={{ title: "Theme", headerShadowVisible: false }}
-          />
-          <Stack.Screen
-            name="SettingsAccent"
-            component={SettingsAccent}
-            options={{ title: "Accent Color", headerShadowVisible: false }}
-          />
-          <Stack.Screen
-            name="SettingsTypography"
-            component={SettingsTypography}
-            options={{ title: "Typography", headerShadowVisible: false }}
-          />
-          <Stack.Screen
-            name="SettingsTimeline"
-            component={SettingsTimeline}
-            options={{ title: "Timeline & Editor", headerShadowVisible: false }}
-          />
-          <Stack.Screen
-            name="SettingsBackground"
-            component={SettingsBackground}
-            options={{ title: "Background", headerShadowVisible: false }}
-          />
-          <Stack.Screen
-            name="SettingsAccessibility"
-            component={SettingsAccessibility}
-            options={{ title: "Accessibility", headerShadowVisible: false }}
-          />
-          <Stack.Screen
-            name="SettingsPrivacy"
-            component={SettingsPrivacy}
-            options={{ title: "Privacy & Data", headerShadowVisible: false }}
-          />
-          <Stack.Screen
-            name="SettingsAbout"
-            component={SettingsAbout}
-            options={{ title: "About", headerShadowVisible: false }}
-          />
-        </Stack.Navigator>
+        {posthog ? (
+          <PostHogProvider client={posthog}>
+            <PostHogErrorBoundary
+              fallback={<View style={{ flex: 1, backgroundColor: theme.colors.background }} />}
+            >
+              <AppNavigator showWelcome={showWelcome} backgroundColor={theme.colors.background} />
+            </PostHogErrorBoundary>
+          </PostHogProvider>
+        ) : (
+          <AppNavigator showWelcome={showWelcome} backgroundColor={theme.colors.background} />
+        )}
       </NavigationContainer>
     </View>
+  );
+}
+
+function AppNavigator({
+  showWelcome,
+  backgroundColor,
+}: {
+  showWelcome: boolean;
+  backgroundColor: string;
+}) {
+  return (
+    <Stack.Navigator
+      initialRouteName={showWelcome ? "Welcome" : "Timeline"}
+      screenOptions={{
+        contentStyle: { backgroundColor },
+        animation: "slide_from_right",
+      }}
+    >
+      <Stack.Screen name="Welcome" component={Welcome} options={{ headerShown: false }} />
+      <Stack.Screen name="Timeline" component={Timeline} options={{ headerShown: false }} />
+      <Stack.Screen name="Day" component={Day} options={{ headerShown: false }} />
+      <Stack.Screen name="Compose" component={Compose} options={{ headerShown: false }} />
+      <Stack.Screen
+        name="Settings"
+        component={Settings}
+        options={{
+          title: "Settings",
+          headerBackTitle: "Back",
+          headerShadowVisible: false,
+        }}
+      />
+      {/* Settings categories — each pushes with the default back title
+          ("Settings" on iOS, arrow on Android). */}
+      <Stack.Screen
+        name="SettingsProfile"
+        component={SettingsProfile}
+        options={{ title: "Profile", headerShadowVisible: false }}
+      />
+      <Stack.Screen
+        name="SettingsAppearance"
+        component={SettingsAppearance}
+        options={{ title: "Appearance", headerShadowVisible: false }}
+      />
+      <Stack.Screen
+        name="SettingsTheme"
+        component={SettingsTheme}
+        options={{ title: "Theme", headerShadowVisible: false }}
+      />
+      <Stack.Screen
+        name="SettingsAccent"
+        component={SettingsAccent}
+        options={{ title: "Accent Color", headerShadowVisible: false }}
+      />
+      <Stack.Screen
+        name="SettingsTypography"
+        component={SettingsTypography}
+        options={{ title: "Typography", headerShadowVisible: false }}
+      />
+      <Stack.Screen
+        name="SettingsTimeline"
+        component={SettingsTimeline}
+        options={{ title: "Timeline & Editor", headerShadowVisible: false }}
+      />
+      <Stack.Screen
+        name="SettingsBackground"
+        component={SettingsBackground}
+        options={{ title: "Background", headerShadowVisible: false }}
+      />
+      <Stack.Screen
+        name="SettingsAccessibility"
+        component={SettingsAccessibility}
+        options={{ title: "Accessibility", headerShadowVisible: false }}
+      />
+      <Stack.Screen
+        name="SettingsPrivacy"
+        component={SettingsPrivacy}
+        options={{ title: "Privacy & Data", headerShadowVisible: false }}
+      />
+      <Stack.Screen
+        name="SettingsAbout"
+        component={SettingsAbout}
+        options={{ title: "About", headerShadowVisible: false }}
+      />
+    </Stack.Navigator>
   );
 }
 

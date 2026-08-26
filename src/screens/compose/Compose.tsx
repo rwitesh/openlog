@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, type TextInput, View } from "react-native";
+import { posthog } from "@/config/posthog";
 import {
   ComposeAttachments,
   ComposeEditor,
@@ -95,8 +96,20 @@ export function ComposeScreen({ navigation, route }: Props) {
 
   const handleSave = async () => {
     const outcome = await draft.save();
-    if (outcome === "created") navigation.goBack();
-    else if (outcome === "updated") setMode("view");
+    const entryProperties = {
+      has_text: draft.text.trim().length > 0,
+      image_count: media.images.length,
+      audio_count: media.audios.length,
+      has_location: Boolean(location.on && location.place),
+    };
+
+    if (outcome === "created") {
+      posthog?.capture("entry_created", entryProperties);
+      navigation.goBack();
+    } else if (outcome === "updated") {
+      posthog?.capture("entry_updated", entryProperties);
+      setMode("view");
+    }
   };
 
   const handleLocationPress = async () => {
@@ -205,6 +218,12 @@ export function ComposeScreen({ navigation, route }: Props) {
           onEdit={() => setMode("edit")}
           onDelete={async () => {
             await removeEntry(existing.id);
+            posthog?.capture("entry_deleted", {
+              has_text: Boolean(existing.text?.trim()),
+              image_count: existing.images.length,
+              audio_count: existing.audios.length,
+              has_location: Boolean(existing.location),
+            });
             navigation.goBack();
           }}
         />

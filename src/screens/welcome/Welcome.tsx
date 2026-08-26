@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { posthog } from "@/config/posthog";
 import { useProfile } from "@/modules/profile";
 import type { RootStackParamList } from "@/navigation/types";
 import { ThemedText } from "@/shared/components/ThemedText";
@@ -32,6 +33,7 @@ export function WelcomeScreen({ navigation }: Props) {
     if (!trimmed) return;
 
     setName(trimmed);
+    posthog?.capture("onboarding_completed");
     navigation.replace("Timeline");
   };
 
