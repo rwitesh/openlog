@@ -107,6 +107,11 @@ async function readPosition(): Promise<Location.LocationObject | null> {
   }
 }
 
+/** The place cached for the current app session, if one was resolved already. */
+export function getCachedPlace(): EntryLocation | null {
+  return sessionPlace;
+}
+
 /**
  * Resolves place label from GPS on explicit user action.
  *
