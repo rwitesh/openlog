@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { Alert } from "react-native";
 
 import { addEntry, patchEntry } from "@/modules/entry";
-import { useLocation } from "@/services/location";
+import { getCachedPlace, useLocation } from "@/services/location";
 import type { Entry } from "@/shared/types";
 import { logDevWarning } from "@/shared/utils/devLog";
 import { canSaveDraft, fromDraft } from "../utils/DraftTransform";
@@ -24,7 +24,7 @@ export function useComposeDraft(existing: Entry | undefined, media: ComposeMedia
   const [text, setText] = useState(() => existing?.text ?? "");
   const [when, setWhen] = useState(() => existing?.createdAt ?? Date.now());
   const [saving, setSaving] = useState(false);
-  const location = useLocation(existing?.location);
+  const location = useLocation(existing ? existing.location : getCachedPlace());
 
   const canSave =
     canSaveDraft({ text, images: media.images, audios: media.audios }) &&
