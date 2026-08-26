@@ -1,8 +1,8 @@
-# Founder-Level Product + Code Audit: Monolog
+# Founder-Level Product + Code Audit: OpenLog
 
 **Date:** August 17, 2026  
 **Auditor:** Antigravity (Principal Engineer, Serial Founder & Early-Stage Investor)  
-**Target Codebase:** `monolog` (React Native 0.86 / Expo SDK 57 / React 19 / SQLite WAL)  
+**Target Codebase:** `openlog` (React Native 0.86 / Expo SDK 57 / React 19 / SQLite WAL)  
 **Verdict:** **BUILD — but radically simplify & pivot positioning from "general journal" to an opinionated "frictionless daily memory anchor"**
 
 ---
@@ -17,7 +17,7 @@
 |---|---|---|---|---|
 | **Unified themed chrome** | Aesthetics & Craft · UX Simplicity | `64d8b81` | Aug 23, 2026 | New shared `ScreenHeader` (in-app back/title/actions on the applied background) + `ThemedBackground` (single source of truth for palette image layer). Day & Compose dropped native stack headers entirely; entry viewing is identical whether opened from timeline, calendar, or search. All header icon buttons (search/calendar/settings, 44pt) and date/time/location badges render directly on the theme/palette background — zero surface/charcoal button chrome left. |
 | **Month overview screen removed** | Simplification · Ruthless Prioritization | `64d8b81` | Aug 23, 2026 | Deleted the entire Memory screen (`src/screens/memory`, `src/modules/memory`, MonthPicker, ~1.3k lines incl. MonthStats/MonthHero/MonthPulse skyline). Timeline month chip is now a static month+year label — one canonical path: Timeline → Day → Entry. Founder decision: reflection surface deferred until retention loop exists. |
-| **Backup / export (`.monolog` archive)** | FIX #1 · Biggest Mistake · Next-Action #1 | `e82252d` | Aug 22, 2026 | Rock-solid portable `.monolog` archive engine: SQLite full dump (`manifest.json` + `db.json`) + all referenced photos and voice memos (`media/`). Sequential disk-streaming pipeline (flat < 25MB RAM on 5+ years of data), in-app Export share sheet, document picker for Import, dry-run archive inspection, transactional batch restoration, and support for both "Merge (Keep Current)" and "Replace All" modes. System design documented in `docs/BACKUP_SYSTEM_DESIGN.md`. |
+| **Backup / export (`.openlog` archive)** | FIX #1 · Biggest Mistake · Next-Action #1 | `e82252d` | Aug 22, 2026 | Rock-solid portable `.openlog` archive engine: SQLite full dump (`manifest.json` + `db.json`) + all referenced photos and voice memos (`media/`). Sequential disk-streaming pipeline (flat < 25MB RAM on 5+ years of data), in-app Export share sheet, document picker for Import, dry-run archive inspection, transactional batch restoration, and support for both "Merge (Keep Current)" and "Replace All" modes. System design documented in `docs/BACKUP_SYSTEM_DESIGN.md`. |
 | **Timeline UI & Scroll Polish** | Aesthetics & Craft | `e8e2fd7` | Aug 22, 2026 | Added 60fps spring "Back to top" floating pill (triggered at 400px scroll), scaled `+` FAB with standard `space.xxxl` elevation and 56px touch target, removed artificial header gradient scrim, and contained scroll viewport strictly below header. |
 | **Keyset Pagination & Prefetching** | Performance / Scalability | `73e9878` | Aug 22, 2026 | Scaled database to 100k+ entries with zero startup lag. Cursor-based keyset pagination (`created_at < cursor LIMIT 50`), 70% threshold scroll prefetching in `TimelineFeed`, reactive mutation subscription in `EntryStore`, and lightweight metadata projections for calendar/month pickers. |
 | **Background & opacity slider** | Aesthetic / Contrast | `b3bf756` | Aug 22, 2026 | Retained per founder decision; added interactive opacity slider (10%–95%) with preset chips, top 2-column quick action grid (None vs Custom Photo), and curated preset grid. |
@@ -45,10 +45,10 @@
   >
   > **Shipped:** Removed the Memory screen end-to-end (screen, module, MonthPicker, dead DB/date helpers — ~1.3k lines). Timeline month chip became a static month+year label. Introduced `ScreenHeader` + `ThemedBackground` shared components; Day and Compose now use them with `headerShown: false`, killing the native charcoal headers. All tappable chrome (header icons enlarged to 44pt touch targets, date/time/location badges) sits directly on the themed background with press-opacity feedback only. Net effect: exactly one viewing experience regardless of entry point, and a materially smaller surface area to maintain.
 
-* **Aug 22, 2026 — Portable `.monolog` Archive Export & Import (Decision: SHIP ROCK-SOLID BACKUP & RESTORE)**
-  > *"Developer comment: Build a rock-solid .monolog export/import archive (SQLite dump + media folder). The file is .monolog can be exported and imported. Make sure it scales to 5+ years of data without memory spikes, handles errors cleanly, and includes a full system design document."*
+* **Aug 22, 2026 — Portable `.openlog` Archive Export & Import (Decision: SHIP ROCK-SOLID BACKUP & RESTORE)**
+  > *"Developer comment: Build a rock-solid .openlog export/import archive (SQLite dump + media folder). The file is .openlog can be exported and imported. Make sure it scales to 5+ years of data without memory spikes, handles errors cleanly, and includes a full system design document."*
   > 
-  > **Shipped:** Built a stream-based `.monolog` archive engine with `fflate`, `expo-file-system`, `expo-document-picker`, and `expo-sharing`. Packages the database (`manifest.json` + `db.json` with all entries, locations, and settings) and all media assets (`media/` with images and audio recordings). Uses sequential disk streaming to guarantee flat memory usage (< 25MB RAM) even with 2GB+ media, non-destructive dry-run inspection modal before importing, atomic transactional SQLite restoration with automatic FTS5 sync, and reactive store reload. Documented system architecture and tradeoffs in `docs/BACKUP_SYSTEM_DESIGN.md`.
+  > **Shipped:** Built a stream-based `.openlog` archive engine with `fflate`, `expo-file-system`, `expo-document-picker`, and `expo-sharing`. Packages the database (`manifest.json` + `db.json` with all entries, locations, and settings) and all media assets (`media/` with images and audio recordings). Uses sequential disk streaming to guarantee flat memory usage (< 25MB RAM) even with 2GB+ media, non-destructive dry-run inspection modal before importing, atomic transactional SQLite restoration with automatic FTS5 sync, and reactive store reload. Documented system architecture and tradeoffs in `docs/BACKUP_SYSTEM_DESIGN.md`.
 
 * **Aug 22, 2026 — Keyset Pagination & 100k Entry Scalability (Decision: PAGINATE & PREFETCH)**
   > *"Developer comment: I want paginated in such way that it will prefetch more entry while scrolling, but paginated, it should not fetch all into memory, that's too bad. Find the best approach."*
@@ -70,7 +70,7 @@
 ## 1. Understand the Product First
 
 ### What is this product?
-Monolog is a **local-first, zero-cloud personal timeline and memory log**. It allows a single user to capture multimodal moments (short or long markdown-free text, multiple photos, voice recordings with live waveforms, and reverse-geocoded location stamps) into an elegant, vertical chronological rail with monthly "pulse" visualizers and deep visual customization (fonts, accents, themes, backgrounds).
+OpenLog is a **local-first, zero-cloud personal timeline and memory log**. It allows a single user to capture multimodal moments (short or long markdown-free text, multiple photos, voice recordings with live waveforms, and reverse-geocoded location stamps) into an elegant, vertical chronological rail with monthly "pulse" visualizers and deep visual customization (fonts, accents, themes, backgrounds).
 
 ### Who is it for?
 * **Primary:** Privacy-conscious introspectors, visual thinkers, and minimalists who hate bloated SaaS diaries (Day One's $35/yr subscription, Notion's sluggishness, Apple Journal's iOS-only lock-in and lack of aesthetic control).
@@ -81,14 +81,14 @@ Most journaling apps suffer from two fatal extremes:
 1. **The Blank Page Paralysis (Too heavy):** Asking users to write structured essays, track 20 mood sliders, or configure complex databases.
 2. **The Ephemeral Clutter (Too light):** Apple Notes / Voice Memos / Camera Roll where memories get lost in a flat unstructured sea of utility notes, grocery lists, and screenshots.
 
-Monolog provides a continuous, tactile stream where capturing a 5-second voice note or a single photo with one line of thought feels like dropping a bead on an unbroken string.
+OpenLog provides a continuous, tactile stream where capturing a 5-second voice note or a single photo with one line of thought feels like dropping a bead on an unbroken string.
 
 ### What is the core user action?
 **Tapping the FAB `+` -> Typing 1 sentence / speaking a 10-second voice note / snapping 1 photo -> Tapping Save.**  
 Elapsed time: < 8 seconds.
 
 ### Why would someone use this instead of doing nothing?
-Because doing nothing results in total memory decay. Traditional journaling fails because the cognitive cost of opening a journal, dating it, and writing paragraphs exceeds daily motivation. Monolog works if and only if logging a fleeting moment feels as fast as sending a Telegram message to oneself, but renders like a bespoke coffee-table book.
+Because doing nothing results in total memory decay. Traditional journaling fails because the cognitive cost of opening a journal, dating it, and writing paragraphs exceeds daily motivation. OpenLog works if and only if logging a fleeting moment feels as fast as sending a Telegram message to oneself, but renders like a bespoke coffee-table book.
 
 ### What is the product's strongest potential advantage?
 1. **True Local-First Privacy & Speed:** Instant SQLite reads/writes, zero login, zero onboarding friction, zero network latency, biometric lock.
@@ -175,7 +175,7 @@ Because doing nothing results in total memory decay. Traditional journaling fail
 
 > **YES — but radically simplify the cosmetic options and aggressively double down on retention hooks (On This Day, Smart Local Prompts, and One-Tap Audio Journaling).**
 
-**Why?** The technical foundation is exceptionally clean, fast, and respectful of the user. But great software dies in obscurity if it relies entirely on user willpower. You must transition Monolog from a **passive notebook** to an **active personal memory mirror**.
+**Why?** The technical foundation is exceptionally clean, fast, and respectful of the user. But great software dies in obscurity if it relies entirely on user willpower. You must transition OpenLog from a **passive notebook** to an **active personal memory mirror**.
 
 ---
 
@@ -222,7 +222,7 @@ gantt
 ```
 
 ### Week 1: Solve the Trust Barrier (Data Safety & Longevity)
-* **Day 1–3:** Implement full **Data Export & Import (`.monolog` zip file containing `db.json` + `media/`)** using `expo-file-system` and `expo-sharing`.
+* **Day 1–3:** Implement full **Data Export & Import (`.openlog` zip file containing `db.json` + `media/`)** using `expo-file-system` and `expo-sharing`.
 * **Day 4–5:** Implement automatic background image downsampling (max 1920px width, 80% JPEG quality) on capture to guarantee zero storage bloat.
 * **Day 6–7:** Refactor `ComposeScreen` to extract attachment handlers into dedicated hooks.
 
@@ -266,14 +266,14 @@ gantt
 * 🟡 **IMPROVE: Timeline Feed Navigation**  
   *Reason:* Add full-text search and tag filtering so historical entries are searchable in milliseconds.
 * 🟢 **DOUBLE DOWN: Voice + Visual Micro-Journaling**  
-  *Reason:* The combination of instant voice notes with live waveforms and a clean timeline rail is Monolog's most satisfying emotional interaction. Expand this into auto-transcription (on-device Whisper / Apple Speech API).
+  *Reason:* The combination of instant voice notes with live waveforms and a clean timeline rail is OpenLog's most satisfying emotional interaction. Expand this into auto-transcription (on-device Whisper / Apple Speech API).
 
 ---
 
 ## 8. Find the "10x" Opportunities
 
 ### 1. On-Device AI Voice Journaling (Zero-Cloud Whisper Transcription)
-* **The Opportunity:** Speaking is 4x faster than typing on mobile. Currently, Monolog records audio and displays a waveform, but the voice note cannot be searched or skimmed with the eye.
+* **The Opportunity:** Speaking is 4x faster than typing on mobile. Currently, OpenLog records audio and displays a waveform, but the voice note cannot be searched or skimmed with the eye.
 * **The 10x Move:** Integrate on-device speech-to-text (using Apple's native `SFSpeechRecognizer` / Android SpeechRecognizer or local Whisper.rn). When a user records a 30-second voice note, it is transcribed locally into searchable text while preserving the original audio recording.
 
 ### 2. Ambient "Flashback" Daily Digest ("On This Day")
@@ -291,12 +291,12 @@ gantt
 ### ⚠️ The Single Biggest Mistake
 > **"You built a private journal with zero backup or export mechanism."**
 > 
-> ✅ **Status: RESOLVED (Commit `e82252d`, Aug 22, 2026)** — Built rock-solid streaming `.monolog` export/import archive engine with zero memory spike risk, atomic SQLite batch restoration, dry-run inspector, and full system design documentation (`docs/BACKUP_SYSTEM_DESIGN.md`).
+> ✅ **Status: RESOLVED (Commit `e82252d`, Aug 22, 2026)** — Built rock-solid streaming `.openlog` export/import archive engine with zero memory spike risk, atomic SQLite batch restoration, dry-run inspector, and full system design documentation (`docs/BACKUP_SYSTEM_DESIGN.md`).
 
 **Why this was fatal:**  
 Journaling requires extreme psychological vulnerability. A user will only write their deepest personal thoughts, attach family photos, and record intimate voice notes if they have **100% confidence that the data will survive for 10+ years**. 
 
-Right now, if a user switches phones, uninstalls the app, or has their device damaged, **every single memory is preserved in `.monolog` backup archives**.
+Right now, if a user switches phones, uninstalls the app, or has their device damaged, **every single memory is preserved in `.openlog` backup archives**.
 
 ---
 
@@ -305,7 +305,7 @@ Right now, if a user switches phones, uninstalls the app, or has their device da
 ### 💎 The Hidden Strength: The Tactile Audio Waveform + Timeline Rail Synergy
 The combination of the minimal timeline rail (`TimelineRail.tsx`) and the custom audio recording/playback bar (`AudioPlayer.tsx` / `LiveRecordingBar.tsx`) is exceptional. 
 
-Most diary apps treat voice notes as an ugly file attachment box. In Monolog, the audio player feels like an integrated instrument. If you pair this with automatic local transcription and calendar heatmaps, Monolog becomes the definitive **"Voice-First Micro Journal"** on the market.
+Most diary apps treat voice notes as an ugly file attachment box. In OpenLog, the audio player feels like an integrated instrument. If you pair this with automatic local transcription and calendar heatmaps, OpenLog becomes the definitive **"Voice-First Micro Journal"** on the market.
 
 ---
 
@@ -330,7 +330,7 @@ Most diary apps treat voice notes as an ugly file attachment box. In Monolog, th
 | **What Excites Me?** | Exceptional UI/UX craft, zero server burn rate ($0 infrastructure overhead), clean React Native/Expo SDK 57 architecture, high organic word-of-mouth potential in design and privacy communities. |
 | **What Worries Me?** | High user churn typical of self-improvement/journaling apps; lack of viral distribution loops (inherently single-player private product). |
 | **What Would Make Me Reject It?** | Pitching this as a VC-style venture-scale social network or AI wrapper. |
-| **What Would Make Me Want to Invest?** | Positioning Monolog as a premium, privacy-first lifestyle software business targeting the 10M+ paying users on Day One / Obsidian / Bear, with proven retention metrics (>35% D30 retention) and positive unit economics. |
+| **What Would Make Me Want to Invest?** | Positioning OpenLog as a premium, privacy-first lifestyle software business targeting the 10M+ paying users on Day One / Obsidian / Bear, with proven retention metrics (>35% D30 retention) and positive unit economics. |
 | **Required Evidence:** | D30 / D90 cohort retention data proving users actually log moments consistently over 3+ months. |
 
 ---
@@ -395,7 +395,7 @@ The core architecture (React 19, Expo SDK 57, `expo-sqlite` with WAL, `useSyncEx
 3. Month Pulse skyline activity visualization.
 
 **Next 3 Actions:**
-1. Implement full data export/backup (`.monolog` archive) using `expo-file-system` and `expo-sharing`.
+1. Implement full data export/backup (`.openlog` archive) using `expo-file-system` and `expo-sharing`.
 2. Add SQLite FTS5 search to the timeline header.
 3. Replace the remote font downloader with 6 high-craft pre-bundled typography packages.
 
@@ -405,7 +405,7 @@ The core architecture (React 19, Expo SDK 57, `expo-sqlite` with WAL, `useSyncEx
 3. Do NOT add complex mood graphs, habits trackers, or multi-step questionnaires.
 
 **30-Day Goal:**
-> **Ship Monolog v1.0 to the App Store and Google Play with rock-solid local backups, instant search, and a 60fps polished timeline experience.**
+> **Ship OpenLog v1.0 to the App Store and Google Play with rock-solid local backups, instant search, and a 60fps polished timeline experience.**
 
 **One-Sentence Strategy:**
 > *"Own the privacy-first micro-journaling niche by making capturing and reliving daily memories feel effortless, tactile, and completely private."*

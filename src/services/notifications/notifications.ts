@@ -117,7 +117,7 @@ export async function notifyBackupExportComplete(
 }
 
 /**
- * Notifies the user when an archive restore / merge operation completes.
+ * Notifies the user when an archive restore completes.
  */
 export async function notifyBackupImportComplete(
   importedCount: number,

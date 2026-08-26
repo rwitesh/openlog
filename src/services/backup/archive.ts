@@ -14,17 +14,17 @@ import {
 
 import { notifyStoreReload } from "@/modules/entry";
 import { getAllRawEntries, importEntriesBatch } from "@/services/db/entries";
-import { getAllSettingsMap, setSettingsBatch } from "@/services/db/settings";
 import { resolveMediaUri } from "@/services/media/storage";
+import { APP_SLUG } from "@/shared/constants";
 import type { Entry } from "@/shared/types";
 import { APP_VERSION } from "@/shared/utils/appInfo";
 import { logDevWarning } from "@/shared/utils/devLog";
 
-export const ARCHIVE_FORMAT = "monolog-archive";
+export const ARCHIVE_FORMAT = `${APP_SLUG}-archive` as const;
 export const ARCHIVE_SCHEMA_VERSION = 1;
-export const ARCHIVE_EXTENSION = ".monolog";
+export const ARCHIVE_EXTENSION = `.${APP_SLUG}`;
 
-export interface MonologArchiveManifest {
+export interface ArchiveManifest {
   format: typeof ARCHIVE_FORMAT;
   version: number;
   createdAt: number;
@@ -33,9 +33,8 @@ export interface MonologArchiveManifest {
   mediaCount: number;
 }
 
-export interface MonologArchiveDb {
+export interface ArchiveDb {
   entries: Entry[];
-  settings?: Record<string, string>;
 }
 
 export interface InspectBackupResult {
@@ -64,10 +63,8 @@ export interface ExportBackupResult {
 }
 
 export interface ImportBackupResult {
-  mode: "replace" | "merge";
   importedCount: number;
   mediaCount: number;
-  settingsCount: number;
 }
 
 function sanitizeMediaFilename(name: string): string {
@@ -123,12 +120,12 @@ function normalizeMediaList(
 }
 
 /**
- * Creates a complete .monolog portable archive containing the database dump
+ * Creates a complete portable archive containing the database dump
  * (`manifest.json` + `db.json`) and all attached photos and voice recordings (`media/`).
  * Uses disk streaming to guarantee flat memory usage (< 25MB RAM) even with 5+ years of data.
  */
 export async function exportBackupArchive(): Promise<ExportBackupResult> {
-  const [entries, settings] = await Promise.all([getAllRawEntries(), getAllSettingsMap()]);
+  const entries = await getAllRawEntries();
 
   const collector: MediaCollector = { entries: [], seen: new Set() };
   const normalizedEntries: Entry[] = entries.map((entry) => ({
@@ -137,7 +134,7 @@ export async function exportBackupArchive(): Promise<ExportBackupResult> {
     audios: normalizeMediaList(entry.audios, collector, "m4a"),
   }));
 
-  const manifest: MonologArchiveManifest = {
+  const manifest: ArchiveManifest = {
     format: ARCHIVE_FORMAT,
     version: ARCHIVE_SCHEMA_VERSION,
     createdAt: Date.now(),
@@ -146,12 +143,11 @@ export async function exportBackupArchive(): Promise<ExportBackupResult> {
     mediaCount: collector.entries.length,
   };
 
-  const dbDump: MonologArchiveDb = {
+  const dbDump: ArchiveDb = {
     entries: normalizedEntries,
-    settings,
   };
 
-  const filename = `monolog-backup-${formatDateForFilename(manifest.createdAt)}${ARCHIVE_EXTENSION}`;
+  const filename = `${APP_SLUG}-backup-${formatDateForFilename(manifest.createdAt)}${ARCHIVE_EXTENSION}`;
   const exportFile = new File(Paths.cache, filename);
   exportFile.create({ overwrite: true });
   const handle = exportFile.open(FileMode.WriteOnly);
@@ -220,7 +216,7 @@ export async function exportBackupArchive(): Promise<ExportBackupResult> {
 }
 
 /**
- * Prompts user with the system file picker to select a .monolog backup archive.
+ * Prompts user with the system file picker to select a backup archive.
  */
 export async function pickBackupArchiveFile(): Promise<string | null> {
   const result = await getDocumentAsync({
@@ -234,15 +230,15 @@ export async function pickBackupArchiveFile(): Promise<string | null> {
 
   const asset = result.assets[0];
   const name = (asset.name || asset.uri).toLowerCase();
-  if (!name.endsWith(".monolog") && !name.endsWith(".monolog.zip")) {
-    throw new Error("Please select a valid .monolog backup file.");
+  if (!name.endsWith(ARCHIVE_EXTENSION) && !name.endsWith(`${ARCHIVE_EXTENSION}.zip`)) {
+    throw new Error(`Please select a valid ${ARCHIVE_EXTENSION} backup file.`);
   }
 
   return asset.uri;
 }
 
 /**
- * Inspects a .monolog backup archive without writing anything to disk or database.
+ * Inspects a backup archive without writing anything to disk or database.
  * Returns metadata and preview entries for user confirmation.
  */
 export async function inspectBackupArchive(fileUri: string): Promise<InspectBackupResult> {
@@ -251,8 +247,8 @@ export async function inspectBackupArchive(fileUri: string): Promise<InspectBack
     throw new Error("Selected backup file could not be found.");
   }
 
-  let manifest: Partial<MonologArchiveManifest> = {};
-  let dbData: MonologArchiveDb | null = null;
+  let manifest: Partial<ArchiveManifest> = {};
+  let dbData: ArchiveDb | null = null;
   let mediaCount = 0;
 
   const unzipper = new Unzip();
@@ -266,7 +262,7 @@ export async function inspectBackupArchive(fileUri: string): Promise<InspectBack
         chunks.push(chunk);
         if (final) {
           try {
-            manifest = JSON.parse(strFromU8(concatChunks(chunks))) as MonologArchiveManifest;
+            manifest = JSON.parse(strFromU8(concatChunks(chunks))) as ArchiveManifest;
           } catch {
             // Fallback — manifest is optional for validation
           }
@@ -278,7 +274,7 @@ export async function inspectBackupArchive(fileUri: string): Promise<InspectBack
       file.ondata = (_err, chunk, final) => {
         chunks.push(chunk);
         if (final) {
-          dbData = JSON.parse(strFromU8(concatChunks(chunks))) as MonologArchiveDb;
+          dbData = JSON.parse(strFromU8(concatChunks(chunks))) as ArchiveDb;
         }
       };
       file.start();
@@ -306,14 +302,14 @@ export async function inspectBackupArchive(fileUri: string): Promise<InspectBack
   }
 
   if (!manifest.format && !dbData) {
-    throw new Error("Invalid file: This is not a valid .monolog archive.");
+    throw new Error(`Invalid file: This is not a valid ${ARCHIVE_EXTENSION} archive.`);
   }
 
-  if (!dbData || !Array.isArray((dbData as MonologArchiveDb).entries)) {
+  if (!dbData || !Array.isArray((dbData as ArchiveDb).entries)) {
     throw new Error("Corrupted backup file: archive data is missing.");
   }
 
-  const entries = (dbData as MonologArchiveDb).entries;
+  const entries = (dbData as ArchiveDb).entries;
 
   const previewEntries = entries.slice(0, 3).map((e) => ({
     id: e.id,
@@ -336,22 +332,22 @@ export async function inspectBackupArchive(fileUri: string): Promise<InspectBack
 }
 
 /**
- * Restores or merges entries and attached media from a .monolog archive file into SQLite and app storage.
+ * Restores entries and attached media from an archive, replacing all current data.
  * Uses streaming decompression to write media files directly to disk without RAM bloat.
  */
-export async function importBackupArchive(
-  fileUri: string,
-  mode: "replace" | "merge" = "merge"
-): Promise<ImportBackupResult> {
+export async function importBackupArchive(fileUri: string): Promise<ImportBackupResult> {
   const sourceFile = new File(fileUri);
   if (!sourceFile.exists) {
     throw new Error("Selected backup file does not exist.");
   }
 
   const mediaDir = new Directory(Paths.document, "media");
+  if (mediaDir.exists) {
+    mediaDir.delete();
+  }
   mediaDir.create({ idempotent: true, intermediates: true });
 
-  let dbData: MonologArchiveDb | null = null;
+  let dbData: ArchiveDb | null = null;
   let restoredMediaCount = 0;
 
   const unzipper = new Unzip();
@@ -365,7 +361,7 @@ export async function importBackupArchive(
         if (err) throw err;
         chunks.push(chunk);
         if (final) {
-          dbData = JSON.parse(strFromU8(concatChunks(chunks))) as MonologArchiveDb;
+          dbData = JSON.parse(strFromU8(concatChunks(chunks))) as ArchiveDb;
         }
       };
       file.start();
@@ -414,35 +410,23 @@ export async function importBackupArchive(
     readHandle.close();
   }
 
-  const parsedDbData = dbData as unknown as MonologArchiveDb | null;
+  const parsedDbData = dbData as unknown as ArchiveDb | null;
   if (!parsedDbData || !Array.isArray(parsedDbData.entries)) {
     throw new Error("Invalid or corrupted backup file: entries list is missing.");
   }
 
-  const batchResult = await importEntriesBatch(parsedDbData.entries, mode);
-
-  let restoredSettingsCount = 0;
-  if (
-    mode === "replace" &&
-    parsedDbData.settings &&
-    Object.keys(parsedDbData.settings).length > 0
-  ) {
-    await setSettingsBatch(parsedDbData.settings);
-    restoredSettingsCount = Object.keys(parsedDbData.settings).length;
-  }
+  const importedCount = await importEntriesBatch(parsedDbData.entries);
 
   notifyStoreReload();
 
   return {
-    mode,
-    importedCount: batchResult.inserted + batchResult.updated,
+    importedCount,
     mediaCount: restoredMediaCount,
-    settingsCount: restoredSettingsCount,
   };
 }
 
 /**
- * Prompts user to pick a folder (e.g. Downloads / Documents) and stores the .monolog archive directly.
+ * Prompts user to pick a folder (e.g. Downloads / Documents) and stores the archive directly.
  * Falls back gracefully to system file storage if direct folder picking is canceled or unsupported.
  */
 export async function saveBackupArchive(fileUri: string, filename: string): Promise<boolean> {

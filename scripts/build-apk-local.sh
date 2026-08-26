@@ -51,7 +51,7 @@ cd "$ANDROID_DIR"
 
 APK="$ANDROID_DIR/app/build/outputs/apk/release/app-release.apk"
 DIST="$ROOT/dist"
-DIST_APK="$DIST/monolog-release.apk"
+DIST_APK="$DIST/openlog-release.apk"
 
 if [[ -f "$APK" ]]; then
   mkdir -p "$DIST"

@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 
 /**
- * Monolog Asset Sanitizer & Metadata Cleaner
+ * Asset Sanitizer & Metadata Cleaner
  *
  * Strips EXIF, XMP, IPTC, GPS, and private device metadata from all
  * project assets in assets/ and assets/backgrounds/, removes junk files
- * like .DS_Store, and embeds a clean "Monolog" creator tag.
+ * like .DS_Store, and embeds a clean creator tag.
  */
 
 const fs = require("node:fs");
@@ -13,6 +13,7 @@ const path = require("node:path");
 
 const ROOT_DIR = path.resolve(__dirname, "..");
 const ASSETS_DIR = path.join(ROOT_DIR, "assets");
+const APP_NAME = require(path.join(ROOT_DIR, "app.json")).expo.name;
 
 function cleanJpeg(buffer) {
   if (buffer.length < 4 || buffer[0] !== 0xff || buffer[1] !== 0xd8) {
@@ -22,8 +23,7 @@ function cleanJpeg(buffer) {
   const chunks = [Buffer.from([0xff, 0xd8])];
   let offset = 2;
 
-  // Clean Monolog COM (comment) marker: 0xFF, 0xFE, length, "Monolog"
-  const commentText = "Monolog";
+  const commentText = APP_NAME;
   const commentLen = 2 + Buffer.byteLength(commentText);
   const commentBuf = Buffer.alloc(4 + Buffer.byteLength(commentText));
   commentBuf[0] = 0xff;
@@ -155,7 +155,7 @@ function stripExtendedAttributes(filePath) {
 }
 
 function run() {
-  console.log("\n🧹 Monolog Asset Sanitizer");
+  console.log(`\n🧹 ${APP_NAME} Asset Sanitizer`);
   console.log("━".repeat(45));
 
   const files = getFilesRecursively(ASSETS_DIR);

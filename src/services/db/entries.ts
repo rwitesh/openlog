@@ -317,125 +317,48 @@ export async function getAllRawEntries(): Promise<Entry[]> {
   });
 }
 
-export interface ImportBatchResult {
-  inserted: number;
-  updated: number;
-}
-
-/** Transactional batch import of entries for archive restoration or merging. */
-export async function importEntriesBatch(
-  entries: Entry[],
-  mode: "replace" | "merge"
-): Promise<ImportBatchResult> {
+/** Transactional full restore of entries from an archive, replacing all existing rows. */
+export async function importEntriesBatch(entries: Entry[]): Promise<number> {
   return runDb(async (db) => {
     let inserted = 0;
-    let updated = 0;
 
     await db.withTransactionAsync(async () => {
-      if (mode === "replace") {
-        await db.runAsync(`DELETE FROM entries`);
-        const insertStmt = await db.prepareAsync(
-          `INSERT INTO entries (
-             id, created_at, updated_at, text, images, audios,
-             latitude, longitude, location_name
-           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-        );
+      await db.runAsync(`DELETE FROM entries`);
+      const insertStmt = await db.prepareAsync(
+        `INSERT INTO entries (
+           id, created_at, updated_at, text, images, audios,
+           latitude, longitude, location_name
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      );
 
-        try {
-          for (const entry of entries) {
-            const [lat, lng, locationName] = locationParams(entry.location);
-            const imagesJson = entry.images?.length ? JSON.stringify(entry.images) : null;
-            const audiosJson = entry.audios?.length ? JSON.stringify(entry.audios) : null;
-            const text = entry.text ?? null;
-            const createdAt = entry.createdAt;
-            const updatedAt = entry.updatedAt ?? createdAt;
+      try {
+        for (const entry of entries) {
+          const [lat, lng, locationName] = locationParams(entry.location);
+          const imagesJson = entry.images?.length ? JSON.stringify(entry.images) : null;
+          const audiosJson = entry.audios?.length ? JSON.stringify(entry.audios) : null;
+          const text = entry.text ?? null;
+          const createdAt = entry.createdAt;
+          const updatedAt = entry.updatedAt ?? createdAt;
 
-            await insertStmt.executeAsync([
-              entry.id,
-              createdAt,
-              updatedAt,
-              text,
-              imagesJson,
-              audiosJson,
-              lat,
-              lng,
-              locationName,
-            ]);
-            inserted++;
-          }
-        } finally {
-          await insertStmt.finalizeAsync();
+          await insertStmt.executeAsync([
+            entry.id,
+            createdAt,
+            updatedAt,
+            text,
+            imagesJson,
+            audiosJson,
+            lat,
+            lng,
+            locationName,
+          ]);
+          inserted++;
         }
-      } else {
-        const checkStmt = await db.prepareAsync(`SELECT updated_at FROM entries WHERE id = ?`);
-        const insertStmt = await db.prepareAsync(
-          `INSERT INTO entries (
-             id, created_at, updated_at, text, images, audios,
-             latitude, longitude, location_name
-           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-        );
-        const updateStmt = await db.prepareAsync(
-          `UPDATE entries
-              SET created_at = ?,
-                  updated_at = ?,
-                  text = ?,
-                  images = ?,
-                  audios = ?,
-                  latitude = ?,
-                  longitude = ?,
-                  location_name = ?
-            WHERE id = ?`
-        );
-
-        try {
-          for (const entry of entries) {
-            const [lat, lng, locationName] = locationParams(entry.location);
-            const imagesJson = entry.images?.length ? JSON.stringify(entry.images) : null;
-            const audiosJson = entry.audios?.length ? JSON.stringify(entry.audios) : null;
-            const text = entry.text ?? null;
-            const createdAt = entry.createdAt;
-            const updatedAt = entry.updatedAt ?? createdAt;
-
-            const result = await checkStmt.executeAsync<{ updated_at: number }>([entry.id]);
-            const existing = await result.getFirstAsync();
-
-            if (!existing) {
-              await insertStmt.executeAsync([
-                entry.id,
-                createdAt,
-                updatedAt,
-                text,
-                imagesJson,
-                audiosJson,
-                lat,
-                lng,
-                locationName,
-              ]);
-              inserted++;
-            } else if (updatedAt >= existing.updated_at) {
-              await updateStmt.executeAsync([
-                createdAt,
-                updatedAt,
-                text,
-                imagesJson,
-                audiosJson,
-                lat,
-                lng,
-                locationName,
-                entry.id,
-              ]);
-              updated++;
-            }
-          }
-        } finally {
-          await checkStmt.finalizeAsync();
-          await insertStmt.finalizeAsync();
-          await updateStmt.finalizeAsync();
-        }
+      } finally {
+        await insertStmt.finalizeAsync();
       }
     });
 
-    return { inserted, updated };
+    return inserted;
   });
 }
 

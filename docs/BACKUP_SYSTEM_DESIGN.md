@@ -1,21 +1,21 @@
-# System Design: Monolog Backup & Restore Architecture
+# System Design: OpenLog Backup & Restore Architecture
 
 ## 1. Core Philosophy & Requirements
 
-Monolog is a local-first, zero-cloud personal timeline. Because data lives exclusively on the user's physical device, the backup system must satisfy three non-negotiable invariants:
+OpenLog is a local-first, zero-cloud personal timeline. Because data lives exclusively on the user's physical device, the backup system must satisfy three non-negotiable invariants:
 
-1. **100% Data Sovereignty:** The user owns their data in an open, inspectable format. If Monolog ceases to exist in 10 years, the user can still unzip their archive and access their text in standard JSON and their photos/recordings in standard media formats.
+1. **100% Data Sovereignty:** The user owns their data in an open, inspectable format. If OpenLog ceases to exist in 10 years, the user can still unzip their archive and access their text in standard JSON and their photos/recordings in standard media formats.
 2. **Crash-Proof at Scale (5+ Years of Data):** A user with 10,000 entries and 2,000 photos (1–2 GB) must be able to export and restore on a mobile device without exceeding memory limits (RAM) or freezing the user interface.
 3. **Zero Data Corruption:** Database restoration must be atomic. A failed or canceled import must never leave the database in a half-written or corrupted state.
 
 ---
 
-## 2. The `.monolog` Archive Format
+## 2. The `.openlog` Archive Format
 
-A `.monolog` file is a self-contained compressed package containing structured metadata, database records, and binary media assets.
+A `.openlog` file is a self-contained compressed package containing structured metadata, database records, and binary media assets.
 
 ```
-backup-20260822-1330.monolog (ZIP Container)
+backup-20260822-1330.openlog (ZIP Container)
 │
 ├── manifest.json       # Archive header & integrity verification
 ├── db.json             # Normalized database records & user preferences
@@ -40,7 +40,7 @@ backup-20260822-1330.monolog (ZIP Container)
 ### A. Why a Unified Package Instead of Copying the Raw SQLite File?
 
 1. **Media Separation:** SQLite only stores text strings (URIs). The actual images (`.jpg`) and voice notes (`.m4a`) reside in the operating system's document directory. Copying `app.db` alone would produce an empty shell where all media links are broken.
-2. **iOS Container UUID Mutation:** On iOS, every app update or reinstall assigns a new UUID to the app container directory (`/var/mobile/Containers/Data/Application/<UUID>/...`). Hardcoded absolute paths in a raw database become dead links on a new device. The `.monolog` format converts all paths to portable relative references (`media/filename`) that reconnect dynamically upon restore.
+2. **iOS Container UUID Mutation:** On iOS, every app update or reinstall assigns a new UUID to the app container directory (`/var/mobile/Containers/Data/Application/<UUID>/...`). Hardcoded absolute paths in a raw database become dead links on a new device. The `.openlog` format converts all paths to portable relative references (`media/filename`) that reconnect dynamically upon restore.
 3. **SQLite WAL Concurrency & Locking:** Under SQLite Write-Ahead Logging (WAL), uncommitted data lives in `-wal` and `-shm` shared memory files. Copying `app.db` while SQLite handles background tasks risks capturing a corrupted or incomplete database snapshot.
 
 ---
@@ -88,7 +88,7 @@ Users can choose how to handle incoming archives:
 ### F. Security & Privacy Guardrails
 
 1. **Path Traversal Protection (Zip-Slip Prevention):** Every filename in the archive is sanitized through regex filters to eliminate directory traversal sequences (`../`, `/`, `\`) before creating files on disk.
-2. **Dry-Run Archive Inspection:** When a file is selected, Monolog parses the manifest and database header in isolation, displaying archive date, entry count, and media count for explicit user confirmation before touching app storage.
+2. **Dry-Run Archive Inspection:** When a file is selected, OpenLog parses the manifest and database header in isolation, displaying archive date, entry count, and media count for explicit user confirmation before touching app storage.
 3. **Sanitized Error Boundaries:** User-facing alerts present clear, non-technical recovery advice. Internal file paths and SQLite exceptions are never exposed to the UI and are logged only to dev diagnostics.
 4. **Environment Isolation (Expo Go vs. Native Builds):** In development clients and production builds, local notifications inform the user upon completion. In Expo Go, notification modules are lazily bypassed to prevent Android SDK 53+ restriction warnings.
 
@@ -110,18 +110,18 @@ sequenceDiagram
     User->>UI: Tap "Save Backup"
     UI->>Engine: exportBackupArchive()
     Engine->>DB: Query entries & settings
-    Engine->>Disk: Open .monolog file handle in cache
+    Engine->>Disk: Open .openlog file handle in cache
     loop For each media item
         Engine->>Disk: Read single media file
-        Engine->>Disk: Stream chunk into .monolog file
+        Engine->>Disk: Stream chunk into .openlog file
     end
-    Engine->>Disk: Finalize .monolog archive
-    Engine->>Storage: Save .monolog file
+    Engine->>Disk: Finalize .openlog archive
+    Engine->>Storage: Save .openlog file
     Storage-->>User: Present System Storage Sheet (Save to Downloads / Files)
 
     Note over User,Share: Import Flow
     User->>UI: Tap "Import Archive"
-    UI->>Disk: Pick .monolog document
+    UI->>Disk: Pick .openlog document
     Disk-->>Engine: Archive URI
     Engine->>Engine: Dry-run inspect manifest & db.json
     Engine-->>UI: Return summary (counts & date)

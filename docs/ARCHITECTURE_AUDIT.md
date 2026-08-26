@@ -1,4 +1,4 @@
-# Architecture & Maintainability Audit: Monolog
+# Architecture & Maintainability Audit: OpenLog
 
 **Date:** August 20, 2026  
 **Auditor:** Antigravity (Principal Software Engineer)  
@@ -9,7 +9,7 @@
 
 ## 1. Executive Diagnosis: "Fractured Codebase Syndrome"
 
-While Monolog’s UI polish and local-first SQLite performance are top-tier, the codebase suffers from **excessive fragmentation (Micro-File Fatigue & Shotgun Surgery)**.
+While OpenLog’s UI polish and local-first SQLite performance are top-tier, the codebase suffers from **excessive fragmentation (Micro-File Fatigue & Shotgun Surgery)**.
 
 ### The Problem:
 To modify, add, or delete a single simple feature (like a preference or settings item), a developer or AI agent must currently drill down **5 to 6 folder layers** and modify up to **11 separate files**.

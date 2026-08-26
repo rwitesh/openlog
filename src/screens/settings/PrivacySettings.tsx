@@ -10,6 +10,7 @@ import {
 } from "@/modules/settings";
 import { authenticate, type BiometricSupport, getBiometricSupport } from "@/services/auth";
 import {
+  ARCHIVE_EXTENSION,
   exportBackupArchive,
   importBackupArchive,
   inspectBackupArchive,
@@ -24,7 +25,7 @@ import { press, space, typography, usePreferences, useTheme } from "@/theme";
 
 /**
  * Privacy & data category screen — everything about trust: the biometric
- * app lock under SECURITY, .monolog backup/export under BACKUP & EXPORT,
+ * app lock under SECURITY, backup/export under BACKUP & EXPORT,
  * and storage management under STORAGE.
  */
 export function PrivacySettingsScreen() {
@@ -101,10 +102,10 @@ export function PrivacySettingsScreen() {
     }
   };
 
-  const performImport = async (fileUri: string, mode: "replace" | "merge") => {
+  const performImport = async (fileUri: string) => {
     setIsImporting(true);
     try {
-      const result = await importBackupArchive(fileUri, mode);
+      const result = await importBackupArchive(fileUri);
       void notifyBackupImportComplete(result.importedCount, result.mediaCount);
       Alert.alert(
         "Import Complete",
@@ -114,7 +115,7 @@ export function PrivacySettingsScreen() {
       logDevWarning("settings:importBackup", error);
       Alert.alert(
         "Import Failed",
-        "Could not restore backup. Please ensure the file is a valid .monolog archive and try again."
+        `Could not restore backup. Please ensure the file is a valid ${ARCHIVE_EXTENSION} archive and try again.`
       );
     } finally {
       setIsImporting(false);
@@ -135,37 +136,20 @@ export function PrivacySettingsScreen() {
       });
 
       Alert.alert(
-        "Import .monolog Archive",
-        `Archive from ${dateStr} containing ${info.entryCount.toLocaleString()} entries and ${info.mediaCount} media files.\n\nChoose an import option:`,
+        `Restore ${ARCHIVE_EXTENSION} Archive`,
+        `Archive from ${dateStr} containing ${info.entryCount.toLocaleString()} entries and ${info.mediaCount} media files.\n\nRestoring replaces all entries and media currently on this device.`,
         [
           {
-            text: "Merge (Keep Current)",
-            onPress: () => void performImport(fileUri, "merge"),
-          },
-          {
-            text: "Replace All Data",
+            text: "Restore",
             style: "destructive",
-            onPress: () => {
-              Alert.alert(
-                "Replace Existing Data?",
-                "This will replace all current entries and media with the backup archive data.",
-                [
-                  { text: "Cancel", style: "cancel" },
-                  {
-                    text: "Replace",
-                    style: "destructive",
-                    onPress: () => void performImport(fileUri, "replace"),
-                  },
-                ]
-              );
-            },
+            onPress: () => void performImport(fileUri),
           },
           { text: "Cancel", style: "cancel" },
         ]
       );
     } catch (error) {
       logDevWarning("settings:inspectArchive", error);
-      Alert.alert("Invalid File", "Please select a valid .monolog backup archive.");
+      Alert.alert("Invalid File", `Please select a valid ${ARCHIVE_EXTENSION} backup archive.`);
     }
   };
 
@@ -217,7 +201,7 @@ export function PrivacySettingsScreen() {
       <SettingsGroup label="DATA BACKUP">
         <SettingsRow
           icon="upload"
-          title="Save Backup (.monolog)"
+          title={`Save Backup (${ARCHIVE_EXTENSION})`}
           subtitle={
             isExporting ? "Saving backup archive…" : "Store a complete backup of your entire data"
           }
@@ -228,11 +212,11 @@ export function PrivacySettingsScreen() {
 
         <SettingsRow
           icon="download"
-          title="Restore Backup (.monolog)"
+          title={`Restore Backup (${ARCHIVE_EXTENSION})`}
           subtitle={
             isImporting
               ? "Restoring backup archive…"
-              : "Restore your data from a .monolog backup file"
+              : `Restore your data from a ${ARCHIVE_EXTENSION} backup file`
           }
           badge={isImporting ? <ActivityIndicator size="small" color={colors.marker} /> : undefined}
           showChevron={false}
