@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Monolog",
-    "slug": "monolog",
+    "name": "OpenLog",
+    "slug": "openlog",
     "version": "1.0.0",
     "runtimeVersion": {
       "policy": "fingerprint"
@@ -9,7 +9,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "scheme": "monolog",
+    "scheme": "openlog",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -21,14 +21,14 @@
     },
     "ios": {
       "supportsTablet": true,
-      "deploymentTarget": "15.0",
+      "deploymentTarget": "14.0",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Record voice entries on your timeline.",
         "NSLocationWhenInUseUsageDescription": "Attach your current location to entries.",
         "NSPhotoLibraryUsageDescription": "Attach photos from your library to timeline entries.",
         "NSPhotoLibraryAddUsageDescription": "Save photos from entries to your photo library."
       },
-      "bundleIdentifier": "com.rwitesh.monolog"
+      "bundleIdentifier": "com.rwitesh.openlog"
     },
     "android": {
       "adaptiveIcon": {
@@ -46,7 +46,7 @@
         "android.permission.ACCESS_FINE_LOCATION"
       ],
       "predictiveBackGestureEnabled": false,
-      "package": "com.rwitesh.monolog"
+      "package": "com.rwitesh.openlog"
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -87,7 +87,7 @@
         "expo-build-properties",
         {
           "android": {
-            "minSdkVersion": 29,
+            "minSdkVersion": 30,
             "buildArchs": [
               "arm64-v8a"
             ]

@@ -19,6 +19,6 @@ export const APP_VERSION: string | null =
 export const BUILD_NUMBER: string | null = Application.nativeBuildVersion ?? null;
 
 /**
- * Native application ID / bundle identifier (e.g. "com.rwitesh.monolog").
+ * Native application ID / bundle identifier.
  */
 export const APPLICATION_ID: string | null = Application.applicationId ?? null;

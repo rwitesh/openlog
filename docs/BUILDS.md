@@ -1,4 +1,4 @@
-# Monolog Build & Execution Guide
+# OpenLog Build & Execution Guide
 
 Practical, command-focused guide for local testing, unlimited builds, EAS cloud releases, and unified Expo fingerprinting.
 
@@ -11,7 +11,7 @@ Practical, command-focused guide for local testing, unlimited builds, EAS cloud 
 | **Daily live dev (Expo Go)** | `npm start` | Fast, free, live reload |
 | **Native live dev on emulator/device** | `npm run android` | Runs dev build on connected device |
 | **Build & install APK to phone directly** | `npm run android:release` | **One-step**: builds locally & pushes via ADB |
-| **Build APK locally only** | `npm run build:apk:local` | Unlimited, free, saves to `dist/monolog-release.apk` |
+| **Build APK locally only** | `npm run build:apk:local` | Unlimited, free, saves to `dist/openlog-release.apk` |
 | **Push already built APK to phone** | `npm run android:install` | Runs `adb install -r` |
 | **Check native fingerprint hash** | `npm run fingerprint` | Shows current native layer hash |
 | **EAS local build** | `npm run eas:local` | Uses your machine with EAS pipeline |
@@ -24,7 +24,7 @@ Practical, command-focused guide for local testing, unlimited builds, EAS cloud 
 
 ## 2. Unified Fingerprint (Local & Cloud)
 
-Monolog uses the standard Expo fingerprint policy in `app.json`:
+OpenLog uses the standard Expo fingerprint policy in `app.json`:
 ```json
 "runtimeVersion": {
   "policy": "fingerprint"
@@ -58,7 +58,7 @@ npm run android:release
 ```bash
 npm run build:apk:local
 ```
-*Outputs to `dist/monolog-release.apk` for manual sharing or sideloading.*
+*Outputs to `dist/openlog-release.apk` for manual sharing or sideloading.*
 
 ### Workflow C: Push Existing APK via ADB
 ```bash
