@@ -49,7 +49,7 @@
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
-    "android:dev": "bash scripts/build-apk-local.sh && adb install -r dist/openlog-dev.apk",
+    "android:dev": "bash scripts/build-apk-local.sh",
     "eas:dev": "npx eas-cli@latest build --platform android --profile preview",
     "eas:prod": "npx eas-cli@latest build --platform android --profile production",
     "fingerprint": "npx @expo/fingerprint .",
