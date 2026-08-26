@@ -10,15 +10,6 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "scheme": "openlog",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#3264e6",
-      "dark": {
-        "image": "./assets/splash-icon.png",
-        "backgroundColor": "#1a2560"
-      }
-    },
     "ios": {
       "supportsTablet": true,
       "deploymentTarget": "14.0",
@@ -93,7 +84,8 @@
             ]
           }
         }
-      ]
+      ],
+      "expo-sqlite"
     ],
     "extra": {
       "eas": {
