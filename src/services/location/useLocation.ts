@@ -20,13 +20,13 @@ export function useLocation(initialLocation?: EntryLocation | null) {
   const fetchId = useRef(0);
 
   const fetchAndAttach = useCallback(
-    async (promptForPermission = true) => {
+    async (options: { prompt: boolean; refresh?: boolean }) => {
       const id = ++fetchId.current;
       setLoading(true);
       setFailed(false);
 
       try {
-        const loc = await fetchPlace({ prompt: promptForPermission });
+        const loc = await fetchPlace(options);
         if (id !== fetchId.current) return;
 
         setLoading(false);
@@ -50,11 +50,11 @@ export function useLocation(initialLocation?: EntryLocation | null) {
   );
 
   const request = useCallback(async () => {
-    await fetchAndAttach(true);
+    await fetchAndAttach({ prompt: true });
   }, [fetchAndAttach]);
 
   const refresh = useCallback(async () => {
-    await fetchAndAttach(true);
+    await fetchAndAttach({ prompt: true, refresh: true });
   }, [fetchAndAttach]);
 
   const remove = useCallback(() => {

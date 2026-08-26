@@ -9,6 +9,9 @@ const LAST_KNOWN_MAX_ACCURACY_M = 2000;
 
 export const LOCATION_UNAVAILABLE = "Not available";
 
+// Cached for the app session; a fresh fix is only taken on refresh.
+let sessionPlace: EntryLocation | null = null;
+
 /**
  * Normalizes geocoded address components into a single canonical format:
  * "Locality, Region, Country" with consecutive and empty deduplication.
@@ -107,15 +110,21 @@ async function readPosition(): Promise<Location.LocationObject | null> {
 /**
  * Resolves place label from GPS on explicit user action.
  *
+ * The resolved place is cached for the app session: repeat taps return it
+ * instantly without another GPS fix or reverse-geocode. Pass `refresh: true`
+ * to bypass the cache and take a fresh fix (which updates the cache).
+ *
  * Permission determines whether the app is allowed to access location.
  * Compose determines whether the app should actually use it.
  *
  * `prompt: true` requests OS permission if not yet granted.
  */
 export async function fetchPlace(
-  options: { prompt?: boolean } = {}
+  options: { prompt?: boolean; refresh?: boolean } = {}
 ): Promise<EntryLocation | null> {
-  const { prompt = false } = options;
+  const { prompt = false, refresh = false } = options;
+
+  if (!refresh && sessionPlace) return sessionPlace;
 
   let permission = await Location.getForegroundPermissionsAsync();
 
@@ -132,5 +141,7 @@ export async function fetchPlace(
   const position = await readPosition();
   if (!position) return null;
 
-  return coordsToPlace(position.coords.latitude, position.coords.longitude);
+  const place = await coordsToPlace(position.coords.latitude, position.coords.longitude);
+  sessionPlace = place;
+  return place;
 }
