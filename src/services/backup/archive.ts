@@ -427,7 +427,7 @@ export async function importBackupArchive(fileUri: string): Promise<ImportBackup
 
 /**
  * Prompts user to pick a folder (e.g. Downloads / Documents) and stores the archive directly.
- * Falls back gracefully to system file storage if direct folder picking is canceled or unsupported.
+ * Returns false when the user cancels; falls back to the share sheet only if the picker fails.
  */
 export async function saveBackupArchive(fileUri: string, filename: string): Promise<boolean> {
   const sourceFile = new File(fileUri);
@@ -435,25 +435,23 @@ export async function saveBackupArchive(fileUri: string, filename: string): Prom
     throw new Error("Backup file could not be found.");
   }
 
-  // 1. First priority: Direct system folder picker (Android SAF / iOS Files)
   try {
     const targetDir = await Directory.pickDirectoryAsync();
-    if (targetDir?.uri) {
-      const destFile = targetDir.createFile(filename, "application/octet-stream");
-      const bytes = await sourceFile.bytes();
-      destFile.write(bytes);
-      return true;
-    }
+    if (!targetDir?.uri) return false;
+    const destFile = targetDir.createFile(filename, "application/octet-stream");
+    destFile.write(await sourceFile.bytes());
+    return true;
   } catch (pickerErr) {
+    if (pickerErr instanceof Error && /cancel/i.test(pickerErr.message)) {
+      return false;
+    }
     logDevWarning("saveBackupArchive:pickDirectoryAsync", pickerErr);
   }
 
-  // 2. Fallback: Native save-to-storage prompt
   const isAvailable = await Sharing.isAvailableAsync();
   if (isAvailable) {
     await Sharing.shareAsync(fileUri, {
       mimeType: "application/octet-stream",
-      dialogTitle: "Save Backup Archive",
       UTI: "public.archive",
     });
     return true;

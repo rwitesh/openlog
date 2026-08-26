@@ -10,7 +10,6 @@ import {
 } from "@/modules/settings";
 import { authenticate, type BiometricSupport, getBiometricSupport } from "@/services/auth";
 import {
-  ARCHIVE_EXTENSION,
   exportBackupArchive,
   importBackupArchive,
   inspectBackupArchive,
@@ -86,9 +85,10 @@ export function PrivacySettingsScreen() {
       void notifyBackupExportComplete(result.entryCount, result.mediaCount);
       const saved = await saveBackupArchive(result.fileUri, result.filename);
       if (saved) {
+        void notifyBackupExportComplete(result.entryCount, result.mediaCount);
         Alert.alert(
           "Backup Saved",
-          `Backup archive with ${result.entryCount.toLocaleString()} entries and ${result.mediaCount} media files stored successfully.`
+          `${result.entryCount.toLocaleString()} entries and ${result.mediaCount} media files.`
         );
       }
     } catch (error) {
@@ -113,10 +113,7 @@ export function PrivacySettingsScreen() {
       );
     } catch (error) {
       logDevWarning("settings:importBackup", error);
-      Alert.alert(
-        "Import Failed",
-        `Could not restore backup. Please ensure the file is a valid ${ARCHIVE_EXTENSION} archive and try again.`
-      );
+      Alert.alert("Restore Failed", `Could not restore. Please select a valid backup file.`);
     } finally {
       setIsImporting(false);
     }
@@ -136,8 +133,8 @@ export function PrivacySettingsScreen() {
       });
 
       Alert.alert(
-        `Restore ${ARCHIVE_EXTENSION} Archive`,
-        `Archive from ${dateStr} containing ${info.entryCount.toLocaleString()} entries and ${info.mediaCount} media files.\n\nRestoring replaces all entries and media currently on this device.`,
+        "Restore Backup",
+        `Backup from ${dateStr} with ${info.entryCount.toLocaleString()} entries.\n\nThis replaces all entries and media currently on this device.`,
         [
           {
             text: "Restore",
@@ -149,7 +146,7 @@ export function PrivacySettingsScreen() {
       );
     } catch (error) {
       logDevWarning("settings:inspectArchive", error);
-      Alert.alert("Invalid File", `Please select a valid ${ARCHIVE_EXTENSION} backup archive.`);
+      Alert.alert("Invalid File", "Please select a valid backup file.");
     }
   };
 
@@ -201,10 +198,8 @@ export function PrivacySettingsScreen() {
       <SettingsGroup label="DATA BACKUP">
         <SettingsRow
           icon="upload"
-          title={`Save Backup (${ARCHIVE_EXTENSION})`}
-          subtitle={
-            isExporting ? "Saving backup archive…" : "Store a complete backup of your entire data"
-          }
+          title="Export"
+          subtitle={isExporting ? "Saving backup…" : "Save all your data to a backup file"}
           badge={isExporting ? <ActivityIndicator size="small" color={colors.marker} /> : undefined}
           showChevron={false}
           onPress={() => void handleExport()}
@@ -212,11 +207,9 @@ export function PrivacySettingsScreen() {
 
         <SettingsRow
           icon="download"
-          title={`Restore Backup (${ARCHIVE_EXTENSION})`}
+          title="Import"
           subtitle={
-            isImporting
-              ? "Restoring backup archive…"
-              : `Restore your data from a ${ARCHIVE_EXTENSION} backup file`
+            isImporting ? "Restoring…" : "Restore from a backup file, replacing current data"
           }
           badge={isImporting ? <ActivityIndicator size="small" color={colors.marker} /> : undefined}
           showChevron={false}
