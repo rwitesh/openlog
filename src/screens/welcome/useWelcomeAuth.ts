@@ -5,7 +5,7 @@ import { posthog } from "@/config/posthog";
 import { useProfile } from "@/modules/profile";
 import type { RootStackParamList } from "@/navigation/types";
 import { ONBOARDING_COMPLETED_KEY, setSetting } from "@/services/db/settings";
-import { logDevWarning } from "@/shared/utils";
+import { logDevWarning, reportError } from "@/shared/utils";
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, "Welcome">;
 
@@ -82,6 +82,15 @@ export function useWelcomeAuth(navigation: Navigation) {
     setStep("email");
   };
 
+  // User-facing copy stays generic; the raw detail goes to reportError.
+  const report = (where: string, raw: unknown, info: { code: string | null; message: string }) =>
+    reportError("onboarding_error", {
+      where,
+      code: info.code,
+      message: info.message,
+      detail: raw instanceof Error ? raw.message : String(raw),
+    });
+
   // Clerk returns expected failures as { error } results but throws on
   // transport failures; both surface the same user-facing message.
   const run = async (fn: () => Promise<void>) => {
@@ -89,7 +98,7 @@ export function useWelcomeAuth(navigation: Navigation) {
       await fn();
     } catch (error) {
       const info = errorInfo(error, "Something went wrong. Please try again.");
-      logDevWarning("welcome:request", `${info.code}: ${info.message} | ${String(error)}`);
+      report("request", error, info);
       setErrorMessage(info.message);
     }
   };
@@ -106,10 +115,7 @@ export function useWelcomeAuth(navigation: Navigation) {
         const { error } = await signUp.create({ emailAddress });
         if (error) {
           const info = errorInfo(error, "Something went wrong. Please try again.");
-          logDevWarning(
-            "welcome:signupStart",
-            `${info.code}: ${info.message} | ${JSON.stringify(error)}`
-          );
+          report("signupStart", error, info);
           setErrorMessage(
             info.code === "form_identifier_exists"
               ? "This email already has an account. Go back and choose Log in."
@@ -122,10 +128,7 @@ export function useWelcomeAuth(navigation: Navigation) {
         const { error: sendError } = await signUp.verifications.sendEmailCode();
         if (sendError) {
           const info = errorInfo(sendError, "Could not send the code. Please try again.");
-          logDevWarning(
-            "welcome:sendCode",
-            `${info.code}: ${info.message} | ${JSON.stringify(sendError)}`
-          );
+          report("sendCode", sendError, info);
           setErrorMessage(info.message);
           return;
         }
@@ -134,10 +137,7 @@ export function useWelcomeAuth(navigation: Navigation) {
         const { error } = await signIn.emailCode.sendCode({ emailAddress });
         if (error) {
           const info = errorInfo(error, "Something went wrong. Please try again.");
-          logDevWarning(
-            "welcome:loginStart",
-            `${info.code}: ${info.message} | ${JSON.stringify(error)}`
-          );
+          report("loginStart", error, info);
           setErrorMessage(
             info.code === "form_identifier_not_found"
               ? "No account found for this email. Go back and choose Create new account."
@@ -178,7 +178,11 @@ export function useWelcomeAuth(navigation: Navigation) {
           setStep("name");
           return;
         }
-        logDevWarning("welcome:signupStatus", signUp.status);
+        report("signupStatus", signUp.status, {
+          code: signUp.status ?? null,
+          message: "Something went wrong. Please try again.",
+        });
+        setErrorMessage("Something went wrong. Please try again.");
         return;
       }
 
@@ -193,7 +197,11 @@ export function useWelcomeAuth(navigation: Navigation) {
         exitToApp();
         return;
       }
-      logDevWarning("welcome:signinStatus", signIn.status);
+      report("signinStatus", signIn.status, {
+        code: signIn.status ?? null,
+        message: "Something went wrong. Please try again.",
+      });
+      setErrorMessage("Something went wrong. Please try again.");
     });
 
   const submitName = () =>

@@ -13,6 +13,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { RootStackParamList } from "@/navigation/types";
 import { ThemedText } from "@/shared/components/ThemedText";
+import { reportError } from "@/shared/utils";
 import { metrics, press, radius, space, typography, useTheme } from "@/theme";
 import { completeOnboarding, type Step, useWelcomeAuth } from "./useWelcomeAuth";
 
@@ -36,9 +37,10 @@ function WelcomeOffline({ navigation }: Pick<Props, "navigation">) {
     <ScreenFrame>
       <ChooseStep
         errorMessage={errorMessage}
-        onStart={() =>
-          setErrorMessage("Network problem. Check your internet connection and try again.")
-        }
+        onStart={() => {
+          reportError("onboarding_error", { where: "clerkNotLoaded" });
+          setErrorMessage("Network problem. Check your internet connection and try again.");
+        }}
         onSkip={() => completeOnboarding(navigation)}
       />
     </ScreenFrame>
