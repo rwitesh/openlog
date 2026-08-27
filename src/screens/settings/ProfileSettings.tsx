@@ -6,7 +6,7 @@ import { useProfile } from "@/modules/profile";
 import { SettingsGroup, SettingsRow, SettingsScreenScroll } from "@/modules/settings";
 import type { RootStackParamList } from "@/navigation/types";
 import { ThemedText } from "@/shared/components/ThemedText";
-import { logDevWarning } from "@/shared/utils";
+import { reportError } from "@/shared/utils";
 import { space, typography, useTheme } from "@/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "SettingsProfile">;
@@ -55,7 +55,12 @@ export function ProfileSettingsScreen({ navigation }: Props) {
           onPress={() => {
             signOut()
               .then(() => navigation.goBack())
-              .catch((error) => logDevWarning("profile:signOut", error));
+              .catch((error) =>
+                reportError("account_error", {
+                  where: "signOut",
+                  detail: error instanceof Error ? error.message : String(error),
+                })
+              );
           }}
         />
       </SettingsGroup>
