@@ -4,13 +4,13 @@
     "appVersionSource": "local"
   },
   "build": {
-    "preview": {
+    "development": {
       "distribution": "internal",
       "android": {
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_APP_ENV": "preview"
+        "EXPO_PUBLIC_APP_ENV": "development"
       }
     },
     "production": {
