@@ -10,7 +10,7 @@ import { View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { clerkPublishableKey } from "@/config/clerk";
 import { posthog } from "@/config/posthog";
-import { AppLockGate, useClerkStatus } from "@/modules/auth";
+import { AppLockGate } from "@/modules/auth";
 import { ProfileProvider, useProfile } from "@/modules/profile";
 import type { RootStackParamList } from "@/navigation";
 import { Compose } from "@/screens/compose";
@@ -35,32 +35,23 @@ import { useAppBootstrap } from "@/shared/hooks";
 import { IS_EXPO_GO, logDevWarning } from "@/shared/utils";
 import { AppProviders, useNavigationTheme, useTheme } from "@/theme";
 
-/**
- * Holds the splash screen until local bootstrap finishes. When onboarding is
- * pending it also waits for Clerk's initial load to settle (ready or failed);
- * the Welcome screen handles the failed case with retry. Skipped and returning
- * users never wait on Clerk.
- */
+/** Holds the splash screen until local bootstrap (fonts + preferences) finishes;
+    Clerk connects in the background and Welcome handles its readiness itself. */
 function BootstrapGate({
   ready,
-  waitForClerk,
   backgroundColor,
   children,
 }: {
   ready: boolean;
-  waitForClerk: boolean;
   backgroundColor: string;
   children: ReactNode;
 }) {
-  const status = useClerkStatus();
-  const showApp = ready && (!waitForClerk || status !== "loading");
-
   useEffect(() => {
-    if (!showApp) return;
+    if (!ready) return;
     SplashScreen.hideAsync().catch((error) => logDevWarning("bootstrap:hideSplash", error));
-  }, [showApp]);
+  }, [ready]);
 
-  if (!showApp) return <View style={{ flex: 1, backgroundColor }} />;
+  if (!ready) return <View style={{ flex: 1, backgroundColor }} />;
   return <>{children}</>;
 }
 
@@ -205,7 +196,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <ClerkProvider publishableKey={clerkPublishableKey} tokenCache={tokenCache}>
-        <BootstrapGate ready={ready} waitForClerk={showWelcome} backgroundColor={backgroundColor}>
+        <BootstrapGate ready={ready} backgroundColor={backgroundColor}>
           <Layout>
             <AppProviders initialPreferences={preferences}>
               <ProfileProvider initialName={userName}>

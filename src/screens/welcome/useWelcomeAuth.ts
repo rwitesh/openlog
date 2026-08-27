@@ -1,12 +1,18 @@
-import { isClerkAPIResponseError, useAuth, useSignIn, useSignUp, useUser } from "@clerk/expo";
+import {
+  getClerkInstance,
+  isClerkAPIResponseError,
+  useAuth,
+  useSignIn,
+  useSignUp,
+  useUser,
+} from "@clerk/expo";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { posthog } from "@/config/posthog";
-import { retryClerkLoad, useClerkStatus } from "@/modules/auth";
 import { useProfile } from "@/modules/profile";
 import type { RootStackParamList } from "@/navigation/types";
 import { ONBOARDING_COMPLETED_KEY, setSetting } from "@/services/db/settings";
-import { logDevWarning, reportError } from "@/shared/utils";
+import { IS_EXPO_GO, logDevWarning, reportError } from "@/shared/utils";
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, "Welcome">;
 
@@ -14,6 +20,17 @@ type Intent = "signup" | "login";
 export type Step = "choose" | "email" | "code" | "name";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const GENERIC_ERROR = "Something went wrong. Please try again.";
+
+/** Re-runs Clerk initialization after a failed load. Skipped in Expo Go, whose
+    runtime lacks window.location pieces of the native clerk bundle touch
+    unconditionally on retry (Cannot read property 'href' of undefined). */
+function connectClerk(): Promise<void> | void {
+  if (IS_EXPO_GO) return;
+  const clerk = getClerkInstance();
+  if (clerk.status !== "error") return;
+  return clerk.load().catch((error) => logDevWarning("welcome:clerkRetry", error));
+}
 
 function errorInfo(error: unknown, fallback: string): { code: string | null; message: string } {
   if (isClerkAPIResponseError(error)) {
@@ -60,11 +77,21 @@ function report(where: string, raw: unknown, info: { code: string | null; messag
   });
 }
 
+function displayNameOf(
+  user?: { firstName: string | null; lastName: string | null } | null
+): string | null {
+  return (
+    [user?.firstName, user?.lastName]
+      .map((part) => part?.trim())
+      .filter(Boolean)
+      .join(" ") || null
+  );
+}
+
 export function useWelcomeAuth(navigation: Navigation) {
   const { setName } = useProfile();
   const { isLoaded, isSignedIn } = useAuth();
   const { user } = useUser();
-  const clerkStatus = useClerkStatus();
   const { signUp, fetchStatus: signUpFetchStatus } = useSignUp();
   const { signIn, fetchStatus: signInFetchStatus } = useSignIn();
 
@@ -74,32 +101,34 @@ export function useWelcomeAuth(navigation: Navigation) {
   const [code, setCode] = useState("");
   const [name, setNameInput] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Spins the buttons while a Clerk-init retry runs; action requests are covered
+  // by fetchStatus below.
+  const [connecting, setConnecting] = useState(false);
 
-  // A tap that arrives before Clerk finishes loading is held; Clerk load is
-  // retried on failure, and the submit re-runs from fresh state once ready.
-  const [pendingSubmit, setPendingSubmit] = useState(false);
-  const retriedLoad = useRef(false);
-  const submitRef = useRef<() => void>(() => {});
+  // One routing decision per mounted screen keeps Clerk state churn from
+  // double-navigating; resume points themselves stay derived from Clerk.
+  const routedRef = useRef(false);
+  // Synchronous sibling of `submitting`: state flips commit too late to stop
+  // two taps landing in the same frame.
+  const inFlightRef = useRef(false);
 
   const submitting = signUpFetchStatus === "fetching" || signInFetchStatus === "fetching";
-  const busy = pendingSubmit || submitting;
+  const busy = submitting || connecting;
 
-  // Recover from a failed initial load while the user reads the choose screen.
+  // Recover silently when the initial load already failed while the user reads.
   useEffect(() => {
-    retryClerkLoad();
+    connectClerk();
   }, []);
 
   const exitToApp = useCallback(() => completeOnboarding(navigation), [navigation]);
 
-  // Signed-in users never need the flow: a named account leaves straight away,
-  // a nameless one (interrupted sign-up) resumes at the name step.
+  // Clerk owns the routing decision: named sessions leave immediately, nameless
+  // ones resume at the name step — whether interrupted mid-signup or created
+  // outside the app, the missing piece is always just the name.
   useEffect(() => {
-    if (!isLoaded || !isSignedIn || step !== "choose" || user === undefined) return;
-    const fullName = [user?.firstName, user?.lastName]
-      .map((part) => part?.trim())
-      .filter(Boolean)
-      .join(" ");
-    if (fullName) exitToApp();
+    if (routedRef.current || !isLoaded || !isSignedIn || step !== "choose" || !user) return;
+    routedRef.current = true;
+    if (displayNameOf(user)) exitToApp();
     else setStep("name");
   }, [isLoaded, isSignedIn, step, user, exitToApp]);
 
@@ -109,19 +138,11 @@ export function useWelcomeAuth(navigation: Navigation) {
     setStep("email");
   };
 
+  // email -> code -> name mirrors the natural flow backwards; nothing submitted
+  // before the code step invalidates the attempt.
   const goBackStep = () => {
     setErrorMessage(null);
-    // By the name step the account exists and is signed in, so Back leaves the flow.
-    if (step === "name") {
-      exitToApp();
-      return;
-    }
-    setStep(step === "email" ? "choose" : "email");
-  };
-
-  const editEmail = () => {
-    setErrorMessage(null);
-    setStep("email");
+    setStep(step === "name" ? "code" : step === "code" ? "email" : "choose");
   };
 
   // Clerk returns expected failures as { error } results but throws on
@@ -130,47 +151,37 @@ export function useWelcomeAuth(navigation: Navigation) {
     try {
       await action.fn();
     } catch (error) {
-      const info = errorInfo(error, action.fallback ?? "Something went wrong. Please try again.");
+      const info = errorInfo(error, action.fallback ?? GENERIC_ERROR);
       report("request", error, info);
       setErrorMessage(info.message);
     }
   }, []);
 
+  // Submits before Clerk connects never send anything; spin the retry and ask
+  // for another tap once connected instead of queueing UI state behind it.
   const run = (fn: () => Promise<void>, fallback?: string) => {
     if (!isLoaded) {
-      retryClerkLoad();
-      retriedLoad.current = false;
-      setPendingSubmit(true);
+      setErrorMessage(
+        IS_EXPO_GO
+          ? "Sign-in cannot connect in Expo Go. Please run a development build."
+          : "Still connecting. Please try again in a moment."
+      );
+      if (IS_EXPO_GO || busy) return;
+      setConnecting(true);
+      void Promise.resolve(connectClerk()).finally(() => setConnecting(false));
       return;
     }
-    void execute({ fn, fallback });
+    if (inFlightRef.current || submitting) return;
+    inFlightRef.current = true;
+    void execute({ fn, fallback }).finally(() => {
+      inFlightRef.current = false;
+    });
   };
-
-  // Drain the held submit once Clerk loads; retry a failed load once, then
-  // tell the user the network is the problem.
-  useEffect(() => {
-    if (!pendingSubmit) return;
-    if (isLoaded) {
-      setPendingSubmit(false);
-      submitRef.current();
-      return;
-    }
-    if (clerkStatus === "error") {
-      if (retriedLoad.current) {
-        setPendingSubmit(false);
-        reportError("onboarding_error", { where: "clerkLoad" });
-        setErrorMessage("Network problem. Check your internet connection and try again.");
-        return;
-      }
-      retriedLoad.current = true;
-      retryClerkLoad();
-    }
-  }, [isLoaded, clerkStatus, pendingSubmit]);
 
   const finalize = async (target: Intent) => {
     const { error } = target === "signup" ? await signUp.finalize() : await signIn.finalize();
     if (!error) return true;
-    const info = errorInfo(error, "Something went wrong. Please try again.");
+    const info = errorInfo(error, GENERIC_ERROR);
     report("finalize", error, info);
     setErrorMessage(info.message);
     return false;
@@ -187,7 +198,7 @@ export function useWelcomeAuth(navigation: Navigation) {
         await signUp.reset();
         const { error } = await signUp.create({ emailAddress });
         if (error) {
-          const info = errorInfo(error, "Something went wrong. Please try again.");
+          const info = errorInfo(error, GENERIC_ERROR);
           report("signupStart", error, info);
           setErrorMessage(
             info.code === "form_identifier_exists"
@@ -209,7 +220,7 @@ export function useWelcomeAuth(navigation: Navigation) {
         await signIn.reset();
         const { error } = await signIn.emailCode.sendCode({ emailAddress });
         if (error) {
-          const info = errorInfo(error, "Something went wrong. Please try again.");
+          const info = errorInfo(error, GENERIC_ERROR);
           report("loginStart", error, info);
           setErrorMessage(
             info.code === "form_identifier_not_found"
@@ -228,12 +239,12 @@ export function useWelcomeAuth(navigation: Navigation) {
 
   const submitCode = () =>
     run(async () => {
-      const trimmedCode = code.trim();
-      if (trimmedCode.length !== 6 || submitting) return;
+      const verificationCode = code.trim();
+      if (verificationCode.length !== 6 || submitting) return;
       setErrorMessage(null);
 
       if (intent === "signup") {
-        const { error } = await signUp.verifications.verifyEmailCode({ code: trimmedCode });
+        const { error } = await signUp.verifications.verifyEmailCode({ code: verificationCode });
         if (error) {
           const info = errorInfo(error, "That code didn't work. Try again.");
           report("verifyCode", error, info);
@@ -243,46 +254,41 @@ export function useWelcomeAuth(navigation: Navigation) {
         if (signUp.status !== "complete") {
           report("signupStatus", signUp.status, {
             code: signUp.status ?? null,
-            message: "Something went wrong. Please try again.",
+            message: GENERIC_ERROR,
           });
-          setErrorMessage("Something went wrong. Please try again.");
+          setErrorMessage(GENERIC_ERROR);
           return;
         }
-        // A completed sign-up is consumed, so the name goes on the user profile
-        // after the session exists, not back onto the sign-up attempt.
         if (!(await finalize("signup"))) return;
-        const existingName = [signUp.firstName, signUp.lastName]
-          .map((part) => part?.trim())
-          .filter(Boolean)
-          .join(" ");
-        if (existingName) {
-          setName(existingName);
-          posthog?.capture("onboarding_completed");
-          exitToApp();
-          return;
-        }
+        // Authentication and onboarding are separate states: the session is
+        // alive from here, only the name is left to collect.
         setStep("name");
         return;
       }
 
-      const { error } = await signIn.emailCode.verifyCode({ code: trimmedCode });
+      const { error } = await signIn.emailCode.verifyCode({ code: verificationCode });
       if (error) {
         const info = errorInfo(error, "That code didn't work. Try again.");
         report("verifyCode", error, info);
         setErrorMessage(info.message);
         return;
       }
-      if (signIn.status === "complete") {
-        if (!(await finalize("login"))) return;
-        posthog?.capture("login_completed");
-        exitToApp();
+      if (signIn.status !== "complete") {
+        report("signinStatus", signIn.status, {
+          code: signIn.status ?? null,
+          message: GENERIC_ERROR,
+        });
+        setErrorMessage(GENERIC_ERROR);
         return;
       }
-      report("signinStatus", signIn.status, {
-        code: signIn.status ?? null,
-        message: "Something went wrong. Please try again.",
-      });
-      setErrorMessage("Something went wrong. Please try again.");
+      if (!(await finalize("login"))) return;
+      // An account created outside the app may lack the name entirely.
+      if (!displayNameOf(user)) {
+        setStep("name");
+        return;
+      }
+      posthog?.capture("login_completed");
+      exitToApp();
     });
 
   const submitName = () =>
@@ -290,10 +296,10 @@ export function useWelcomeAuth(navigation: Navigation) {
       const fullName = name.trim().replace(/\s+/g, " ");
       if (!fullName || submitting) return;
       setErrorMessage(null);
-      // Set at sign-up finalization; a missing user here means the session did not activate.
+      // Set during code verification; a missing user means no active session.
       if (!user) {
-        report("nameNoSession", null, { code: null, message: "No active session after sign-up." });
-        setErrorMessage("Something went wrong. Please try again.");
+        report("nameNoSession", null, { code: null, message: "No active session after auth." });
+        setErrorMessage(GENERIC_ERROR);
         return;
       }
       // First word is the first name; the rest is the last name.
@@ -301,16 +307,17 @@ export function useWelcomeAuth(navigation: Navigation) {
       const lastName = rest.join(" ");
       await user.update({ firstName, ...(lastName ? { lastName } : {}) });
       setName(fullName);
-      posthog?.capture("onboarding_completed");
+      if (intent === "signup") posthog?.capture("onboarding_completed");
+      else posthog?.capture("login_completed");
       exitToApp();
     }, "Could not save your name. Please try again.");
 
   const resendCode = () =>
     run(async () => {
-      if (submitting || !isLoaded) return;
+      if (submitting) return;
       if (intent === "signup") await signUp.verifications.sendEmailCode();
       else await signIn.emailCode.sendCode();
-    });
+    }, "Could not send a new code. Please try again.");
 
   const canContinue =
     !busy &&
@@ -318,12 +325,9 @@ export function useWelcomeAuth(navigation: Navigation) {
       ? EMAIL_PATTERN.test(email.trim())
       : step === "code"
         ? code.trim().length === 6
-        : name.trim().length > 0 && user != null);
+        : name.trim().length > 0);
 
   const submitStep = step === "email" ? submitEmail : step === "code" ? submitCode : submitName;
-  // The drain effect re-runs the latest submit; closures would capture the
-  // pre-load (null) signUp/signIn objects.
-  submitRef.current = submitStep;
 
   return {
     step,
@@ -338,13 +342,9 @@ export function useWelcomeAuth(navigation: Navigation) {
     busy,
     canContinue,
     startIntent,
-    submitEmail,
-    submitCode,
-    submitName,
     submitStep,
     resendCode,
     goBackStep,
-    editEmail,
     exitToApp,
   };
 }
