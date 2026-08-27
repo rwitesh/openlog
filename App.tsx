@@ -1,13 +1,17 @@
+import { ClerkProvider, useUser } from "@clerk/expo";
+import { tokenCache } from "@clerk/expo/token-cache";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { PostHogErrorBoundary, PostHogProvider } from "posthog-react-native";
+import { useEffect } from "react";
 import { View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { clerkPublishableKey } from "@/config/clerk";
 import { posthog } from "@/config/posthog";
 import { AppLockGate } from "@/modules/auth";
-import { ProfileProvider } from "@/modules/profile";
+import { ProfileProvider, useProfile } from "@/modules/profile";
 import type { RootStackParamList } from "@/navigation";
 import { Compose } from "@/screens/compose";
 import { Day } from "@/screens/day";
@@ -31,6 +35,19 @@ import { useAppBootstrap } from "@/shared/hooks";
 import { IS_EXPO_GO, logDevWarning } from "@/shared/utils";
 import { AppProviders, useNavigationTheme, useTheme } from "@/theme";
 
+/** Mirrors the Clerk first name into the local profile when none is set yet. */
+function ClerkNameSync() {
+  const { user, isLoaded } = useUser();
+  const { name, setName } = useProfile();
+  const clerkName = user?.firstName?.trim();
+
+  useEffect(() => {
+    if (isLoaded && clerkName && !name?.trim()) setName(clerkName);
+  }, [isLoaded, clerkName, name, setName]);
+
+  return null;
+}
+
 if (!IS_EXPO_GO) {
   SplashScreen.setOptions({ duration: 400, fade: true });
 }
@@ -47,6 +64,7 @@ function AppContent({ showWelcome }: { showWelcome: boolean }) {
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
       <NavigationContainer theme={navTheme}>
+        <ClerkNameSync />
         <StatusBar style={mode === "dark" ? "light" : "dark"} />
         {posthog ? (
           <PostHogProvider client={posthog} autocapture={{ captureScreens: false }}>
@@ -147,7 +165,7 @@ function AppNavigator({
 }
 
 export default function App() {
-  const { ready, preferences, backgroundColor, userName } = useAppBootstrap();
+  const { ready, preferences, backgroundColor, userName, onboardingCompleted } = useAppBootstrap();
 
   if (!ready) {
     return <View style={{ flex: 1, backgroundColor }} />;
@@ -155,15 +173,18 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <Layout>
-        <AppProviders initialPreferences={preferences}>
-          <ProfileProvider initialName={userName}>
-            <AppLockGate>
-              <AppContent showWelcome={!userName} />
-            </AppLockGate>
-          </ProfileProvider>
-        </AppProviders>
-      </Layout>
+      <ClerkProvider publishableKey={clerkPublishableKey} tokenCache={tokenCache}>
+        <Layout>
+          <AppProviders initialPreferences={preferences}>
+            <ProfileProvider initialName={userName}>
+              <AppLockGate>
+                {/* Welcome shows only when onboarding was never finished or skipped. */}
+                <AppContent showWelcome={!userName && !onboardingCompleted} />
+              </AppLockGate>
+            </ProfileProvider>
+          </AppProviders>
+        </Layout>
+      </ClerkProvider>
     </SafeAreaProvider>
   );
 }

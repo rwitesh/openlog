@@ -19,6 +19,7 @@ export interface AppBootstrapState {
   resolvedMode: "light" | "dark";
   backgroundColor: string;
   userName: string | null;
+  onboardingCompleted: boolean;
 }
 
 /** Loads fonts, preferences, and profile before the first interactive screen. */
@@ -26,6 +27,7 @@ export function useAppBootstrap(): AppBootstrapState {
   const systemScheme = useColorScheme();
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
+  const [onboardingCompleted, setOnboardingCompleted] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [fontsLoaded, fontError] = useFonts({
     SourceSans3_400Regular,
@@ -40,6 +42,7 @@ export function useAppBootstrap(): AppBootstrapState {
       .then(async (data) => {
         if (!active) return;
         setUserName(data.userName);
+        setOnboardingCompleted(data.onboardingCompleted);
         setPreferences(data.preferences);
 
         // Gracefully request notification permissions in background on startup
@@ -93,5 +96,6 @@ export function useAppBootstrap(): AppBootstrapState {
     resolvedMode,
     backgroundColor,
     userName,
+    onboardingCompleted,
   };
 }

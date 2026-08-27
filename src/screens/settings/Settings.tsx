@@ -1,3 +1,4 @@
+import { useAuth, useUser } from "@clerk/expo";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { StyleSheet, View } from "react-native";
 import { useProfile } from "@/modules/profile";
@@ -24,7 +25,11 @@ export function SettingsScreen({ navigation }: Props) {
   const { theme, isDark } = useTheme();
   const { preferences } = usePreferences();
   const { name } = useProfile();
+  const { isLoaded, isSignedIn } = useAuth();
+  const { user } = useUser();
   const { colors } = theme;
+  const email = user?.primaryEmailAddress?.emailAddress;
+  const signedIn = isLoaded && isSignedIn;
 
   const { appearance, security } = preferences;
 
@@ -37,8 +42,8 @@ export function SettingsScreen({ navigation }: Props) {
         <SettingsRow
           icon="user"
           title="Profile"
-          subtitle={name?.trim() ? name.trim() : "Set your name"}
-          onPress={() => navigation.navigate("SettingsProfile")}
+          subtitle={signedIn ? name?.trim() || email || "Account" : "Log in or create an account"}
+          onPress={() => navigation.navigate(signedIn ? "SettingsProfile" : "Welcome")}
         />
 
         <SettingsRow

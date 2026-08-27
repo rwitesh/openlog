@@ -6,6 +6,7 @@ import {
   EDITOR_TEXT_SIZE_KEY,
   FONT_KEY,
   MOTION_LEVEL_KEY,
+  ONBOARDING_COMPLETED_KEY,
   parseUserPreferences,
   SHOW_LOCATION_KEY,
   SHOW_TIMESTAMP_KEY,
@@ -54,6 +55,7 @@ export async function setSettingsBatch(entries: Record<string, string>): Promise
 
 export async function getAllUserPreferences(): Promise<{
   userName: string | null;
+  onboardingCompleted: boolean;
   preferences: UserPreferences;
 }> {
   return runDb(async (db) => {
@@ -68,6 +70,7 @@ export async function getAllUserPreferences(): Promise<{
 
     return {
       userName,
+      onboardingCompleted: map.get(ONBOARDING_COMPLETED_KEY) === "1",
       preferences,
     };
   });
@@ -109,6 +112,7 @@ export {
   EDITOR_TEXT_SIZE_KEY,
   FONT_KEY,
   MOTION_LEVEL_KEY,
+  ONBOARDING_COMPLETED_KEY,
   SHOW_LOCATION_KEY,
   SHOW_TIMESTAMP_KEY,
   TEXT_SIZE_KEY,

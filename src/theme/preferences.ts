@@ -83,6 +83,7 @@ export const EDITOR_TEXT_SIZE_KEY = "editor_text_size";
 export const MOTION_LEVEL_KEY = "motion_level";
 export const BIOMETRIC_LOCK_KEY = "biometric_lock";
 export const USER_NAME_KEY = "user_name";
+export const ONBOARDING_COMPLETED_KEY = "onboarding_completed";
 
 // Field-to-DB key mappings
 export const APPEARANCE_KEYS: Record<keyof AppearancePreferences, string> = {

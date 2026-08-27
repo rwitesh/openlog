@@ -85,7 +85,9 @@
           }
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-secure-store",
+      "@clerk/expo"
     ],
     "extra": {
       "eas": {
