@@ -1,5 +1,6 @@
 export type RootStackParamList = {
-  Welcome: undefined;
+  // auth: true forces the Clerk flow (voluntary login from Profile).
+  Welcome: { auth?: boolean } | undefined;
   Timeline: undefined;
   Day: { dayTs: number };
   Compose: { entryId?: string; mode?: "view" | "edit" } | undefined;

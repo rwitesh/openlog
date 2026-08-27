@@ -12,6 +12,7 @@ import { posthog } from "@/config/posthog";
 import { useProfile } from "@/modules/profile";
 import type { RootStackParamList } from "@/navigation/types";
 import { ONBOARDING_COMPLETED_KEY, setSetting } from "@/services/db/settings";
+import { AUTH_REQUIRED_FOR_ONBOARDING } from "@/shared/constants";
 import { IS_EXPO_GO, logDevWarning, reportError } from "@/shared/utils";
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, "Welcome">;
@@ -88,14 +89,16 @@ function displayNameOf(
   );
 }
 
-export function useWelcomeAuth(navigation: Navigation) {
+// localMode: beta local name onboarding; authOnly (Profile login) always uses Clerk.
+export function useWelcomeAuth(navigation: Navigation, authOnly = false) {
+  const localMode = !AUTH_REQUIRED_FOR_ONBOARDING && !authOnly;
   const { setName } = useProfile();
   const { isLoaded, isSignedIn } = useAuth();
   const { user } = useUser();
   const { signUp, fetchStatus: signUpFetchStatus } = useSignUp();
   const { signIn, fetchStatus: signInFetchStatus } = useSignIn();
 
-  const [step, setStep] = useState<Step>("choose");
+  const [step, setStep] = useState<Step>(localMode ? "name" : "choose");
   const [intent, setIntent] = useState<Intent>("signup");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -319,6 +322,28 @@ export function useWelcomeAuth(navigation: Navigation) {
       else await signIn.emailCode.sendCode();
     }, "Could not send a new code. Please try again.");
 
+  // No Clerk dependency; a signed-in nameless session gets mirrored best-effort.
+  const saveLocalName = () => {
+    const fullName = name.trim().replace(/\s+/g, " ");
+    if (!fullName || inFlightRef.current) return;
+    inFlightRef.current = true;
+    try {
+      setErrorMessage(null);
+      setName(fullName);
+      posthog?.capture("onboarding_completed");
+      if (isLoaded && user && !displayNameOf(user)) {
+        const [firstName, ...rest] = fullName.split(" ");
+        const lastName = rest.join(" ");
+        user
+          .update({ firstName, ...(lastName ? { lastName } : {}) })
+          .catch((error) => logDevWarning("welcome:localNameSync", error));
+      }
+      exitToApp();
+    } finally {
+      inFlightRef.current = false;
+    }
+  };
+
   const canContinue =
     !busy &&
     (step === "email"
@@ -327,9 +352,17 @@ export function useWelcomeAuth(navigation: Navigation) {
         ? code.trim().length === 6
         : name.trim().length > 0);
 
-  const submitStep = step === "email" ? submitEmail : step === "code" ? submitCode : submitName;
+  const submitStep =
+    step === "email"
+      ? submitEmail
+      : step === "code"
+        ? submitCode
+        : localMode
+          ? saveLocalName
+          : submitName;
 
   return {
+    localMode,
     step,
     intent,
     email,

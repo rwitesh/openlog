@@ -20,43 +20,45 @@ type Props = NativeStackScreenProps<RootStackParamList, "Welcome">;
 const CTA_BLUE = "#3663E9";
 
 /** Header copy per step; the code step shows the address it was sent to. */
-function headerFor(step: Step, intent: "signup" | "login", email: string) {
+function headerFor(step: Step, intent: "signup" | "login", email: string, localMode: boolean) {
+  if (localMode)
+    return {
+      title: "Welcome",
+      subtitle: "What should we call you?",
+    };
   const create = intent === "signup";
   switch (step) {
     case "choose":
       return {
         title: "Welcome",
-        subtitle:
-          "Create an account or log in with just your email. Or skip and use the app without one.",
+        subtitle: "An account is optional. Everything stays on this device.",
       };
     case "email":
       return {
         title: create ? "Create new account" : "Log in",
-        subtitle: create
-          ? "Enter your email address. We will send you a code. No password needed."
-          : "Enter your email address. We will send you a code to log in.",
+        subtitle: "We'll send you a code. No password needed.",
       };
     case "code":
       return {
         title: "Check your email",
-        subtitle: `We sent a 6-digit code to ${email.trim()}. Enter it below.`,
+        subtitle: `Code sent to ${email.trim()}.`,
       };
     case "name":
       return {
         title: "What should we call you?",
-        subtitle: "This name shows on your journal.",
+        subtitle: "Shown on your entries.",
       };
   }
 }
 
-export function WelcomeScreen({ navigation }: Props) {
+export function WelcomeScreen({ navigation, route }: Props) {
   const { theme } = useTheme();
   const { colors } = theme;
   const insets = useSafeAreaInsets();
 
-  const flow = useWelcomeAuth(navigation);
-  const { step, intent, email, code, name, errorMessage, busy, canContinue } = flow;
-  const header = headerFor(step, intent, email);
+  const flow = useWelcomeAuth(navigation, route.params?.auth === true);
+  const { localMode, step, intent, email, code, name, errorMessage, busy, canContinue } = flow;
+  const header = headerFor(step, intent, email, localMode);
 
   const ctaLabel =
     step === "choose"
@@ -66,7 +68,7 @@ export function WelcomeScreen({ navigation }: Props) {
           ? "Create new account"
           : "Log in"
         : step === "name"
-          ? "Save and finish"
+          ? "Save"
           : "Continue";
 
   return (
@@ -211,20 +213,21 @@ export function WelcomeScreen({ navigation }: Props) {
               <Pressable
                 onPress={flow.submitStep}
                 disabled={!canContinue}
-                style={({ pressed }) => [styles.ctaButton, canContinue && pressed && press]}
+                style={({ pressed }) => [
+                  styles.ctaButton,
+                  !canContinue && styles.ctaDimmed,
+                  canContinue && pressed && press,
+                ]}
                 accessibilityLabel={ctaLabel}
                 accessibilityRole="button"
                 accessibilityState={{ disabled: !canContinue, busy }}
               >
                 {busy ? (
-                  <ActivityIndicator color={colors.textTertiary} />
+                  <ActivityIndicator color="#FFFFFF" />
                 ) : (
                   <ThemedText
                     weight="medium"
-                    style={[
-                      typography.settingLabel,
-                      { color: canContinue ? "#FFFFFF" : colors.textTertiary },
-                    ]}
+                    style={[typography.settingLabel, { color: "#FFFFFF" }]}
                   >
                     {ctaLabel}
                   </ThemedText>
@@ -324,6 +327,9 @@ const styles = StyleSheet.create({
     borderColor: CTA_BLUE,
     alignItems: "center",
     justifyContent: "center",
+  },
+  ctaDimmed: {
+    opacity: 0.55,
   },
   skipButton: {
     alignItems: "center",
