@@ -39,7 +39,11 @@ import { AppProviders, useNavigationTheme, useTheme } from "@/theme";
 function ClerkNameSync() {
   const { user, isLoaded } = useUser();
   const { name, setName } = useProfile();
-  const clerkName = user?.firstName?.trim();
+  const clerkName =
+    [user?.firstName, user?.lastName]
+      .map((part) => part?.trim())
+      .filter(Boolean)
+      .join(" ") || null;
 
   useEffect(() => {
     if (isLoaded && clerkName && !name?.trim()) setName(clerkName);
