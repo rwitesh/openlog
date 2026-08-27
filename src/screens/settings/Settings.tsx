@@ -4,6 +4,7 @@ import { StyleSheet, View } from "react-native";
 import { useProfile } from "@/modules/profile";
 import { SettingsGroup, SettingsRow, SettingsScreenScroll } from "@/modules/settings";
 import type { RootStackParamList } from "@/navigation/types";
+import { AUTH_REQUIRED_FOR_ONBOARDING } from "@/shared/constants";
 import { APP_VERSION } from "@/shared/utils";
 import { ACCENT_OPTIONS, type ThemeMode, usePreferences, useTheme } from "@/theme";
 
@@ -42,8 +43,18 @@ export function SettingsScreen({ navigation }: Props) {
         <SettingsRow
           icon="user"
           title="Profile"
-          subtitle={signedIn ? name?.trim() || email || "Account" : "Log in or create an account"}
-          onPress={() => navigation.navigate(signedIn ? "SettingsProfile" : "Welcome")}
+          subtitle={
+            signedIn
+              ? name?.trim() || email || "Account"
+              : AUTH_REQUIRED_FOR_ONBOARDING
+                ? "Log in or create an account"
+                : "Login is optional for now"
+          }
+          onPress={() =>
+            navigation.navigate(
+              signedIn || !AUTH_REQUIRED_FOR_ONBOARDING ? "SettingsProfile" : "Welcome"
+            )
+          }
         />
 
         <SettingsRow

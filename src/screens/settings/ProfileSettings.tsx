@@ -11,8 +11,7 @@ import { space, typography, useTheme } from "@/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "SettingsProfile">;
 
-/** Profile category screen: the signed-in account. The hub row routes signed-out
- *  users straight to onboarding, so this screen always has an account to show. */
+// Account details when signed in; optional beta login when not.
 export function ProfileSettingsScreen({ navigation }: Props) {
   const { theme } = useTheme();
   const { colors } = theme;
@@ -22,7 +21,33 @@ export function ProfileSettingsScreen({ navigation }: Props) {
   const email = user?.primaryEmailAddress?.emailAddress;
 
   const signedIn = isLoaded && isSignedIn;
-  if (!signedIn) return null;
+  if (!signedIn) {
+    return (
+      <SettingsScreenScroll>
+        <SettingsGroup label="ACCOUNT">
+          {name?.trim() ? (
+            <View style={styles.fieldRow}>
+              <ThemedText style={[typography.settingLabel, { color: colors.textSecondary }]}>
+                Name
+              </ThemedText>
+              <ThemedText style={[typography.settingLabel, { color: colors.text }]}>
+                {name.trim()}
+              </ThemedText>
+            </View>
+          ) : null}
+          <SettingsRow
+            icon="log-in"
+            title="Log in"
+            subtitle="Optional for now"
+            onPress={() => navigation.navigate("Welcome", { auth: true })}
+          />
+        </SettingsGroup>
+        <ThemedText style={[typography.caption, styles.footnote, { color: colors.textSecondary }]}>
+          Login is optional. Your data stays on this device.
+        </ThemedText>
+      </SettingsScreenScroll>
+    );
+  }
 
   return (
     <SettingsScreenScroll>
@@ -72,5 +97,8 @@ const styles = StyleSheet.create({
   fieldRow: {
     paddingVertical: space.sm,
     gap: space.xs,
+  },
+  footnote: {
+    marginHorizontal: space.xl,
   },
 });
