@@ -19,69 +19,103 @@ type Props = NativeStackScreenProps<RootStackParamList, "Welcome">;
 
 const CTA_BLUE = "#3663E9";
 
+/** Header copy per step; the code step shows the address it was sent to. */
+function headerFor(step: Step, intent: "signup" | "login", email: string) {
+  const create = intent === "signup";
+  switch (step) {
+    case "choose":
+      return {
+        title: "Welcome",
+        subtitle:
+          "Create an account or log in with just your email. Or skip and use the app without one.",
+      };
+    case "email":
+      return {
+        title: create ? "Create new account" : "Log in",
+        subtitle: create
+          ? "Enter your email address. We will send you a code. No password needed."
+          : "Enter your email address. We will send you a code to log in.",
+      };
+    case "code":
+      return {
+        title: "Check your email",
+        subtitle: `We sent a 6-digit code to ${email.trim()}. Enter it below.`,
+      };
+    case "name":
+      return {
+        title: "What should we call you?",
+        subtitle: "This name shows on your journal.",
+      };
+  }
+}
+
 export function WelcomeScreen({ navigation }: Props) {
-  const { theme, resolvedMode } = useTheme();
+  const { theme } = useTheme();
   const { colors } = theme;
-  const dark = resolvedMode === "dark";
+  const insets = useSafeAreaInsets();
 
   const flow = useWelcomeAuth(navigation);
-  const {
-    step,
-    intent,
-    email,
-    setEmail,
-    code,
-    setCode,
-    name,
-    setName,
-    errorMessage,
-    busy,
-    canContinue,
-  } = flow;
+  const { step, intent, email, code, name, errorMessage, busy, canContinue } = flow;
+  const header = headerFor(step, intent, email);
 
-  const header: Record<Exclude<Step, "choose">, { title: string; subtitle: string }> = {
-    email:
-      intent === "signup"
-        ? {
-            title: "Create new account",
-            subtitle: "Enter your email address. We will send you a code. No password needed.",
-          }
-        : {
-            title: "Log in",
-            subtitle: "Enter your email address. We will send you a code to log in.",
-          },
-    code: {
-      title: "Check your email",
-      subtitle: `We sent a 6-digit code to ${email.trim()}. Enter it below.`,
-    },
-    name: {
-      title: "What should we call you?",
-      subtitle: "This name shows on your journal.",
-    },
-  };
+  const ctaLabel =
+    step === "choose"
+      ? ""
+      : step === "email"
+        ? intent === "signup"
+          ? "Create new account"
+          : "Log in"
+        : step === "name"
+          ? "Save and finish"
+          : "Continue";
 
   return (
-    <ScreenFrame>
-      {step === "choose" ? (
-        <ChooseStep onStart={flow.startIntent} onSkip={flow.exitToApp} />
-      ) : (
-        <View style={styles.content}>
+    <KeyboardAvoidingView
+      style={styles.flex}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <View
+        style={[
+          styles.screen,
+          {
+            paddingTop: insets.top + space.md,
+            paddingBottom: insets.bottom + space.xl,
+          },
+        ]}
+      >
+        {/* Name is the final gate of an authenticated session: there is no
+            meaningful screen behind it to return to. */}
+        {step !== "choose" && step !== "name" && (
+          <Pressable
+            onPress={flow.goBackStep}
+            disabled={busy}
+            style={({ pressed }) => [styles.backButton, pressed && press]}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            accessibilityState={{ disabled: busy }}
+          >
+            <Feather name="chevron-left" size={metrics.iconMd} color={colors.text} />
+            <ThemedText style={[typography.settingLabel, { color: colors.text }]}>Back</ThemedText>
+          </Pressable>
+        )}
+
+        <View style={styles.body}>
           <View style={styles.headerBlock}>
             <ThemedText
               weight="semibold"
               style={[typography.headerGreeting, { color: colors.text }]}
             >
-              {header[step].title}
+              {header.title}
             </ThemedText>
             <ThemedText style={[typography.headerSubtitle, { color: colors.textSecondary }]}>
-              {header[step].subtitle}
+              {header.subtitle}
             </ThemedText>
           </View>
 
           {step === "email" ? (
             <TextInput
               value={email}
-              onChangeText={setEmail}
+              onChangeText={flow.setEmail}
               placeholder="you@example.com"
               placeholderTextColor={colors.textTertiary}
               keyboardType="email-address"
@@ -89,237 +123,165 @@ export function WelcomeScreen({ navigation }: Props) {
               autoCorrect={false}
               autoComplete="email"
               returnKeyType="done"
-              onSubmitEditing={flow.submitEmail}
-              style={[
-                styles.input,
-                typography.headerSubtitle,
-                {
-                  color: colors.text,
-                  backgroundColor: colors.surfaceMuted,
-                  borderColor: colors.separator,
-                },
-              ]}
+              onSubmitEditing={flow.submitStep}
+              style={inputStyle(colors.text, colors.surfaceMuted, colors.separator)}
             />
           ) : null}
 
           {step === "code" ? (
             <TextInput
               value={code}
-              onChangeText={setCode}
-              placeholder="6-digit code"
+              onChangeText={(text) => flow.setCode(text.replace(/\D/g, ""))}
+              placeholder="------"
               placeholderTextColor={colors.textTertiary}
               keyboardType="number-pad"
-              autoComplete="one-time-code"
+              textContentType="oneTimeCode"
+              autoComplete="sms-otp"
               returnKeyType="done"
-              onSubmitEditing={flow.submitCode}
               maxLength={6}
-              style={[
-                styles.input,
-                typography.headerSubtitle,
-                {
-                  color: colors.text,
-                  backgroundColor: colors.surfaceMuted,
-                  borderColor: colors.separator,
-                },
-              ]}
+              onSubmitEditing={flow.submitStep}
+              style={inputStyle(colors.text, colors.surfaceMuted, colors.separator)}
             />
           ) : null}
 
           {step === "name" ? (
             <TextInput
               value={name}
-              onChangeText={setName}
+              onChangeText={flow.setName}
               placeholder="Full name"
               placeholderTextColor={colors.textTertiary}
               autoCapitalize="words"
               autoCorrect={false}
               returnKeyType="done"
-              onSubmitEditing={flow.submitName}
               maxLength={40}
-              style={[
-                styles.input,
-                typography.headerSubtitle,
-                {
-                  color: colors.text,
-                  backgroundColor: colors.surfaceMuted,
-                  borderColor: colors.separator,
-                },
-              ]}
+              onSubmitEditing={flow.submitStep}
+              style={inputStyle(colors.text, colors.surfaceMuted, colors.separator)}
             />
           ) : null}
 
           {errorMessage ? (
-            <ThemedText style={[typography.settingLabel, { color: colors.destructive }]}>
+            <ThemedText
+              style={[typography.settingLabel, styles.error, { color: colors.destructive }]}
+            >
               {errorMessage}
             </ThemedText>
           ) : null}
+        </View>
 
-          <View style={styles.actionRow}>
-            <Pressable
-              onPress={flow.submitStep}
-              disabled={!canContinue}
-              style={({ pressed }) => [
-                styles.arrowButton,
-                {
-                  backgroundColor: canContinue
-                    ? CTA_BLUE
-                    : dark
-                      ? "rgba(255, 255, 255, 0.08)"
-                      : colors.surfaceMuted,
-                  borderColor: canContinue ? CTA_BLUE : colors.separator,
-                },
-                pressed && canContinue && press,
-              ]}
-              accessibilityLabel="Continue"
-              accessibilityRole="button"
-              accessibilityState={{ disabled: !canContinue, busy }}
-            >
-              {busy ? (
-                <ActivityIndicator color={colors.textTertiary} />
-              ) : (
-                <Feather
-                  name="arrow-right"
-                  size={metrics.iconMd}
-                  color={canContinue ? "#FFFFFF" : colors.textTertiary}
-                />
-              )}
-            </Pressable>
-          </View>
-
-          {step === "code" ? (
-            <View style={styles.linkRow}>
+        <View style={styles.actions}>
+          {step === "choose" ? (
+            <>
+              <PrimaryButton
+                label="Create new account"
+                filled
+                onPress={() => flow.startIntent("signup")}
+              />
+              <PrimaryButton
+                label="Log in"
+                filled={false}
+                onPress={() => flow.startIntent("login")}
+              />
               <Pressable
-                onPress={flow.resendCode}
-                disabled={busy}
-                style={({ pressed }) => pressed && press}
+                onPress={flow.exitToApp}
+                style={({ pressed }) => [styles.skipButton, pressed && press]}
                 accessibilityRole="button"
-                accessibilityLabel="Send a new code"
-              >
-                <ThemedText style={[typography.settingLabel, { color: colors.accent }]}>
-                  Send a new code
-                </ThemedText>
-              </Pressable>
-              <Pressable
-                onPress={flow.editEmail}
-                style={({ pressed }) => pressed && press}
-                accessibilityRole="button"
-                accessibilityLabel="Use a different email"
+                accessibilityLabel="Skip for now"
               >
                 <ThemedText style={[typography.settingLabel, { color: colors.textSecondary }]}>
-                  Use a different email
+                  Skip for now
                 </ThemedText>
               </Pressable>
-            </View>
-          ) : null}
-
-          <Pressable
-            onPress={flow.goBackStep}
-            style={({ pressed }) => [styles.textButton, pressed && press]}
-            accessibilityRole="button"
-            accessibilityLabel="Back"
-          >
-            <ThemedText style={[typography.settingLabel, { color: colors.textTertiary }]}>
-              Back
-            </ThemedText>
-          </Pressable>
+            </>
+          ) : (
+            <>
+              {step === "code" ? (
+                <View style={styles.linkRow}>
+                  <Pressable
+                    onPress={flow.resendCode}
+                    style={({ pressed }) => pressed && press}
+                    accessibilityRole="button"
+                    accessibilityLabel="Send a new code"
+                  >
+                    <ThemedText style={[typography.settingLabel, { color: colors.accent }]}>
+                      Send a new code
+                    </ThemedText>
+                  </Pressable>
+                </View>
+              ) : null}
+              <Pressable
+                onPress={flow.submitStep}
+                disabled={!canContinue}
+                style={({ pressed }) => [styles.ctaButton, canContinue && pressed && press]}
+                accessibilityLabel={ctaLabel}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: !canContinue, busy }}
+              >
+                {busy ? (
+                  <ActivityIndicator color={colors.textTertiary} />
+                ) : (
+                  <ThemedText
+                    weight="medium"
+                    style={[
+                      typography.settingLabel,
+                      { color: canContinue ? "#FFFFFF" : colors.textTertiary },
+                    ]}
+                  >
+                    {ctaLabel}
+                  </ThemedText>
+                )}
+              </Pressable>
+            </>
+          )}
         </View>
-      )}
+      </View>
 
       {/* Clerk bot protection mount point (required on sign-up flows). */}
       <View nativeID="clerk-captcha" />
-    </ScreenFrame>
-  );
-}
-
-function ScreenFrame({ children }: { children: React.ReactNode }) {
-  const insets = useSafeAreaInsets();
-  const { theme } = useTheme();
-
-  return (
-    <KeyboardAvoidingView
-      style={[styles.flex, { backgroundColor: theme.colors.background }]}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <View
-        style={[
-          styles.screen,
-          {
-            paddingTop: insets.top + space.xxxl,
-            paddingBottom: insets.bottom + space.xxxl,
-          },
-        ]}
-      >
-        {children}
-      </View>
     </KeyboardAvoidingView>
   );
 }
 
-function ChooseStep({
-  onStart,
-  onSkip,
+function PrimaryButton({
+  label,
+  filled,
+  onPress,
 }: {
-  onStart: (intent: "signup" | "login") => void;
-  onSkip: () => void;
+  label: string;
+  filled: boolean;
+  onPress: () => void;
 }) {
   const { theme } = useTheme();
   const { colors } = theme;
 
   return (
-    <View style={styles.content}>
-      <View style={styles.headerBlock}>
-        <ThemedText weight="semibold" style={[typography.headerGreeting, { color: colors.text }]}>
-          Welcome
-        </ThemedText>
-        <ThemedText style={[typography.headerSubtitle, { color: colors.textSecondary }]}>
-          Create an account or log in with just your email. Or skip and use the app without one.
-        </ThemedText>
-      </View>
-
-      <View style={styles.choiceStack}>
-        <Pressable
-          onPress={() => onStart("signup")}
-          style={({ pressed }) => [
-            styles.primaryButton,
-            { backgroundColor: CTA_BLUE, borderColor: CTA_BLUE },
-            pressed && press,
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel="Create new account"
-        >
-          <ThemedText weight="medium" style={[typography.settingLabel, { color: "#FFFFFF" }]}>
-            Create new account
-          </ThemedText>
-        </Pressable>
-
-        <Pressable
-          onPress={() => onStart("login")}
-          style={({ pressed }) => [
-            styles.primaryButton,
-            { backgroundColor: colors.surfaceMuted, borderColor: colors.separator },
-            pressed && press,
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel="Log in"
-        >
-          <ThemedText weight="medium" style={[typography.settingLabel, { color: colors.text }]}>
-            Log in
-          </ThemedText>
-        </Pressable>
-
-        <Pressable
-          onPress={onSkip}
-          style={({ pressed }) => [styles.textButton, pressed && press]}
-          accessibilityRole="button"
-          accessibilityLabel="Skip for now"
-        >
-          <ThemedText style={[typography.settingLabel, { color: colors.textSecondary }]}>
-            Skip for now
-          </ThemedText>
-        </Pressable>
-      </View>
-    </View>
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.ctaButton,
+        pressed && press,
+        filled
+          ? { backgroundColor: CTA_BLUE, borderColor: CTA_BLUE }
+          : { backgroundColor: colors.surfaceMuted, borderColor: colors.separator },
+      ]}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      <ThemedText
+        weight="medium"
+        style={[typography.settingLabel, { color: filled ? "#FFFFFF" : colors.text }]}
+      >
+        {label}
+      </ThemedText>
+    </Pressable>
   );
+}
+
+function inputStyle(color: string, background: string, border: string) {
+  return [
+    styles.input,
+    typography.headerSubtitle,
+    { color, backgroundColor: background, borderColor: border },
+  ];
 }
 
 const styles = StyleSheet.create({
@@ -328,7 +290,15 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: space.xxl,
   },
-  content: {
+  backButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.xs,
+    alignSelf: "flex-start",
+    paddingVertical: space.sm,
+    paddingRight: space.lg,
+  },
+  body: {
     flex: 1,
     justifyContent: "center",
     gap: space.lg,
@@ -336,41 +306,34 @@ const styles = StyleSheet.create({
   headerBlock: {
     gap: space.xs,
   },
-  choiceStack: {
-    gap: space.md,
-    marginTop: space.md,
+  error: {
+    marginTop: -space.sm,
   },
-  primaryButton: {
+  actions: {
+    gap: space.md,
+  },
+  linkRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  ctaButton: {
     height: metrics.btnMd + 8,
     borderRadius: radius.lg,
     borderWidth: StyleSheet.hairlineWidth,
+    backgroundColor: CTA_BLUE,
+    borderColor: CTA_BLUE,
     alignItems: "center",
     justifyContent: "center",
   },
-  textButton: {
+  skipButton: {
     alignItems: "center",
-    paddingVertical: space.sm,
+    paddingVertical: space.xs,
   },
   input: {
     borderRadius: radius.md,
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: space.lg,
     paddingVertical: space.md + 2,
-  },
-  actionRow: {
-    alignItems: "flex-end",
-    marginTop: space.xs,
-  },
-  arrowButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    borderWidth: StyleSheet.hairlineWidth,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  linkRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+    letterSpacing: 2,
   },
 });
