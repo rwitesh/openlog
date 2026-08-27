@@ -4,7 +4,6 @@ import {
   SourceSans3_600SemiBold,
   useFonts,
 } from "@expo-google-fonts/source-sans-3";
-import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useState } from "react";
 import { useColorScheme } from "react-native";
 import { getAllUserPreferences } from "@/services/db/settings";
@@ -81,14 +80,8 @@ export function useAppBootstrap(): AppBootstrapState {
   const theme = resolveTheme(effectivePreferences, systemScheme);
   const backgroundColor = theme.colors.background;
   const fontsReady = fontsLoaded || Boolean(fontError);
+  // Splash hides from App's BootstrapGate, which also waits for Clerk when onboarding is pending.
   const ready = fontsReady && preferences !== null && profileLoaded;
-
-  useEffect(() => {
-    if (!ready) return;
-    SplashScreen.hideAsync().catch((error) => {
-      logDevWarning("bootstrap:hideSplash", error);
-    });
-  }, [ready]);
 
   return {
     ready,

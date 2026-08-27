@@ -1,8 +1,7 @@
-import { useAuth } from "@clerk/expo";
 import { Feather } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { useState } from "react";
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -13,41 +12,14 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { RootStackParamList } from "@/navigation/types";
 import { ThemedText } from "@/shared/components/ThemedText";
-import { reportError } from "@/shared/utils";
 import { metrics, press, radius, space, typography, useTheme } from "@/theme";
-import { completeOnboarding, type Step, useWelcomeAuth } from "./useWelcomeAuth";
+import { type Step, useWelcomeAuth } from "./useWelcomeAuth";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Welcome">;
 
 const CTA_BLUE = "#3663E9";
 
-// The sign-up/sign-in hooks read Clerk's loaded client and throw during render
-// until the initial fetch finishes, so the flow mounts only once Clerk is ready.
-// Until then the offline variant keeps the same choices available, Skip included.
 export function WelcomeScreen({ navigation }: Props) {
-  const { isLoaded } = useAuth();
-  if (!isLoaded) return <WelcomeOffline navigation={navigation} />;
-  return <WelcomeFlow navigation={navigation} />;
-}
-
-function WelcomeOffline({ navigation }: Pick<Props, "navigation">) {
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  return (
-    <ScreenFrame>
-      <ChooseStep
-        errorMessage={errorMessage}
-        onStart={() => {
-          reportError("onboarding_error", { where: "clerkNotLoaded" });
-          setErrorMessage("Network problem. Check your internet connection and try again.");
-        }}
-        onSkip={() => completeOnboarding(navigation)}
-      />
-    </ScreenFrame>
-  );
-}
-
-function WelcomeFlow({ navigation }: Pick<Props, "navigation">) {
   const { theme, resolvedMode } = useTheme();
   const { colors } = theme;
   const dark = resolvedMode === "dark";
@@ -91,11 +63,7 @@ function WelcomeFlow({ navigation }: Pick<Props, "navigation">) {
   return (
     <ScreenFrame>
       {step === "choose" ? (
-        <ChooseStep
-          errorMessage={errorMessage}
-          onStart={flow.startIntent}
-          onSkip={flow.exitToApp}
-        />
+        <ChooseStep onStart={flow.startIntent} onSkip={flow.exitToApp} />
       ) : (
         <View style={styles.content}>
           <View style={styles.headerBlock}>
@@ -206,11 +174,15 @@ function WelcomeFlow({ navigation }: Pick<Props, "navigation">) {
               accessibilityRole="button"
               accessibilityState={{ disabled: !canContinue, busy }}
             >
-              <Feather
-                name="arrow-right"
-                size={metrics.iconMd}
-                color={canContinue ? "#FFFFFF" : colors.textTertiary}
-              />
+              {busy ? (
+                <ActivityIndicator color={colors.textTertiary} />
+              ) : (
+                <Feather
+                  name="arrow-right"
+                  size={metrics.iconMd}
+                  color={canContinue ? "#FFFFFF" : colors.textTertiary}
+                />
+              )}
             </Pressable>
           </View>
 
@@ -284,11 +256,9 @@ function ScreenFrame({ children }: { children: React.ReactNode }) {
 }
 
 function ChooseStep({
-  errorMessage,
   onStart,
   onSkip,
 }: {
-  errorMessage: string | null;
   onStart: (intent: "signup" | "login") => void;
   onSkip: () => void;
 }) {
@@ -336,12 +306,6 @@ function ChooseStep({
             Log in
           </ThemedText>
         </Pressable>
-
-        {errorMessage ? (
-          <ThemedText style={[typography.settingLabel, { color: colors.destructive }]}>
-            {errorMessage}
-          </ThemedText>
-        ) : null}
 
         <Pressable
           onPress={onSkip}

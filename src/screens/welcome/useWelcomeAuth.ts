@@ -1,7 +1,8 @@
-import { isClerkAPIResponseError, useSignIn, useSignUp, useUser } from "@clerk/expo";
+import { isClerkAPIResponseError, useAuth, useSignIn, useSignUp, useUser } from "@clerk/expo";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { posthog } from "@/config/posthog";
+import { retryClerkLoad, useClerkStatus } from "@/modules/auth";
 import { useProfile } from "@/modules/profile";
 import type { RootStackParamList } from "@/navigation/types";
 import { ONBOARDING_COMPLETED_KEY, setSetting } from "@/services/db/settings";
@@ -49,10 +50,21 @@ export function completeOnboarding(navigation: Navigation) {
   else navigation.replace("Timeline");
 }
 
-/** Callers must render this only once Clerk has loaded; the signal hooks read the loaded client. */
+/** User-facing copy stays generic; the raw detail goes to reportError. */
+function report(where: string, raw: unknown, info: { code: string | null; message: string }) {
+  reportError("onboarding_error", {
+    where,
+    code: info.code,
+    message: info.message,
+    detail: raw instanceof Error ? raw.message : String(raw),
+  });
+}
+
 export function useWelcomeAuth(navigation: Navigation) {
   const { setName } = useProfile();
+  const { isLoaded, isSignedIn } = useAuth();
   const { user } = useUser();
+  const clerkStatus = useClerkStatus();
   const { signUp, fetchStatus: signUpFetchStatus } = useSignUp();
   const { signIn, fetchStatus: signInFetchStatus } = useSignIn();
 
@@ -63,9 +75,33 @@ export function useWelcomeAuth(navigation: Navigation) {
   const [name, setNameInput] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const busy = signUpFetchStatus === "fetching" || signInFetchStatus === "fetching";
+  // A tap that arrives before Clerk finishes loading is held; Clerk load is
+  // retried on failure, and the submit re-runs from fresh state once ready.
+  const [pendingSubmit, setPendingSubmit] = useState(false);
+  const retriedLoad = useRef(false);
+  const submitRef = useRef<() => void>(() => {});
 
-  const exitToApp = () => completeOnboarding(navigation);
+  const submitting = signUpFetchStatus === "fetching" || signInFetchStatus === "fetching";
+  const busy = pendingSubmit || submitting;
+
+  // Recover from a failed initial load while the user reads the choose screen.
+  useEffect(() => {
+    retryClerkLoad();
+  }, []);
+
+  const exitToApp = useCallback(() => completeOnboarding(navigation), [navigation]);
+
+  // Signed-in users never need the flow: a named account leaves straight away,
+  // a nameless one (interrupted sign-up) resumes at the name step.
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn || step !== "choose" || user === undefined) return;
+    const fullName = [user?.firstName, user?.lastName]
+      .map((part) => part?.trim())
+      .filter(Boolean)
+      .join(" ");
+    if (fullName) exitToApp();
+    else setStep("name");
+  }, [isLoaded, isSignedIn, step, user, exitToApp]);
 
   const startIntent = (next: Intent) => {
     setIntent(next);
@@ -88,29 +124,48 @@ export function useWelcomeAuth(navigation: Navigation) {
     setStep("email");
   };
 
-  // User-facing copy stays generic; the raw detail goes to reportError.
-  const report = (where: string, raw: unknown, info: { code: string | null; message: string }) =>
-    reportError("onboarding_error", {
-      where,
-      code: info.code,
-      message: info.message,
-      detail: raw instanceof Error ? raw.message : String(raw),
-    });
-
   // Clerk returns expected failures as { error } results but throws on
   // transport failures; both surface the same user-facing message.
-  const run = async (
-    fn: () => Promise<void>,
-    fallback = "Something went wrong. Please try again."
-  ) => {
+  const execute = useCallback(async (action: { fn: () => Promise<void>; fallback?: string }) => {
     try {
-      await fn();
+      await action.fn();
     } catch (error) {
-      const info = errorInfo(error, fallback);
+      const info = errorInfo(error, action.fallback ?? "Something went wrong. Please try again.");
       report("request", error, info);
       setErrorMessage(info.message);
     }
+  }, []);
+
+  const run = (fn: () => Promise<void>, fallback?: string) => {
+    if (!isLoaded) {
+      retryClerkLoad();
+      retriedLoad.current = false;
+      setPendingSubmit(true);
+      return;
+    }
+    void execute({ fn, fallback });
   };
+
+  // Drain the held submit once Clerk loads; retry a failed load once, then
+  // tell the user the network is the problem.
+  useEffect(() => {
+    if (!pendingSubmit) return;
+    if (isLoaded) {
+      setPendingSubmit(false);
+      submitRef.current();
+      return;
+    }
+    if (clerkStatus === "error") {
+      if (retriedLoad.current) {
+        setPendingSubmit(false);
+        reportError("onboarding_error", { where: "clerkLoad" });
+        setErrorMessage("Network problem. Check your internet connection and try again.");
+        return;
+      }
+      retriedLoad.current = true;
+      retryClerkLoad();
+    }
+  }, [isLoaded, clerkStatus, pendingSubmit]);
 
   const finalize = async (target: Intent) => {
     const { error } = target === "signup" ? await signUp.finalize() : await signIn.finalize();
@@ -124,7 +179,7 @@ export function useWelcomeAuth(navigation: Navigation) {
   const submitEmail = () =>
     run(async () => {
       const emailAddress = email.trim().toLowerCase();
-      if (!EMAIL_PATTERN.test(emailAddress) || busy) return;
+      if (!EMAIL_PATTERN.test(emailAddress) || submitting) return;
       setErrorMessage(null);
 
       if (intent === "signup") {
@@ -174,7 +229,7 @@ export function useWelcomeAuth(navigation: Navigation) {
   const submitCode = () =>
     run(async () => {
       const trimmedCode = code.trim();
-      if (trimmedCode.length !== 6 || busy) return;
+      if (trimmedCode.length !== 6 || submitting) return;
       setErrorMessage(null);
 
       if (intent === "signup") {
@@ -233,7 +288,7 @@ export function useWelcomeAuth(navigation: Navigation) {
   const submitName = () =>
     run(async () => {
       const fullName = name.trim().replace(/\s+/g, " ");
-      if (!fullName || busy) return;
+      if (!fullName || submitting) return;
       setErrorMessage(null);
       // Set at sign-up finalization; a missing user here means the session did not activate.
       if (!user) {
@@ -252,7 +307,7 @@ export function useWelcomeAuth(navigation: Navigation) {
 
   const resendCode = () =>
     run(async () => {
-      if (busy) return;
+      if (submitting || !isLoaded) return;
       if (intent === "signup") await signUp.verifications.sendEmailCode();
       else await signIn.emailCode.sendCode();
     });
@@ -266,6 +321,9 @@ export function useWelcomeAuth(navigation: Navigation) {
         : name.trim().length > 0 && user != null);
 
   const submitStep = step === "email" ? submitEmail : step === "code" ? submitCode : submitName;
+  // The drain effect re-runs the latest submit; closures would capture the
+  // pre-load (null) signUp/signIn objects.
+  submitRef.current = submitStep;
 
   return {
     step,

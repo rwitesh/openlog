@@ -5,12 +5,12 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { PostHogErrorBoundary, PostHogProvider } from "posthog-react-native";
-import { useEffect } from "react";
+import { type ReactNode, useEffect } from "react";
 import { View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { clerkPublishableKey } from "@/config/clerk";
 import { posthog } from "@/config/posthog";
-import { AppLockGate } from "@/modules/auth";
+import { AppLockGate, useClerkStatus } from "@/modules/auth";
 import { ProfileProvider, useProfile } from "@/modules/profile";
 import type { RootStackParamList } from "@/navigation";
 import { Compose } from "@/screens/compose";
@@ -34,6 +34,35 @@ import { Layout } from "@/shared/components";
 import { useAppBootstrap } from "@/shared/hooks";
 import { IS_EXPO_GO, logDevWarning } from "@/shared/utils";
 import { AppProviders, useNavigationTheme, useTheme } from "@/theme";
+
+/**
+ * Holds the splash screen until local bootstrap finishes. When onboarding is
+ * pending it also waits for Clerk's initial load to settle (ready or failed);
+ * the Welcome screen handles the failed case with retry. Skipped and returning
+ * users never wait on Clerk.
+ */
+function BootstrapGate({
+  ready,
+  waitForClerk,
+  backgroundColor,
+  children,
+}: {
+  ready: boolean;
+  waitForClerk: boolean;
+  backgroundColor: string;
+  children: ReactNode;
+}) {
+  const status = useClerkStatus();
+  const showApp = ready && (!waitForClerk || status !== "loading");
+
+  useEffect(() => {
+    if (!showApp) return;
+    SplashScreen.hideAsync().catch((error) => logDevWarning("bootstrap:hideSplash", error));
+  }, [showApp]);
+
+  if (!showApp) return <View style={{ flex: 1, backgroundColor }} />;
+  return <>{children}</>;
+}
 
 /** Mirrors the Clerk first name into the local profile when none is set yet. */
 function ClerkNameSync() {
@@ -170,24 +199,23 @@ function AppNavigator({
 
 export default function App() {
   const { ready, preferences, backgroundColor, userName, onboardingCompleted } = useAppBootstrap();
-
-  if (!ready) {
-    return <View style={{ flex: 1, backgroundColor }} />;
-  }
+  // Welcome shows only when onboarding was never finished or skipped.
+  const showWelcome = !userName && !onboardingCompleted;
 
   return (
     <SafeAreaProvider>
       <ClerkProvider publishableKey={clerkPublishableKey} tokenCache={tokenCache}>
-        <Layout>
-          <AppProviders initialPreferences={preferences}>
-            <ProfileProvider initialName={userName}>
-              <AppLockGate>
-                {/* Welcome shows only when onboarding was never finished or skipped. */}
-                <AppContent showWelcome={!userName && !onboardingCompleted} />
-              </AppLockGate>
-            </ProfileProvider>
-          </AppProviders>
-        </Layout>
+        <BootstrapGate ready={ready} waitForClerk={showWelcome} backgroundColor={backgroundColor}>
+          <Layout>
+            <AppProviders initialPreferences={preferences}>
+              <ProfileProvider initialName={userName}>
+                <AppLockGate>
+                  <AppContent showWelcome={showWelcome} />
+                </AppLockGate>
+              </ProfileProvider>
+            </AppProviders>
+          </Layout>
+        </BootstrapGate>
       </ClerkProvider>
     </SafeAreaProvider>
   );
