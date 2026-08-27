@@ -15,7 +15,7 @@ Practical, command-focused guide for local testing, unlimited builds, EAS cloud 
 | **Push already built APK to phone** | `npm run android:install` | Runs `adb install -r` |
 | **Check native fingerprint hash** | `npm run fingerprint` | Shows current native layer hash |
 | **EAS local build** | `npm run eas:local` | Uses your machine with EAS pipeline |
-| **EAS cloud preview APK** | `npm run eas:apk` | Signed APK built in EAS cloud |
+| **EAS cloud development APK** | `npm run eas:dev` | Signed APK built in EAS cloud |
 | **EAS cloud production AAB** | `npm run eas:prod` | Google Play ready App Bundle |
 | **Typecheck project** | `npm run typecheck` | Validates TypeScript across all files |
 | **Lint & Format** | `npm run lint:fix` | Biome autofix for styles & lints |
@@ -79,9 +79,9 @@ Requires logging into your Expo account once:
 npx eas-cli@latest login
 ```
 
-### Build Preview APK (Cloud)
+### Build Development APK (Cloud)
 ```bash
-npm run eas:apk
+npm run eas:dev
 ```
 *Download link and QR code will appear in terminal once built.*
 
@@ -93,7 +93,7 @@ npm run eas:prod
 ### Publish Over-The-Air (OTA) Update
 Publishes an instant JS update matching the current fingerprint:
 ```bash
-npx eas-cli@latest update --branch preview --message "Your update description"
+npx eas-cli@latest update --branch development --message "Your update description"
 ```
 
 ---
