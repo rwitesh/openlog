@@ -161,7 +161,7 @@ function WelcomeFlow({ navigation }: Pick<Props, "navigation">) {
             <TextInput
               value={name}
               onChangeText={setName}
-              placeholder="Your name"
+              placeholder="Full name"
               placeholderTextColor={colors.textTertiary}
               autoCapitalize="words"
               autoCorrect={false}

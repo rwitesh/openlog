@@ -1,4 +1,4 @@
-import { isClerkAPIResponseError, useSignIn, useSignUp } from "@clerk/expo";
+import { isClerkAPIResponseError, useSignIn, useSignUp, useUser } from "@clerk/expo";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useState } from "react";
 import { posthog } from "@/config/posthog";
@@ -52,6 +52,7 @@ export function completeOnboarding(navigation: Navigation) {
 /** Callers must render this only once Clerk has loaded; the signal hooks read the loaded client. */
 export function useWelcomeAuth(navigation: Navigation) {
   const { setName } = useProfile();
+  const { user } = useUser();
   const { signUp, fetchStatus: signUpFetchStatus } = useSignUp();
   const { signIn, fetchStatus: signInFetchStatus } = useSignIn();
 
@@ -74,7 +75,12 @@ export function useWelcomeAuth(navigation: Navigation) {
 
   const goBackStep = () => {
     setErrorMessage(null);
-    setStep(step === "email" ? "choose" : step === "code" ? "email" : "code");
+    // By the name step the account exists and is signed in, so Back leaves the flow.
+    if (step === "name") {
+      exitToApp();
+      return;
+    }
+    setStep(step === "email" ? "choose" : "email");
   };
 
   const editEmail = () => {
@@ -93,14 +99,26 @@ export function useWelcomeAuth(navigation: Navigation) {
 
   // Clerk returns expected failures as { error } results but throws on
   // transport failures; both surface the same user-facing message.
-  const run = async (fn: () => Promise<void>) => {
+  const run = async (
+    fn: () => Promise<void>,
+    fallback = "Something went wrong. Please try again."
+  ) => {
     try {
       await fn();
     } catch (error) {
-      const info = errorInfo(error, "Something went wrong. Please try again.");
+      const info = errorInfo(error, fallback);
       report("request", error, info);
       setErrorMessage(info.message);
     }
+  };
+
+  const finalize = async (target: Intent) => {
+    const { error } = target === "signup" ? await signUp.finalize() : await signIn.finalize();
+    if (!error) return true;
+    const info = errorInfo(error, "Something went wrong. Please try again.");
+    report("finalize", error, info);
+    setErrorMessage(info.message);
+    return false;
   };
 
   const submitEmail = () =>
@@ -162,37 +180,45 @@ export function useWelcomeAuth(navigation: Navigation) {
       if (intent === "signup") {
         const { error } = await signUp.verifications.verifyEmailCode({ code: trimmedCode });
         if (error) {
-          setErrorMessage(errorInfo(error, "That code didn't work. Try again.").message);
+          const info = errorInfo(error, "That code didn't work. Try again.");
+          report("verifyCode", error, info);
+          setErrorMessage(info.message);
           return;
         }
-        if (signUp.status === "complete") {
-          // Name already on the account (e.g. resumed sign-up), so skip asking.
-          const existingName = signUp.firstName?.trim();
-          if (existingName) {
-            await signUp.finalize();
-            setName(existingName);
-            posthog?.capture("onboarding_completed");
-            exitToApp();
-            return;
-          }
-          setStep("name");
+        if (signUp.status !== "complete") {
+          report("signupStatus", signUp.status, {
+            code: signUp.status ?? null,
+            message: "Something went wrong. Please try again.",
+          });
+          setErrorMessage("Something went wrong. Please try again.");
           return;
         }
-        report("signupStatus", signUp.status, {
-          code: signUp.status ?? null,
-          message: "Something went wrong. Please try again.",
-        });
-        setErrorMessage("Something went wrong. Please try again.");
+        // A completed sign-up is consumed, so the name goes on the user profile
+        // after the session exists, not back onto the sign-up attempt.
+        if (!(await finalize("signup"))) return;
+        const existingName = [signUp.firstName, signUp.lastName]
+          .map((part) => part?.trim())
+          .filter(Boolean)
+          .join(" ");
+        if (existingName) {
+          setName(existingName);
+          posthog?.capture("onboarding_completed");
+          exitToApp();
+          return;
+        }
+        setStep("name");
         return;
       }
 
       const { error } = await signIn.emailCode.verifyCode({ code: trimmedCode });
       if (error) {
-        setErrorMessage(errorInfo(error, "That code didn't work. Try again.").message);
+        const info = errorInfo(error, "That code didn't work. Try again.");
+        report("verifyCode", error, info);
+        setErrorMessage(info.message);
         return;
       }
       if (signIn.status === "complete") {
-        await signIn.finalize();
+        if (!(await finalize("login"))) return;
         posthog?.capture("login_completed");
         exitToApp();
         return;
@@ -206,20 +232,23 @@ export function useWelcomeAuth(navigation: Navigation) {
 
   const submitName = () =>
     run(async () => {
-      const firstName = name.trim();
-      if (!firstName || busy) return;
+      const fullName = name.trim().replace(/\s+/g, " ");
+      if (!fullName || busy) return;
       setErrorMessage(null);
-
-      const { error } = await signUp.update({ firstName });
-      if (error) {
-        setErrorMessage(errorInfo(error, "Could not save your name. Please try again.").message);
+      // Set at sign-up finalization; a missing user here means the session did not activate.
+      if (!user) {
+        report("nameNoSession", null, { code: null, message: "No active session after sign-up." });
+        setErrorMessage("Something went wrong. Please try again.");
         return;
       }
-      await signUp.finalize();
-      setName(firstName);
+      // First word is the first name; the rest is the last name.
+      const [firstName, ...rest] = fullName.split(" ");
+      const lastName = rest.join(" ");
+      await user.update({ firstName, ...(lastName ? { lastName } : {}) });
+      setName(fullName);
       posthog?.capture("onboarding_completed");
       exitToApp();
-    });
+    }, "Could not save your name. Please try again.");
 
   const resendCode = () =>
     run(async () => {
@@ -234,7 +263,7 @@ export function useWelcomeAuth(navigation: Navigation) {
       ? EMAIL_PATTERN.test(email.trim())
       : step === "code"
         ? code.trim().length === 6
-        : name.trim().length > 0);
+        : name.trim().length > 0 && user != null);
 
   const submitStep = step === "email" ? submitEmail : step === "code" ? submitCode : submitName;
 
