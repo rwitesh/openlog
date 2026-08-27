@@ -12,14 +12,14 @@
     "scheme": "openlog",
     "ios": {
       "supportsTablet": true,
-      "deploymentTarget": "14.0",
+      "deploymentTarget": "17.0",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Record voice entries on your timeline.",
         "NSLocationWhenInUseUsageDescription": "Attach your current location to entries.",
         "NSPhotoLibraryUsageDescription": "Attach photos from your library to timeline entries.",
         "NSPhotoLibraryAddUsageDescription": "Save photos from entries to your photo library."
       },
-      "bundleIdentifier": "com.rwitesh.openlog"
+      "bundleIdentifier": "share.openlog.mobile"
     },
     "android": {
       "adaptiveIcon": {
@@ -37,7 +37,7 @@
         "android.permission.ACCESS_FINE_LOCATION"
       ],
       "predictiveBackGestureEnabled": false,
-      "package": "com.rwitesh.openlog"
+      "package": "share.openlog.mobile"
     },
     "web": {
       "favicon": "./assets/favicon.png",
