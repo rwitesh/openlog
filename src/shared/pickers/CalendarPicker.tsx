@@ -14,7 +14,15 @@ import {
 import { FONT_SIZE, metrics, press, radius, space, useTheme } from "@/theme";
 import type { ThemeColors } from "@/theme/tokens";
 
-const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
+const WEEKDAYS = [
+  { id: "sun", label: "S" },
+  { id: "mon", label: "M" },
+  { id: "tue", label: "T" },
+  { id: "wed", label: "W" },
+  { id: "thu", label: "T" },
+  { id: "fri", label: "F" },
+  { id: "sat", label: "S" },
+] as const;
 const CELL_GAP = space.sm;
 
 interface CalendarPickerProps {
@@ -53,8 +61,8 @@ function CalendarDay({ dayTs, selected, today, hasEntry, colors, onPress }: Cale
           {dayNumber}
         </ThemedText>
 
-        {hasEntry && !selected && !today ? (
-          <View style={[styles.dot, { backgroundColor: colors.marker }]} />
+        {hasEntry ? (
+          <View style={[styles.dot, { backgroundColor: selected ? "#FFFFFF" : colors.marker }]} />
         ) : null}
       </Pressable>
     </View>
@@ -128,8 +136,8 @@ export function CalendarPicker({
       </View>
 
       <View style={styles.weekdayRow}>
-        {WEEKDAYS.map((label) => (
-          <View key={label} style={styles.cellSlot}>
+        {WEEKDAYS.map(({ id, label }) => (
+          <View key={id} style={styles.cellSlot}>
             <ThemedText style={[styles.weekday, { color: colors.textTertiary }]}>
               {label}
             </ThemedText>
@@ -138,14 +146,16 @@ export function CalendarPicker({
       </View>
 
       <View style={styles.grid}>
-        {cells.map((dayTs, index) => {
-          if (dayTs === null) {
-            return <View key={`blank-${WEEKDAYS[index]}`} style={styles.cellSlot} />;
+        {cells.map((cell) => {
+          if (cell.dayTs === null) {
+            return <View key={cell.key} style={styles.cellSlot} />;
           }
+
+          const dayTs = cell.dayTs;
 
           return (
             <CalendarDay
-              key={dayTs}
+              key={cell.key}
               dayTs={dayTs}
               selected={isSameDay(dayTs, selectedDate)}
               today={isSameDay(dayTs, todayTs)}
