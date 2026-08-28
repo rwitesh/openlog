@@ -49,7 +49,7 @@ function CalendarDay({ dayTs, selected, today, hasEntry, colors, onPress }: Cale
         accessibilityLabel={new Date(dayTs).toDateString()}
         accessibilityState={{ selected }}
       >
-        <ThemedText style={[styles.dayNum, { color: selected ? colors.background : colors.text }]}>
+        <ThemedText style={[styles.dayNum, { color: selected ? "#FFFFFF" : colors.text }]}>
           {dayNumber}
         </ThemedText>
 
@@ -128,8 +128,8 @@ export function CalendarPicker({
       </View>
 
       <View style={styles.weekdayRow}>
-        {WEEKDAYS.map((label, index) => (
-          <View key={`${label}-${index}`} style={styles.cellSlot}>
+        {WEEKDAYS.map((label) => (
+          <View key={label} style={styles.cellSlot}>
             <ThemedText style={[styles.weekday, { color: colors.textTertiary }]}>
               {label}
             </ThemedText>
@@ -140,7 +140,7 @@ export function CalendarPicker({
       <View style={styles.grid}>
         {cells.map((dayTs, index) => {
           if (dayTs === null) {
-            return <View key={`blank-${index}`} style={styles.cellSlot} />;
+            return <View key={`blank-${WEEKDAYS[index]}`} style={styles.cellSlot} />;
           }
 
           return (

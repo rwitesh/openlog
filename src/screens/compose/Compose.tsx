@@ -43,6 +43,16 @@ export function ComposeScreen({ navigation, route }: Props) {
   const draft = useComposeDraft(existing, media);
   const { location } = draft;
 
+  // Pre-focus the writing surface when entering compose or switching to edit mode
+  useEffect(() => {
+    if (!isReadOnly) {
+      const timer = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isReadOnly]);
+
   // Editing an entry that no longer exists — leave.
   useEffect(() => {
     if (!entryId) return;

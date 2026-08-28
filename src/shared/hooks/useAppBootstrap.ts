@@ -32,6 +32,7 @@ export function useAppBootstrap(): AppBootstrapState {
     SourceSans3_400Regular,
     SourceSans3_500Medium,
     SourceSans3_600SemiBold,
+    "BricolageGrotesque-Bold": require("../../../assets/fonts/BricolageGrotesque-Bold.ttf"),
   });
 
   useEffect(() => {

@@ -70,10 +70,7 @@ export function TimelineRail({
           >
             {isRail ? (
               <View style={[styles.dateCircle, { backgroundColor: colors.marker }]}>
-                <ThemedText
-                  weight="semibold"
-                  style={[styles.dateNum, { color: colors.background }]}
-                >
+                <ThemedText weight="semibold" style={[styles.dateNum, { color: "#FFFFFF" }]}>
                   {dayOfMonth(dayTs)}
                 </ThemedText>
               </View>

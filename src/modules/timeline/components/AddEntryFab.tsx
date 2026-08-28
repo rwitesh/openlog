@@ -77,7 +77,7 @@ export function AddEntryFab({ onPress }: AddEntryFabProps) {
         accessibilityLabel="Add entry"
         accessibilityRole="button"
       >
-        <Feather name="plus" size={metrics.iconLg} color={colors.background} />
+        <Feather name="plus" size={metrics.iconLg} color="#FFFFFF" />
       </Pressable>
     </Animated.View>
   );

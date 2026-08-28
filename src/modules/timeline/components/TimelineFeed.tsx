@@ -13,7 +13,7 @@ import { EntryRow } from "@/modules/entry";
 import { ThemedText } from "@/shared/components/ThemedText";
 import type { Entry } from "@/shared/types";
 import { isSameDay } from "@/shared/utils/dates";
-import { space, typography, useTheme } from "@/theme";
+import { radius, space, typography, useTheme } from "@/theme";
 import type { TimelineItem } from "../types";
 import { toTimelineItems } from "../utils/TimelineTransform";
 import { TimelineRail } from "./TimelineRail";
@@ -103,18 +103,41 @@ export function TimelineFeed({
         data={items}
         keyExtractor={(item) => item.entry.id}
         renderItem={({ item, index }) => (
-          <TimelineRail
-            dayTs={item.dayTs}
-            showDate={item.showDate}
-            isFirst={index === 0}
-            isLast={item.isLast}
-            onMarkerPress={onOpenDay ? () => onOpenDay(item.dayTs) : undefined}
-          >
-            <EntryRow
-              entry={item.entry}
-              animate={animateFirst && index === 0 && isSameDay(item.entry.createdAt, Date.now())}
-            />
-          </TimelineRail>
+          <View>
+            {item.showMonth && item.monthLabel ? (
+              <View style={styles.monthHeaderRow}>
+                <View
+                  style={[
+                    styles.monthPill,
+                    {
+                      backgroundColor: colors.surfaceMuted,
+                      borderColor: colors.separator,
+                    },
+                  ]}
+                >
+                  <ThemedText
+                    weight="semibold"
+                    style={[styles.monthLabel, { color: colors.textSecondary }]}
+                  >
+                    {item.monthLabel}
+                  </ThemedText>
+                </View>
+                <View style={[styles.monthLine, { backgroundColor: colors.separator }]} />
+              </View>
+            ) : null}
+            <TimelineRail
+              dayTs={item.dayTs}
+              showDate={item.showDate}
+              isFirst={index === 0}
+              isLast={item.isLast}
+              onMarkerPress={onOpenDay ? () => onOpenDay(item.dayTs) : undefined}
+            >
+              <EntryRow
+                entry={item.entry}
+                animate={animateFirst && index === 0 && isSameDay(item.entry.createdAt, Date.now())}
+              />
+            </TimelineRail>
+          </View>
         )}
         contentContainerStyle={[styles.content, { paddingTop, paddingBottom: bottomInset }]}
         showsVerticalScrollIndicator={false}
@@ -220,5 +243,28 @@ const styles = StyleSheet.create({
   scrollTopText: {
     fontSize: 12,
     letterSpacing: 0.2,
+  },
+  monthHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.sm,
+    paddingTop: space.md,
+    paddingBottom: space.sm,
+  },
+  monthPill: {
+    paddingHorizontal: space.sm + 2,
+    paddingVertical: 3,
+    borderRadius: radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  monthLabel: {
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 0.2,
+  },
+  monthLine: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+    opacity: 0.6,
   },
 });

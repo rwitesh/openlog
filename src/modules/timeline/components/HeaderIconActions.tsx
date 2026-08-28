@@ -4,7 +4,6 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { metrics, press, space, type ThemeColors } from "@/theme";
 
 interface HeaderIconActionsProps {
-  top: number;
   colors: ThemeColors;
   onOpenSearch: () => void;
   onOpenCalendar: () => void;
@@ -12,14 +11,13 @@ interface HeaderIconActionsProps {
 }
 
 export function HeaderIconActions({
-  top,
   colors,
   onOpenSearch,
   onOpenCalendar,
   onOpenSettings,
 }: HeaderIconActionsProps) {
   return (
-    <View style={[styles.actions, { top }]}>
+    <View style={styles.actions}>
       <Pressable
         onPress={onOpenSearch}
         hitSlop={space.sm}
@@ -55,12 +53,10 @@ export function HeaderIconActions({
 
 const styles = StyleSheet.create({
   actions: {
-    position: "absolute",
-    right: space.lg,
     flexDirection: "row",
     alignItems: "center",
     gap: space.xs + 2,
-    zIndex: 2,
+    height: metrics.btnLg,
   },
   iconBtn: {
     width: metrics.btnLg,
