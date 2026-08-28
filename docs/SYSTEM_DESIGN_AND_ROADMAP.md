@@ -67,13 +67,14 @@ Autobiographical writing happens disproportionately in two mental states:
 2. **Evening Decompression (20:30 – 23:30):** Vulnerability, reflection, memory consolidation. Standard "cold steel" dark modes (`#121215`) emit short-wavelength blue spectrum light that suppresses melatonin and signals daytime work/stress.
    * **The Solution — "Nocturne Warm Dark" (`#141312`):** A warm espresso obsidian canvas that eliminates blue-light glare and feels like a dimly lit study with aged wood and warm paper.
 
-### C. Attention Coloring & The Von Restorff (Isolation) Effect
-When an app is entirely monochromatic gray, all elements blur into an undifferentiated wall of glyphs, increasing scanning fatigue.
-* **Pre-attentive Visual Parsing ($<100\text{ms}$):** By introducing intentional, low-saturation chromatic micro-tints:
-  * 🔵 **Cobalt (`#2D5BE3` / `#4D7DF9`):** Timeline rail nodes & active focus rings. Luminous clarity without aggression.
-  * 🟢 **Emerald (`#10B981`):** Photo attachment pills (organic visual capture).
-  * 🟣 **Purple (`#8B5CF6`):** Audio waveform playback markers.
-  * 🟡 **Amber / Sky:** Geolocation tags (spatial context).
+### C. Attention Hierarchy & The Von Restorff (Isolation) Effect
+In autobiographical writing, chromatic intensity must strictly adhere to the Attention Budget Matrix:
+* **The Temporal Spine (The Primary Chromatic Anchor):**
+  * 🔵 **Signature Mood Accent (`colors.marker` / `colors.accent`):** Reserved exclusively for the **Timeline Rail Date Markers** and primary action buttons. This grounds the autobiographical thread in time without competing with the writing.
+* **Calm Structural Micro-Anchors (Zero Saturated Competition):**
+  * 📍 **Geolocation (`textTertiary` pin icon + `textSecondary` place name):** Provides pre-attentive spatial context ($<100\text{ms}$) without turning the feed into a loud travel check-in badge.
+  * 🎙️ **Voice Memos & Audio (`surfaceMuted` card + accent play button):** Tactile hardware aesthetic with a focused accent play trigger, avoiding distracting saturated card fills.
+  * 🖼️ **Media Attachments (Hairline framed viewports):** Clean separation on canvas without synthetic color tags.
 
 ### D. Why Background Wallpapers Were Removed
 1. **Glyph Collision & Eye Strain:** A journal is 95% typography. Even at 20% opacity, photographic textures (branches, clouds, shadows) introduce high-frequency visual noise that collides with letter stems, causing subconscious eye fatigue within 30 seconds of reading.

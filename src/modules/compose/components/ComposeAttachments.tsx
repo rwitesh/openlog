@@ -45,7 +45,11 @@ export function ComposeAttachments({
             imageUris.length === 1 ? (
               <Pressable
                 onPress={() => openImage(0)}
-                style={({ pressed }) => [styles.singleImageWrap, pressed && press]}
+                style={({ pressed }) => [
+                  styles.singleImageWrap,
+                  { borderColor: colors.separator },
+                  pressed && press,
+                ]}
               >
                 <Image
                   source={{ uri: imageUris[0] }}
@@ -66,7 +70,11 @@ export function ComposeAttachments({
                   <Pressable
                     key={`${uri}-${index}`}
                     onPress={() => openImage(index)}
-                    style={({ pressed }) => [styles.detailThumbnailWrap, pressed && press]}
+                    style={({ pressed }) => [
+                      styles.detailThumbnailWrap,
+                      { borderColor: colors.separator },
+                      pressed && press,
+                    ]}
                   >
                     <Image
                       source={{ uri }}
@@ -167,6 +175,7 @@ const styles = StyleSheet.create({
     width: "100%",
     borderRadius: radius.md,
     overflow: "hidden",
+    borderWidth: StyleSheet.hairlineWidth,
   },
   singleImage: {
     width: "100%",
@@ -183,6 +192,7 @@ const styles = StyleSheet.create({
   detailThumbnailWrap: {
     borderRadius: radius.md,
     overflow: "hidden",
+    borderWidth: StyleSheet.hairlineWidth,
   },
   detailThumbnail: {
     width: 220,
