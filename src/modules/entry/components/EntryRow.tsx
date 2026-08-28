@@ -1,8 +1,17 @@
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Image } from "expo-image";
-import { memo, useEffect, useRef, useState } from "react";
-import { Alert, Animated, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
+import {
+  Alert,
+  Animated,
+  type NativeSyntheticEvent,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  type TextLayoutEventData,
+  View,
+} from "react-native";
 import type { RootStackParamList } from "@/navigation/types";
 import { locationPlaceTitle } from "@/services/location/location";
 import { ThemedText } from "@/shared/components/ThemedText";
@@ -77,6 +86,27 @@ function EntryRowBase({ entry, animate }: EntryRowProps) {
   const hasText = Boolean(bodyText);
   const locationName = entry.location ? locationPlaceTitle(entry.location) : undefined;
 
+  const [isTruncated, setIsTruncated] = useState(() => {
+    if (!bodyText) return false;
+    return bodyText.length > 300 || bodyText.split("\n").length > 6;
+  });
+
+  const handleTextLayout = useCallback(
+    (e: NativeSyntheticEvent<TextLayoutEventData>) => {
+      if (!bodyText) return;
+      const lines = e.nativeEvent.lines;
+      if (lines.length > 6) {
+        setIsTruncated(true);
+        return;
+      }
+      const renderedChars = lines.reduce((acc, l) => acc + l.text.length, 0);
+      if (bodyText.trim().length > renderedChars + 2) {
+        setIsTruncated(true);
+      }
+    },
+    [bodyText]
+  );
+
   const openImage = (index: number) => {
     setImageViewerIndex(index);
     setImageViewerOpen(true);
@@ -131,9 +161,19 @@ function EntryRowBase({ entry, animate }: EntryRowProps) {
 
         {hasText ? (
           <Pressable onPress={handleView} hitSlop={space.xs}>
-            <ThemedText style={[theme.typography.entryText, { color: colors.text }]}>
+            <ThemedText
+              numberOfLines={6}
+              ellipsizeMode="tail"
+              onTextLayout={handleTextLayout}
+              style={[theme.typography.entryText, { color: colors.text }]}
+            >
               {bodyText}
             </ThemedText>
+            {isTruncated ? (
+              <ThemedText weight="medium" style={[styles.readMore, { color: colors.accent }]}>
+                Read more
+              </ThemedText>
+            ) : null}
           </Pressable>
         ) : null}
 
@@ -175,7 +215,7 @@ function EntryRowBase({ entry, animate }: EntryRowProps) {
             >
               {images.map((uri, index) => (
                 <Pressable
-                  key={`${uri}-${index}`}
+                  key={uri}
                   onPress={() => openImage(index)}
                   style={({ pressed }) => [styles.thumbnailWrap, pressed && press]}
                 >
@@ -204,8 +244,8 @@ function EntryRowBase({ entry, animate }: EntryRowProps) {
                 : undefined,
             ]}
           >
-            {audios.map((uri, index) => (
-              <AudioPlayer key={`${uri}-${index}`} uri={uri} />
+            {audios.map((uri) => (
+              <AudioPlayer key={uri} uri={uri} />
             ))}
           </View>
         ) : null}
@@ -304,5 +344,10 @@ const styles = StyleSheet.create({
     width: 172,
     aspectRatio: 4 / 3,
     borderRadius: radius.md,
+  },
+  readMore: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: space.xs,
   },
 });
