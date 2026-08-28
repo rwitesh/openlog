@@ -1,6 +1,14 @@
 import { Feather } from "@expo/vector-icons";
 import { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, StyleSheet, TextInput, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+} from "react-native";
 import {
   LiveThemePreview,
   SegmentedRow,
@@ -512,7 +520,7 @@ export function TypographySettingsScreen() {
   };
 
   return (
-    <SettingsEditorScreen preview={<LiveThemePreview />}>
+    <SettingsEditorScreen preview={<LiveThemePreview />} scrollable={false}>
       <View style={typoStyles.container}>
         <View
           style={[
@@ -562,7 +570,7 @@ export function TypographySettingsScreen() {
         ) : null}
 
         {availableFonts.length > 0 ? (
-          <View style={typoStyles.sectionBlock}>
+          <View style={typoStyles.availableSection}>
             <View style={typoStyles.sectionHeaderRow}>
               <ThemedText
                 weight="medium"
@@ -575,9 +583,14 @@ export function TypographySettingsScreen() {
               </ThemedText>
             </View>
 
-            <View style={typoStyles.list}>
+            <ScrollView
+              style={typoStyles.availableScroll}
+              contentContainerStyle={typoStyles.availableList}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
               {availableFonts.map((fontName) => renderFontRow(fontName, false))}
-            </View>
+            </ScrollView>
           </View>
         ) : null}
 
@@ -595,14 +608,15 @@ export function TypographySettingsScreen() {
 
 const typoStyles = StyleSheet.create({
   container: {
+    flex: 1,
     gap: space.md - 2,
   },
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
-    gap: space.xs,
+    gap: space.sm,
     paddingHorizontal: space.md,
-    paddingVertical: space.xs + 2,
+    height: 42,
     borderRadius: radius.md,
     borderWidth: StyleSheet.hairlineWidth,
   },
@@ -613,6 +627,18 @@ const typoStyles = StyleSheet.create({
   },
   sectionBlock: {
     gap: space.xs + 2,
+  },
+  availableSection: {
+    flex: 1,
+    gap: space.xs + 2,
+    minHeight: 0,
+  },
+  availableScroll: {
+    flex: 1,
+  },
+  availableList: {
+    gap: 6,
+    paddingBottom: space.md,
   },
   sectionHeaderRow: {
     flexDirection: "row",
@@ -692,6 +718,7 @@ const typoStyles = StyleSheet.create({
     justifyContent: "center",
   },
   emptyState: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: space.xxl,
