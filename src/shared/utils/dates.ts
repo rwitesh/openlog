@@ -165,8 +165,13 @@ export function formatMonthYear(ts: number): string {
   return `${MONTHS_LONG[d.getMonth()]} ${d.getFullYear()}`;
 }
 
-/** Month grid cells; null marks leading/trailing blanks. */
-export function calendarCells(monthTs: number): (number | null)[] {
+export interface CalendarCell {
+  key: string;
+  dayTs: number | null;
+}
+
+/** Month grid cells padded to 42 slots (6 rows × 7 days) so the calendar height stays stable across months. */
+export function calendarCells(monthTs: number): CalendarCell[] {
   const first = startOfMonth(monthTs);
   const firstDate = new Date(first);
   const year = firstDate.getFullYear();
@@ -174,14 +179,21 @@ export function calendarCells(monthTs: number): (number | null)[] {
   const firstWeekday = firstDate.getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-  const cells: (number | null)[] = [];
+  const cells: CalendarCell[] = [];
 
   for (let i = 0; i < firstWeekday; i += 1) {
-    cells.push(null);
+    cells.push({ key: `lead-${i}`, dayTs: null });
   }
 
   for (let day = 1; day <= daysInMonth; day += 1) {
-    cells.push(new Date(year, month, day, 0, 0, 0, 0).getTime());
+    const dayTs = new Date(year, month, day, 0, 0, 0, 0).getTime();
+    cells.push({ key: `day-${dayTs}`, dayTs });
+  }
+
+  let trail = 0;
+  while (cells.length < 42) {
+    cells.push({ key: `trail-${trail}`, dayTs: null });
+    trail += 1;
   }
 
   return cells;
