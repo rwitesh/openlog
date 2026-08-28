@@ -94,7 +94,7 @@ export function ComposeFooterBar({
         <Feather
           name="arrow-up"
           size={metrics.iconMd + 2}
-          color={canSave ? colors.background : colors.textTertiary}
+          color={canSave ? "#FFFFFF" : colors.textTertiary}
         />
       </Pressable>
     </Toolbar>

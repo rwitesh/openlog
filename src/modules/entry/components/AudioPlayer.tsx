@@ -33,11 +33,7 @@ export function AudioPlayer({ uri }: AudioPlayerProps) {
           ]}
           accessibilityLabel={isPlaying ? "Pause audio" : "Play audio"}
         >
-          <Feather
-            name={isPlaying ? "pause" : "play"}
-            size={metrics.iconSm}
-            color={colors.background}
-          />
+          <Feather name={isPlaying ? "pause" : "play"} size={metrics.iconSm} color="#FFFFFF" />
         </Pressable>
 
         <Pressable

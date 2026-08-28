@@ -7,6 +7,7 @@ interface EditorProps {
   inputRef?: RefObject<TextInput | null>;
   value: string;
   onChangeText?: (text: string) => void;
+  placeholder?: string;
   readOnly?: boolean;
   children?: React.ReactNode;
 }
@@ -15,6 +16,7 @@ export function ComposeEditor({
   inputRef,
   value,
   onChangeText,
+  placeholder,
   readOnly = false,
   children,
 }: EditorProps) {
@@ -44,7 +46,7 @@ export function ComposeEditor({
         ref={inputRef}
         value={value}
         onChangeText={onChangeText}
-        placeholder={readOnly ? undefined : "Write something…"}
+        placeholder={readOnly ? undefined : (placeholder ?? "Write something…")}
         placeholderTextColor={colors.textSecondary}
         multiline
         scrollEnabled={false}

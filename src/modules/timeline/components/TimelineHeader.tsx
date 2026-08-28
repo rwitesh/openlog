@@ -1,13 +1,8 @@
-import { useMemo } from "react";
-import { Animated, StyleSheet, View } from "react-native";
+import { Image, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useProfile } from "@/modules/profile";
 import { ThemedText } from "@/shared/components/ThemedText";
-import { formatMonthYear } from "@/shared/utils/dates";
-import { metrics, space, useTheme } from "@/theme";
-import { useStaggeredEntrance } from "../hooks/useStaggeredEntrance";
-import { getTimelineSubtitle } from "../prompts";
+import { metrics, radius, space, useTheme } from "@/theme";
 import { HeaderIconActions } from "./HeaderIconActions";
 
 interface TimelineHeaderProps {
@@ -17,8 +12,6 @@ interface TimelineHeaderProps {
   onLayout?: (height: number) => void;
 }
 
-const HEADER_ICON_GAP = space.xs + 2;
-
 export function TimelineHeader({
   onOpenSearch,
   onOpenCalendar,
@@ -26,18 +19,9 @@ export function TimelineHeader({
   onLayout,
 }: TimelineHeaderProps) {
   const { theme } = useTheme();
-  const { name } = useProfile();
   const insets = useSafeAreaInsets();
   const { colors } = theme;
-  const [greetingStyle, subtitleStyle, monthStyle] = useStaggeredEntrance([16, 12, 10]);
-
-  const firstName = name?.trim().split(/\s+/)[0];
-  const greeting = firstName ? `Hi, ${firstName}` : "Hi there";
-  const currentMonth = formatMonthYear(Date.now());
-  const topInset = insets.top + space.lg;
-  const subtitleLineHeight = theme.typography.headerSubtitle.lineHeight ?? 24;
-  const fixedSubtitleHeight = subtitleLineHeight * 2;
-  const subtitle = useMemo(() => getTimelineSubtitle(), []);
+  const topInset = insets.top + space.sm;
 
   return (
     <View
@@ -45,44 +29,30 @@ export function TimelineHeader({
       style={styles.wrapper}
     >
       <View style={[styles.header, { paddingTop: topInset }]}>
+        <View style={styles.brandLockup}>
+          <View
+            style={[
+              styles.iconWrap,
+              { borderColor: colors.separator, backgroundColor: colors.surface },
+            ]}
+          >
+            <Image
+              source={require("../../../../assets/icon.png")}
+              style={styles.icon}
+              resizeMode="cover"
+            />
+          </View>
+          <ThemedText weight="semibold" style={[styles.brandTitle, { color: colors.text }]}>
+            OpenLog
+          </ThemedText>
+        </View>
+
         <HeaderIconActions
-          top={topInset}
           colors={colors}
           onOpenSearch={onOpenSearch}
           onOpenCalendar={onOpenCalendar}
           onOpenSettings={onOpenSettings}
         />
-
-        <View style={styles.content}>
-          <Animated.View style={greetingStyle}>
-            <ThemedText
-              weight="semibold"
-              style={[theme.typography.headerGreeting, { color: colors.text }]}
-            >
-              {greeting}
-            </ThemedText>
-          </Animated.View>
-
-          <Animated.View
-            style={[subtitleStyle, styles.subtitleWrap, { minHeight: fixedSubtitleHeight }]}
-          >
-            <ThemedText
-              numberOfLines={2}
-              style={[theme.typography.headerSubtitle, { color: colors.textSecondary }]}
-            >
-              {subtitle}
-            </ThemedText>
-          </Animated.View>
-
-          <Animated.View style={[monthStyle, styles.monthWrap]}>
-            <ThemedText
-              weight="semibold"
-              style={[theme.typography.headerMonth, { color: colors.textSecondary }]}
-            >
-              {currentMonth}
-            </ThemedText>
-          </Animated.View>
-        </View>
       </View>
     </View>
   );
@@ -93,20 +63,33 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingBottom: space.sm,
     paddingHorizontal: space.lg,
+  },
+  brandLockup: {
+    flexDirection: "row",
+    alignItems: "center",
+    height: metrics.btnLg,
+    gap: space.sm + 2,
+  },
+  iconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
     overflow: "hidden",
   },
-  content: {
-    alignItems: "flex-start",
-    paddingRight: metrics.btnLg * 3 + HEADER_ICON_GAP * 2 + space.lg,
-    marginTop: space.sm,
+  icon: {
+    width: "100%",
+    height: "100%",
   },
-  subtitleWrap: {
-    marginTop: space.xs,
-    justifyContent: "flex-start",
-  },
-  monthWrap: {
-    marginTop: space.xs + 2,
+  brandTitle: {
+    fontFamily: "BricolageGrotesque-Bold",
+    fontSize: 20,
+    lineHeight: 24,
+    letterSpacing: -0.4,
   },
 });
