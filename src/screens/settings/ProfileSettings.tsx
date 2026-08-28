@@ -1,6 +1,6 @@
 import { useAuth, useUser } from "@clerk/expo";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, TextInput, View } from "react-native";
 
 import { useProfile } from "@/modules/profile";
 import { SettingsGroup, SettingsRow, SettingsScreenScroll } from "@/modules/settings";
@@ -17,7 +17,7 @@ export function ProfileSettingsScreen({ navigation }: Props) {
   const { colors } = theme;
   const { isLoaded, isSignedIn, signOut } = useAuth();
   const { user } = useUser();
-  const { name } = useProfile();
+  const { name, setName } = useProfile();
   const email = user?.primaryEmailAddress?.emailAddress;
 
   const signedIn = isLoaded && isSignedIn;
@@ -25,26 +25,26 @@ export function ProfileSettingsScreen({ navigation }: Props) {
     return (
       <SettingsScreenScroll>
         <SettingsGroup label="ACCOUNT">
-          {name?.trim() ? (
-            <View style={styles.fieldRow}>
-              <ThemedText style={[typography.settingLabel, { color: colors.textSecondary }]}>
-                Name
-              </ThemedText>
-              <ThemedText style={[typography.settingLabel, { color: colors.text }]}>
-                {name.trim()}
-              </ThemedText>
-            </View>
-          ) : null}
-          <SettingsRow
-            icon="log-in"
-            title="Log in"
-            subtitle="Optional for now"
-            onPress={() => navigation.navigate("Welcome", { auth: true })}
-          />
+          <View style={styles.fieldRow}>
+            <ThemedText style={[typography.settingLabel, { color: colors.textSecondary }]}>
+              Name
+            </ThemedText>
+            <TextInput
+              value={name ?? ""}
+              onChangeText={setName}
+              placeholder="Your name"
+              placeholderTextColor={colors.textTertiary}
+              autoCapitalize="words"
+              autoCorrect={false}
+              maxLength={40}
+              style={[
+                styles.nameInput,
+                typography.settingLabel,
+                { color: colors.text, borderBottomColor: colors.separator },
+              ]}
+            />
+          </View>
         </SettingsGroup>
-        <ThemedText style={[typography.caption, styles.footnote, { color: colors.textSecondary }]}>
-          Login is optional. Your data stays on this device.
-        </ThemedText>
       </SettingsScreenScroll>
     );
   }
@@ -52,16 +52,25 @@ export function ProfileSettingsScreen({ navigation }: Props) {
   return (
     <SettingsScreenScroll>
       <SettingsGroup label="ACCOUNT">
-        {name?.trim() ? (
-          <View style={styles.fieldRow}>
-            <ThemedText style={[typography.settingLabel, { color: colors.textSecondary }]}>
-              Name
-            </ThemedText>
-            <ThemedText style={[typography.settingLabel, { color: colors.text }]}>
-              {name.trim()}
-            </ThemedText>
-          </View>
-        ) : null}
+        <View style={styles.fieldRow}>
+          <ThemedText style={[typography.settingLabel, { color: colors.textSecondary }]}>
+            Name
+          </ThemedText>
+          <TextInput
+            value={name ?? ""}
+            onChangeText={setName}
+            placeholder="Your name"
+            placeholderTextColor={colors.textTertiary}
+            autoCapitalize="words"
+            autoCorrect={false}
+            maxLength={40}
+            style={[
+              styles.nameInput,
+              typography.settingLabel,
+              { color: colors.text, borderBottomColor: colors.separator },
+            ]}
+          />
+        </View>
         {email ? (
           <View style={styles.fieldRow}>
             <ThemedText style={[typography.settingLabel, { color: colors.textSecondary }]}>
@@ -98,7 +107,9 @@ const styles = StyleSheet.create({
     paddingVertical: space.sm,
     gap: space.xs,
   },
-  footnote: {
-    marginHorizontal: space.xl,
+  nameInput: {
+    paddingVertical: space.xs,
+    paddingHorizontal: 0,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
 });
