@@ -1,0 +1,88 @@
+:root {
+  --fg: #111;
+  --bg: #fdfdf7;
+  --link: #06c;
+  --muted: #666;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font:
+    16px / 1.75 "JetBrains Mono",
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+  -webkit-text-size-adjust: 100%;
+}
+main {
+  max-width: 660px;
+  margin: 0 auto;
+  padding: 40px 20px 96px;
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--fg);
+  text-decoration: none;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.brand img {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+}
+h1 {
+  font-size: 20px;
+  line-height: 1.35;
+  border-bottom: 2px solid var(--fg);
+  padding-bottom: 12px;
+  margin: 10px 0 0;
+}
+h2 {
+  font-size: 16px;
+  margin-top: 2.4em;
+}
+.updated {
+  color: var(--muted);
+  font-size: 13px;
+}
+a {
+  color: var(--link);
+}
+ul {
+  padding-left: 1.2em;
+  margin: 0.6em 0;
+}
+li {
+  margin: 0.35em 0;
+}
+strong {
+  font-weight: 700;
+}
+::selection {
+  background: var(--fg);
+  color: var(--bg);
+}
+.contact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 48px;
+  padding: 14px 16px;
+  border: 1px solid var(--fg);
+  font-size: 13px;
+}
+.contact span {
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+}
