@@ -1,3 +1,4 @@
+import { Feather } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Image } from "expo-image";
@@ -148,12 +149,15 @@ function EntryRowBase({ entry, animate }: EntryRowProps) {
               <ThemedText style={[styles.metaDot, { color: colors.textTertiary }]}>·</ThemedText>
             ) : null}
             {showLoc ? (
-              <ThemedText
-                style={[styles.locationText, { color: colors.textSecondary }]}
-                numberOfLines={1}
-              >
-                {locationName}
-              </ThemedText>
+              <View style={styles.locRow}>
+                <Feather name="map-pin" size={10} color={colors.textTertiary} />
+                <ThemedText
+                  style={[styles.locationText, { color: colors.textSecondary }]}
+                  numberOfLines={1}
+                >
+                  {locationName}
+                </ThemedText>
+              </View>
             ) : null}
           </Pressable>
           <EntryMenuButton onPress={() => setDetailsOpen(true)} />
@@ -183,6 +187,7 @@ function EntryRowBase({ entry, animate }: EntryRowProps) {
               onPress={() => openImage(0)}
               style={({ pressed }) => [
                 styles.singleImageWrap,
+                { borderColor: colors.separator },
                 hasText
                   ? isCompact
                     ? styles.imageAfterTextCompact
@@ -217,7 +222,11 @@ function EntryRowBase({ entry, animate }: EntryRowProps) {
                 <Pressable
                   key={uri}
                   onPress={() => openImage(index)}
-                  style={({ pressed }) => [styles.thumbnailWrap, pressed && press]}
+                  style={({ pressed }) => [
+                    styles.thumbnailWrap,
+                    { borderColor: colors.separator },
+                    pressed && press,
+                  ]}
                 >
                   <Image
                     source={{ uri }}
@@ -302,10 +311,16 @@ const styles = StyleSheet.create({
     fontSize: typography.timestamp.fontSize,
     lineHeight: typography.timestamp.lineHeight,
   },
+  locRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    flexShrink: 1,
+  },
   locationText: {
     fontSize: typography.timestamp.fontSize,
     lineHeight: typography.timestamp.lineHeight,
-    flexShrink: 1,
+    letterSpacing: typography.timestamp.letterSpacing,
   },
   imageAfterText: {
     marginTop: space.md,
@@ -326,6 +341,7 @@ const styles = StyleSheet.create({
     width: "100%",
     borderRadius: radius.md,
     overflow: "hidden",
+    borderWidth: StyleSheet.hairlineWidth,
   },
   singleImage: {
     width: "100%",
@@ -339,6 +355,7 @@ const styles = StyleSheet.create({
   thumbnailWrap: {
     borderRadius: radius.md,
     overflow: "hidden",
+    borderWidth: StyleSheet.hairlineWidth,
   },
   thumbnail: {
     width: 172,

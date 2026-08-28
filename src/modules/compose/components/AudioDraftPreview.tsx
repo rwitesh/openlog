@@ -17,7 +17,15 @@ export function AudioDraftPreview({ uri, levels, onRemove }: DraftPreviewProps) 
   const { progress, isPlaying, toggle, timeLabel } = usePlayback(uri);
 
   return (
-    <View style={[styles.wrap, { backgroundColor: colors.surfaceMuted }]}>
+    <View
+      style={[
+        styles.wrap,
+        {
+          backgroundColor: colors.surfaceMuted,
+          borderColor: colors.separator,
+        },
+      ]}
+    >
       <Pressable
         onPress={toggle}
         style={({ pressed }) => [
@@ -27,11 +35,7 @@ export function AudioDraftPreview({ uri, levels, onRemove }: DraftPreviewProps) 
         ]}
         accessibilityLabel={isPlaying ? "Pause preview" : "Play preview"}
       >
-        <Feather
-          name={isPlaying ? "pause" : "play"}
-          size={metrics.iconSm}
-          color={colors.background}
-        />
+        <Feather name={isPlaying ? "pause" : "play"} size={metrics.iconSm} color="#FFFFFF" />
       </Pressable>
 
       <View style={styles.waveCol}>
@@ -61,6 +65,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: space.md,
     borderRadius: radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
   },

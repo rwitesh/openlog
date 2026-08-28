@@ -81,14 +81,9 @@ function CaptureGraphic({ colors }: { colors: ThemeColors }) {
         <ThemedText weight="medium" style={[typography.caption, { color: colors.textSecondary }]}>
           Today · 10:42 PM
         </ThemedText>
-        <View
-          style={[
-            styles.locCapsule,
-            { backgroundColor: `${colors.accent}18`, borderColor: `${colors.accent}33` },
-          ]}
-        >
-          <Feather name="map-pin" size={10} color={colors.accent} />
-          <ThemedText weight="medium" style={[styles.locCapsuleText, { color: colors.accent }]}>
+        <View style={styles.quietLocLockup}>
+          <Feather name="map-pin" size={11} color={colors.textTertiary} />
+          <ThemedText style={[typography.caption, { color: colors.textSecondary }]}>
             Tokyo
           </ThemedText>
         </View>
@@ -105,25 +100,31 @@ function CaptureGraphic({ colors }: { colors: ThemeColors }) {
         <View
           style={[
             styles.audioPill,
-            { backgroundColor: `${colors.marker}15`, borderColor: `${colors.marker}35` },
+            { backgroundColor: colors.surface, borderColor: colors.separator },
           ]}
         >
           <View style={[styles.audioMicCircle, { backgroundColor: colors.marker }]}>
-            <Feather name="mic" size={10} color={colors.background} />
+            <Feather name="mic" size={10} color="#FFFFFF" />
           </View>
           <View style={styles.audioWaveWrap}>
             <AudioWaveform seed="showcase-audio" progress={0.52} height={16} />
           </View>
-          <ThemedText style={[typography.caption, { color: colors.marker, fontSize: 11 }]}>
+          <ThemedText style={[typography.caption, { color: colors.textSecondary, fontSize: 11 }]}>
             0:14
           </ThemedText>
         </View>
 
         <View
-          style={[styles.photoPill, { backgroundColor: "#10B98118", borderColor: "#10B98135" }]}
+          style={[
+            styles.photoPill,
+            { backgroundColor: colors.surface, borderColor: colors.separator },
+          ]}
         >
-          <Feather name="image" size={11} color="#10B981" />
-          <ThemedText weight="medium" style={[styles.photoPillText, { color: "#10B981" }]}>
+          <Feather name="image" size={11} color={colors.textSecondary} />
+          <ThemedText
+            weight="medium"
+            style={[styles.photoPillText, { color: colors.textSecondary }]}
+          >
             coffee.jpg
           </ThemedText>
         </View>
@@ -155,10 +156,11 @@ function TimelineGraphic({ colors }: { colors: ThemeColors }) {
             <ThemedText style={[styles.timelineMetaDot, { color: colors.textTertiary }]}>
               ·
             </ThemedText>
-            <View style={[styles.miniLocPill, { backgroundColor: `${colors.accent}18` }]}>
+            <View style={styles.quietLocLockup}>
+              <Feather name="map-pin" size={10} color={colors.textTertiary} />
               <ThemedText
                 weight="medium"
-                style={[styles.miniLocText, { color: colors.accent }]}
+                style={[styles.timelineMetaText, { color: colors.textSecondary }]}
                 numberOfLines={1}
               >
                 Tokyo
@@ -184,10 +186,11 @@ function TimelineGraphic({ colors }: { colors: ThemeColors }) {
             <ThemedText style={[styles.timelineMetaDot, { color: colors.textTertiary }]}>
               ·
             </ThemedText>
-            <View style={[styles.miniLocPill, { backgroundColor: `${colors.marker}20` }]}>
+            <View style={styles.quietLocLockup}>
+              <Feather name="map-pin" size={10} color={colors.textTertiary} />
               <ThemedText
                 weight="medium"
-                style={[styles.miniLocText, { color: colors.marker }]}
+                style={[styles.timelineMetaText, { color: colors.textSecondary }]}
                 numberOfLines={1}
               >
                 Kyoto
@@ -559,18 +562,10 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  locCapsule: {
+  quietLocLockup: {
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
-    paddingHorizontal: space.xs + 2,
-    paddingVertical: 2,
-    borderRadius: radius.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  locCapsuleText: {
-    fontSize: 11,
-    lineHeight: 13,
   },
   cardGraphicBody: {
     flexDirection: "row",
@@ -644,15 +639,6 @@ const styles = StyleSheet.create({
   timelineMetaDot: {
     fontSize: 12,
     lineHeight: 14,
-  },
-  miniLocPill: {
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    borderRadius: 4,
-  },
-  miniLocText: {
-    fontSize: 11,
-    lineHeight: 13,
   },
   privacyGraphicWrap: {
     width: "100%",

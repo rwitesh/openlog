@@ -105,7 +105,7 @@ export function LocationBadge({
         ) : null}
         {state === "ready" ? (
           <View style={chip.iconSlot}>
-            <Feather name="check" size={metrics.iconSm} color={colors.success} />
+            <Feather name="check" size={metrics.iconSm} color={colors.textSecondary} />
           </View>
         ) : null}
         {state === "failed" ? (

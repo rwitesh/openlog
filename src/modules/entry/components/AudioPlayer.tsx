@@ -22,7 +22,15 @@ export function AudioPlayer({ uri }: AudioPlayerProps) {
   };
 
   return (
-    <View style={[styles.wrap, { backgroundColor: colors.surfaceMuted }]}>
+    <View
+      style={[
+        styles.wrap,
+        {
+          backgroundColor: colors.surfaceMuted,
+          borderColor: colors.separator,
+        },
+      ]}
+    >
       <View style={styles.row}>
         <Pressable
           onPress={toggle}
@@ -61,6 +69,7 @@ const styles = StyleSheet.create({
   wrap: {
     marginTop: space.sm,
     borderRadius: radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
   },
