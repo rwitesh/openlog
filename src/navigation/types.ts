@@ -16,5 +16,4 @@ export type RootStackParamList = {
   SettingsAccent: undefined;
   SettingsTypography: undefined;
   SettingsTimeline: undefined;
-  SettingsBackground: undefined;
 };

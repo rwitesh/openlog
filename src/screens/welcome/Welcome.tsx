@@ -14,20 +14,26 @@ import type { RootStackParamList } from "@/navigation/types";
 import { ThemedText } from "@/shared/components/ThemedText";
 import { metrics, press, radius, space, typography, useTheme } from "@/theme";
 import { type Step, useWelcomeAuth } from "./useWelcomeAuth";
+import { WelcomeShowcase } from "./WelcomeShowcase";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Welcome">;
 
 const CTA_BLUE = "#3663E9";
 
-/** Header copy per step; the code step shows the address it was sent to. */
 function headerFor(step: Step, intent: "signup" | "login", email: string, localMode: boolean) {
-  if (localMode)
+  if (localMode) {
     return {
       title: "Welcome",
       subtitle: "What should we call you?",
     };
+  }
   const create = intent === "signup";
   switch (step) {
+    case "showcase":
+      return {
+        title: "Welcome",
+        subtitle: "Your personal life timeline.",
+      };
     case "choose":
       return {
         title: "Welcome",
@@ -57,7 +63,13 @@ export function WelcomeScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
 
   const flow = useWelcomeAuth(navigation, route.params?.auth === true);
-  const { localMode, step, intent, email, code, name, errorMessage, busy, canContinue } = flow;
+  const { localMode, step, intent, email, code, name, errorMessage, busy, canContinue, canGoBack } =
+    flow;
+
+  if (step === "showcase") {
+    return <WelcomeShowcase onFinish={flow.finishShowcase} />;
+  }
+
   const header = headerFor(step, intent, email, localMode);
 
   const ctaLabel =
@@ -80,14 +92,13 @@ export function WelcomeScreen({ navigation, route }: Props) {
         style={[
           styles.screen,
           {
+            backgroundColor: colors.background,
             paddingTop: insets.top + space.md,
             paddingBottom: insets.bottom + space.xl,
           },
         ]}
       >
-        {/* Name is the final gate of an authenticated session: there is no
-            meaningful screen behind it to return to. */}
-        {step !== "choose" && step !== "name" && (
+        {canGoBack && (
           <Pressable
             onPress={flow.goBackStep}
             disabled={busy}
@@ -238,7 +249,6 @@ export function WelcomeScreen({ navigation, route }: Props) {
         </View>
       </View>
 
-      {/* Clerk bot protection mount point (required on sign-up flows). */}
       <View nativeID="clerk-captcha" />
     </KeyboardAvoidingView>
   );

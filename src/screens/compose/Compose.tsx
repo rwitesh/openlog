@@ -13,7 +13,7 @@ import {
 } from "@/modules/compose";
 import { EntryDetailsModal, useEntries, useEntry } from "@/modules/entry";
 import type { RootStackParamList } from "@/navigation/types";
-import { ScreenHeader, ThemedBackground } from "@/shared/components";
+import { ScreenHeader } from "@/shared/components";
 import { Layout, useKeepFocus } from "@/shared/components/Layout";
 import { CalendarPicker, TimePicker } from "@/shared/pickers";
 import { withTimeOfDay } from "@/shared/utils/dates";
@@ -129,8 +129,6 @@ export function ComposeScreen({ navigation, route }: Props) {
 
   return (
     <Layout.Screen style={[styles.screen, { backgroundColor: colors.background }]}>
-      <ThemedBackground />
-
       <ScreenHeader title={title} onBack={() => navigation.goBack()} right={headerRight} />
 
       <DateTimeBadges

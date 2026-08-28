@@ -1,4 +1,4 @@
-import { Easing, type ImageSourcePropType } from "react-native";
+import { Easing } from "react-native";
 
 export interface ThemeColors {
   background: string;
@@ -15,38 +15,19 @@ export interface ThemeColors {
   separator: string;
 }
 
-export interface ThemeBackgroundConfig {
-  readonly imageUri?: string | null;
-  readonly imageSource?: ImageSourcePropType | null;
-  readonly opacity?: number;
-}
-
 export type AccentChoice =
   | "default"
-  | "neutral"
-  | "crimson"
-  | "ruby"
-  | "rose"
-  | "pink"
-  | "coral"
   | "terracotta"
-  | "orange"
   | "amber"
-  | "gold"
-  | "butter"
-  | "lime"
-  | "green"
-  | "forest"
   | "sage"
-  | "teal"
-  | "cyan"
-  | "sky"
-  | "blue"
-  | "denim"
-  | "indigo"
+  | "rose"
   | "violet"
-  | "purple"
-  | "plum";
+  | "teal"
+  | "crimson"
+  | "sky"
+  | "coral"
+  | "gold"
+  | "neutral";
 
 export interface AccentOption {
   id: AccentChoice;
@@ -59,146 +40,118 @@ export interface AccentOption {
 export const ACCENT_OPTIONS: AccentOption[] = [
   {
     id: "default",
-    label: "Default",
-    tagline: "Systematic graphite ink",
-    colorLight: "#6B665C",
-    colorDark: "#CDC8BE",
+    label: "Cobalt",
+    tagline: "Signature electric ultramarine",
+    colorLight: "#2D5BE3",
+    colorDark: "#4D7DF9",
   },
   {
     id: "terracotta",
     label: "Terracotta",
-    tagline: "Earthy baked clay",
-    colorLight: "#A24E38",
-    colorDark: "#DC7A64",
+    tagline: "Earthy baked Mediterranean clay",
+    colorLight: "#BA4A32",
+    colorDark: "#EC745C",
   },
   {
     id: "amber",
-    label: "Amber",
-    tagline: "Warm golden honey",
-    colorLight: "#B47318",
-    colorDark: "#E69F38",
+    label: "Amber Honey",
+    tagline: "Warm golden sunset glow",
+    colorLight: "#B87514",
+    colorDark: "#F5A738",
   },
   {
     id: "sage",
-    label: "Sage",
-    tagline: "Calm botanical pine",
-    colorLight: "#446E52",
-    colorDark: "#76A886",
-  },
-  {
-    id: "denim",
-    label: "Denim",
-    tagline: "Classic indigo wash",
-    colorLight: "#335C8D",
-    colorDark: "#6D9ECC",
-  },
-  {
-    id: "crimson",
-    label: "Crimson",
-    tagline: "Deep vermillion red",
-    colorLight: "#B3261E",
-    colorDark: "#F26C68",
+    label: "Botanical Sage",
+    tagline: "Calm evergreen morning mist",
+    colorLight: "#38734C",
+    colorDark: "#65B880",
   },
   {
     id: "rose",
-    label: "Rose",
-    tagline: "Muted dusty berry",
-    colorLight: "#A63D5C",
-    colorDark: "#DD6F8E",
+    label: "Dusty Rose",
+    tagline: "Intimate poetic berry",
+    colorLight: "#B03A62",
+    colorDark: "#F06E98",
   },
   {
     id: "violet",
-    label: "Violet",
-    tagline: "Quiet meditative purple",
-    colorLight: "#5B32A8",
-    colorDark: "#9C6EF5",
+    label: "Deep Violet",
+    tagline: "Quiet meditative night sky",
+    colorLight: "#6336B8",
+    colorDark: "#A377FA",
   },
   {
     id: "teal",
-    label: "Teal",
-    tagline: "Deep ocean seafoam",
-    colorLight: "#19786A",
-    colorDark: "#4CBAA8",
+    label: "Pacific Teal",
+    tagline: "Deep ocean seafoam clarity",
+    colorLight: "#147D75",
+    colorDark: "#45C4B8",
   },
   {
-    id: "forest",
-    label: "Forest",
-    tagline: "Rich evergreen foliage",
-    colorLight: "#1B5E20",
-    colorDark: "#43A047",
+    id: "crimson",
+    label: "Crimson Ink",
+    tagline: "Bold vermillion wax seal",
+    colorLight: "#B82424",
+    colorDark: "#F55F5F",
   },
   {
     id: "sky",
-    label: "Sky",
-    tagline: "Morning sapphire air",
-    colorLight: "#0288D1",
-    colorDark: "#4FC3F7",
+    label: "Morning Sky",
+    tagline: "Clear alpine sapphire breeze",
+    colorLight: "#0284C7",
+    colorDark: "#38BDF8",
   },
   {
     id: "coral",
-    label: "Coral",
-    tagline: "Warm sunlit apricot",
-    colorLight: "#C04B40",
-    colorDark: "#EA796F",
-  },
-  {
-    id: "plum",
-    label: "Plum",
-    tagline: "Velvet dark orchid",
-    colorLight: "#7E3576",
-    colorDark: "#C76BC0",
-  },
-  {
-    id: "neutral",
-    label: "Slate",
-    tagline: "Balanced neutral slate",
-    colorLight: "#64748B",
-    colorDark: "#94A3B8",
+    label: "Sunlit Coral",
+    tagline: "Warm luminous apricot",
+    colorLight: "#C84E3C",
+    colorDark: "#FB7C6D",
   },
   {
     id: "gold",
-    label: "Gold",
-    tagline: "Refined metallic amber",
-    colorLight: "#A17A10",
-    colorDark: "#E0B538",
+    label: "Imperial Gold",
+    tagline: "Refined metallic shimmer",
+    colorLight: "#A1760E",
+    colorDark: "#EBB634",
   },
   {
-    id: "cyan",
-    label: "Cyan",
-    tagline: "Vibrant icy aquamarine",
-    colorLight: "#157A8C",
-    colorDark: "#4EC0D6",
+    id: "neutral",
+    label: "Graphite Slate",
+    tagline: "Balanced architectural neutrality",
+    colorLight: "#525866",
+    colorDark: "#9CA3AF",
   },
 ];
 
 export const DEFAULT_LIGHT_THEME: ThemeColors = {
-  background: "#FAF8F5",
+  background: "#FAF7F2",
   surface: "#FFFFFF",
-  surfaceMuted: "#F2EFE9",
-  text: "#181614",
-  textSecondary: "#6E675F",
-  textTertiary: "#9E968C",
-  line: "#C4BBAE",
-  marker: "#181614",
-  accent: "#7C5828",
-  destructive: "#B82C2C",
+  surfaceMuted: "#F3EDE2",
+  text: "#1B1816",
+  textSecondary: "#686054",
+  textTertiary: "#988E80",
+  line: "#D8D0C2",
+  marker: "#2D5BE3",
+  accent: "#2D5BE3",
+  destructive: "#D32F2F",
   success: "#2E7D4E",
-  separator: "#E8E2D6",
+  separator: "#E6DFC8",
 };
 
 export const DEFAULT_DARK_THEME: ThemeColors = {
-  background: "#121215",
-  surface: "#191A1E",
-  surfaceMuted: "#23242A",
-  text: "#F2F2F5",
-  textSecondary: "#9697A3",
-  textTertiary: "#666774",
-  line: "#383A48",
-  marker: "#F2F2F5",
-  accent: "#E2B376",
-  destructive: "#E06B6B",
-  success: "#52C47D",
-  separator: "#222329",
+  background: "#141312",
+  surface: "#1C1A18",
+  surfaceMuted: "#272421",
+  text: "#F5F1EB",
+  textSecondary: "#A49C90",
+  textTertiary: "#6E675C",
+  line: "#38332C",
+  marker: "#4D7DF9",
+  accent: "#4D7DF9",
+  destructive: "#E57373",
+  success: "#4CAF50",
+  separator: "#2A2621",
 };
 
 export const lightColors: ThemeColors = DEFAULT_LIGHT_THEME;
@@ -210,19 +163,14 @@ export function getThemeColors(
 ): ThemeColors {
   const base = mode === "dark" ? DEFAULT_DARK_THEME : DEFAULT_LIGHT_THEME;
 
-  if (accent !== "default") {
-    const option = ACCENT_OPTIONS.find((opt) => opt.id === accent);
-    if (option) {
-      const chosenColor = mode === "dark" ? option.colorDark : option.colorLight;
-      return {
-        ...base,
-        accent: chosenColor,
-        marker: chosenColor,
-      };
-    }
-  }
+  const option = ACCENT_OPTIONS.find((opt) => opt.id === accent) ?? ACCENT_OPTIONS[0];
+  const chosenColor = mode === "dark" ? option.colorDark : option.colorLight;
 
-  return base;
+  return {
+    ...base,
+    accent: chosenColor,
+    marker: chosenColor,
+  };
 }
 
 export const FONT = {
