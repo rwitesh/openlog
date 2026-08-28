@@ -11,9 +11,11 @@ import { space, useTheme } from "@/theme";
 export function SettingsEditorScreen({
   preview,
   children,
+  scrollable = true,
 }: {
   preview?: ReactNode;
   children: ReactNode;
+  scrollable?: boolean;
 }) {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
@@ -22,17 +24,30 @@ export function SettingsEditorScreen({
     <View style={[styles.screen, { backgroundColor: theme.colors.background }]}>
       {preview ? <View style={styles.preview}>{preview}</View> : null}
 
-      <ScrollView
-        contentContainerStyle={{
-          paddingHorizontal: space.xl,
-          paddingTop: space.xs,
-          paddingBottom: insets.bottom + space.xxxl,
-        }}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        {children}
-      </ScrollView>
+      {scrollable ? (
+        <ScrollView
+          contentContainerStyle={{
+            paddingHorizontal: space.xl,
+            paddingTop: space.xs,
+            paddingBottom: insets.bottom + space.xxxl,
+          }}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {children}
+        </ScrollView>
+      ) : (
+        <View
+          style={[
+            styles.body,
+            {
+              paddingBottom: insets.bottom + space.md,
+            },
+          ]}
+        >
+          {children}
+        </View>
+      )}
     </View>
   );
 }
@@ -44,6 +59,11 @@ const styles = StyleSheet.create({
   preview: {
     paddingHorizontal: space.xl,
     paddingTop: space.md,
-    paddingBottom: space.md,
+    paddingBottom: space.sm,
+  },
+  body: {
+    flex: 1,
+    paddingHorizontal: space.xl,
+    paddingTop: 0,
   },
 });
