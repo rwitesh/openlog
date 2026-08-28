@@ -8,7 +8,7 @@ import { AddEntryFab, FAB_CLEARANCE, TimelineFeed, TimelineHeader } from "@/modu
 import type { RootStackParamList } from "@/navigation/types";
 import { CalendarPicker } from "@/shared/pickers";
 import { startOfDay } from "@/shared/utils/dates";
-import { space, useTheme } from "@/theme";
+import { useTheme } from "@/theme";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "Timeline">;
 
@@ -48,7 +48,6 @@ export function TimelineScreen({ navigation }: { navigation: Nav }) {
       <TimelineFeed
         entries={entries}
         showDates
-        paddingTop={space.sm}
         bottomInset={FAB_CLEARANCE + insets.bottom}
         emptyTitle="A quiet timeline"
         emptyBody="Tap + to write, or open the calendar."
