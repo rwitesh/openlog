@@ -1,16 +1,6 @@
 import { Feather } from "@expo/vector-icons";
-import Slider from "@react-native-community/slider";
-import * as ImagePicker from "expo-image-picker";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  Pressable,
-  StyleSheet,
-  TextInput,
-  View,
-} from "react-native";
+import { useCallback, useMemo, useState } from "react";
+import { ActivityIndicator, Alert, Pressable, StyleSheet, TextInput, View } from "react-native";
 import {
   LiveThemePreview,
   SegmentedRow,
@@ -19,15 +9,14 @@ import {
 } from "@/modules/settings";
 import { fontManager, getFonts } from "@/services/fonts";
 import { ThemedText } from "@/shared/components/ThemedText";
-import { APP_NAME } from "@/shared/constants";
 import {
   ACCENT_OPTIONS,
-  BACKGROUND_PRESETS,
+  DEFAULT_DARK_THEME,
   DEFAULT_FONT_FAMILY,
+  DEFAULT_LIGHT_THEME,
   type FontName,
   press,
   radius,
-  resolveBackgroundSource,
   space,
   type ThemeMode,
   type TimelineDensity,
@@ -43,32 +32,36 @@ interface ThemeOptionItem {
   swatchBg: string;
   swatchText: string;
   swatchSurface: string;
+  swatchTextSecondary: string;
 }
 
 const THEME_OPTIONS: ThemeOptionItem[] = [
   {
     id: "light",
     title: "Light",
-    subtitle: "Gallery White",
-    swatchBg: "#FAF8F5",
-    swatchText: "#181614",
-    swatchSurface: "#FFFFFF",
+    subtitle: "Washi Linen",
+    swatchBg: DEFAULT_LIGHT_THEME.background,
+    swatchText: DEFAULT_LIGHT_THEME.text,
+    swatchSurface: DEFAULT_LIGHT_THEME.surface,
+    swatchTextSecondary: DEFAULT_LIGHT_THEME.textSecondary,
   },
   {
     id: "dark",
     title: "Dark",
-    subtitle: "Charcoal Black",
-    swatchBg: "#121215",
-    swatchText: "#F2F2F5",
-    swatchSurface: "#191A1E",
+    subtitle: "Nocturne Warm",
+    swatchBg: DEFAULT_DARK_THEME.background,
+    swatchText: DEFAULT_DARK_THEME.text,
+    swatchSurface: DEFAULT_DARK_THEME.surface,
+    swatchTextSecondary: DEFAULT_DARK_THEME.textSecondary,
   },
   {
     id: "system",
     title: "System",
     subtitle: "Match Device",
     swatchBg: "transparent",
-    swatchText: "#181614",
+    swatchText: DEFAULT_LIGHT_THEME.text,
     swatchSurface: "transparent",
+    swatchTextSecondary: DEFAULT_LIGHT_THEME.textSecondary,
   },
 ];
 
@@ -106,7 +99,11 @@ export function ThemeSettingsScreen() {
                   themeStyles.swatchBox,
                   {
                     backgroundColor:
-                      opt.id === "system" ? (isDark ? "#121215" : "#FAF8F5") : opt.swatchBg,
+                      opt.id === "system"
+                        ? isDark
+                          ? DEFAULT_DARK_THEME.background
+                          : DEFAULT_LIGHT_THEME.background
+                        : opt.swatchBg,
                     borderColor: colors.separator,
                   },
                 ]}
@@ -116,7 +113,11 @@ export function ThemeSettingsScreen() {
                     themeStyles.miniCard,
                     {
                       backgroundColor:
-                        opt.id === "system" ? (isDark ? "#191A1E" : "#FFFFFF") : opt.swatchSurface,
+                        opt.id === "system"
+                          ? isDark
+                            ? DEFAULT_DARK_THEME.surface
+                            : DEFAULT_LIGHT_THEME.surface
+                          : opt.swatchSurface,
                       borderColor: colors.separator,
                     },
                   ]}
@@ -126,7 +127,11 @@ export function ThemeSettingsScreen() {
                       themeStyles.miniLinePrimary,
                       {
                         backgroundColor:
-                          opt.id === "system" ? (isDark ? "#F2F2F5" : "#181614") : opt.swatchText,
+                          opt.id === "system"
+                            ? isDark
+                              ? DEFAULT_DARK_THEME.text
+                              : DEFAULT_LIGHT_THEME.text
+                            : opt.swatchText,
                       },
                     ]}
                   />
@@ -137,11 +142,9 @@ export function ThemeSettingsScreen() {
                         backgroundColor:
                           opt.id === "system"
                             ? isDark
-                              ? "#9697A3"
-                              : "#6E675F"
-                            : opt.id === "dark"
-                              ? "#9697A3"
-                              : "#6E675F",
+                              ? DEFAULT_DARK_THEME.textSecondary
+                              : DEFAULT_LIGHT_THEME.textSecondary
+                            : opt.swatchTextSecondary,
                       },
                     ]}
                   />
@@ -166,9 +169,7 @@ export function ThemeSettingsScreen() {
                   },
                 ]}
               >
-                {isSelected ? (
-                  <Feather name="check" size={11} color={isDark ? "#121215" : "#FAF8F5"} />
-                ) : null}
+                {isSelected ? <Feather name="check" size={11} color={colors.background} /> : null}
               </View>
             </Pressable>
           );
@@ -284,9 +285,7 @@ export function AccentSettingsScreen() {
                     },
                   ]}
                 >
-                  {isSelected ? (
-                    <Feather name="check" size={13} color={isDark ? "#121215" : "#FAF8F5"} />
-                  ) : null}
+                  {isSelected ? <Feather name="check" size={13} color="#FFFFFF" /> : null}
                 </View>
 
                 <ThemedText
@@ -350,7 +349,7 @@ const accentStyles = StyleSheet.create({
 });
 
 export function TypographySettingsScreen() {
-  const { theme, isDark } = useTheme();
+  const { theme } = useTheme();
   const { colors } = theme;
   const { preferences, setAppearance } = usePreferences();
   const { appearance } = preferences;
@@ -502,7 +501,7 @@ export function TypographySettingsScreen() {
 
               {isSelected ? (
                 <View style={[typoStyles.checkBadge, { backgroundColor: colors.accent }]}>
-                  <Feather name="check" size={11} color={isDark ? "#121215" : "#FAF8F5"} />
+                  <Feather name="check" size={11} color={colors.background} />
                 </View>
               ) : null}
             </View>
@@ -791,469 +790,5 @@ const timelineStyles = StyleSheet.create({
   },
   divider: {
     height: StyleSheet.hairlineWidth,
-  },
-});
-
-export { BACKGROUND_PRESETS, type BackgroundPreset } from "@/theme";
-
-const OPACITY_PRESETS = [
-  { label: "15%", value: 0.15 },
-  { label: "35%", value: 0.35 },
-  { label: "55%", value: 0.55 },
-  { label: "75%", value: 0.75 },
-];
-
-export function BackgroundSettingsScreen() {
-  const { theme, isDark } = useTheme();
-  const { colors } = theme;
-  const { preferences, setAppearance } = usePreferences();
-  const [isLoadingImage, setIsLoadingImage] = useState(false);
-
-  const currentUri = preferences.appearance.backgroundImageUri;
-  const currentOpacity = preferences.appearance.backgroundImageOpacity ?? 0.35;
-  const [liveOpacity, setLiveOpacity] = useState(currentOpacity);
-
-  useEffect(() => {
-    setLiveOpacity(currentOpacity);
-  }, [currentOpacity]);
-
-  const isPresetSelected = Boolean(
-    currentUri && BACKGROUND_PRESETS.some((p) => p.id === currentUri)
-  );
-  const isCustomSelected = Boolean(currentUri && !isPresetSelected);
-  const isNoneSelected = !currentUri;
-
-  const handlePickFromGallery = useCallback(async () => {
-    try {
-      setIsLoadingImage(true);
-      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-      if (!permissionResult.granted) {
-        Alert.alert(
-          "Permission Required",
-          `Please grant photo library access to choose a background image for ${APP_NAME}.`
-        );
-        return;
-      }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ["images"],
-        allowsEditing: false,
-        quality: 0.9,
-      });
-
-      if (!result.canceled && result.assets?.[0]?.uri) {
-        setAppearance({
-          backgroundImageUri: result.assets[0].uri,
-        });
-      }
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : "Failed to select image.";
-      Alert.alert("Error Selecting Image", msg);
-    } finally {
-      setIsLoadingImage(false);
-    }
-  }, [setAppearance]);
-
-  const handleClearBackground = useCallback(() => {
-    setAppearance({ backgroundImageUri: null });
-  }, [setAppearance]);
-
-  const handleSelectPreset = useCallback(
-    (id: string) => {
-      setAppearance({ backgroundImageUri: id });
-    },
-    [setAppearance]
-  );
-
-  const handleSliderComplete = useCallback(
-    (val: number) => {
-      const rounded = Math.round(val * 100) / 100;
-      setLiveOpacity(rounded);
-      setAppearance({ backgroundImageOpacity: rounded });
-    },
-    [setAppearance]
-  );
-
-  const handlePresetOpacity = useCallback(
-    (value: number) => {
-      setLiveOpacity(value);
-      setAppearance({ backgroundImageOpacity: value });
-    },
-    [setAppearance]
-  );
-
-  const customSource = isCustomSelected && currentUri ? resolveBackgroundSource(currentUri) : null;
-
-  return (
-    <SettingsEditorScreen preview={<LiveThemePreview />}>
-      <View style={bgStyles.container}>
-        <View style={bgStyles.topGrid}>
-          <Pressable
-            onPress={handleClearBackground}
-            style={({ pressed }) => [
-              bgStyles.topCard,
-              {
-                backgroundColor: isNoneSelected ? colors.surface : colors.surfaceMuted,
-                borderColor: isNoneSelected ? colors.accent : colors.separator,
-              },
-              isNoneSelected && bgStyles.cardSelected,
-              pressed && press,
-            ]}
-            accessibilityRole="button"
-            accessibilityState={{ selected: isNoneSelected }}
-            accessibilityLabel="None, pure theme background"
-          >
-            <View
-              style={[
-                bgStyles.noneIconWrap,
-                {
-                  backgroundColor: colors.background,
-                  borderColor: colors.separator,
-                },
-              ]}
-            >
-              <Feather name="slash" size={18} color={colors.textSecondary} />
-            </View>
-
-            <View style={bgStyles.topCardText}>
-              <ThemedText
-                weight={isNoneSelected ? "semibold" : "medium"}
-                style={[bgStyles.topCardTitle, { color: colors.text }]}
-              >
-                None
-              </ThemedText>
-              <ThemedText style={[bgStyles.topCardSubtitle, { color: colors.textSecondary }]}>
-                Default
-              </ThemedText>
-            </View>
-
-            {isNoneSelected ? (
-              <View style={[bgStyles.checkBadge, { backgroundColor: colors.accent }]}>
-                <Feather name="check" size={10} color={isDark ? "#121215" : "#FAF8F5"} />
-              </View>
-            ) : null}
-          </Pressable>
-
-          <Pressable
-            onPress={handlePickFromGallery}
-            disabled={isLoadingImage}
-            style={({ pressed }) => [
-              bgStyles.topCard,
-              {
-                backgroundColor: isCustomSelected ? colors.surface : colors.surfaceMuted,
-                borderColor: isCustomSelected ? colors.accent : colors.separator,
-              },
-              isCustomSelected && bgStyles.cardSelected,
-              pressed && press,
-            ]}
-            accessibilityRole="button"
-            accessibilityState={{ selected: isCustomSelected }}
-            accessibilityLabel="Custom photo from gallery"
-          >
-            {customSource ? (
-              <Image source={customSource} style={bgStyles.customThumbnail} resizeMode="cover" />
-            ) : (
-              <View
-                style={[
-                  bgStyles.noneIconWrap,
-                  {
-                    backgroundColor: colors.background,
-                    borderColor: colors.separator,
-                  },
-                ]}
-              >
-                <Feather name="plus" size={18} color={colors.accent} />
-              </View>
-            )}
-
-            <View style={bgStyles.topCardText}>
-              <ThemedText
-                weight={isCustomSelected ? "semibold" : "medium"}
-                style={[bgStyles.topCardTitle, { color: colors.text }]}
-              >
-                {isLoadingImage ? "Loading..." : "Custom"}
-              </ThemedText>
-              <ThemedText style={[bgStyles.topCardSubtitle, { color: colors.textSecondary }]}>
-                Photo
-              </ThemedText>
-            </View>
-
-            {isCustomSelected ? (
-              <View style={[bgStyles.checkBadge, { backgroundColor: colors.accent }]}>
-                <Feather name="check" size={10} color={isDark ? "#121215" : "#FAF8F5"} />
-              </View>
-            ) : null}
-          </Pressable>
-        </View>
-
-        {currentUri ? (
-          <View
-            style={[
-              bgStyles.opacityContainer,
-              {
-                backgroundColor: colors.surfaceMuted,
-                borderColor: colors.separator,
-              },
-            ]}
-          >
-            <View style={bgStyles.opacityHeader}>
-              <View style={bgStyles.opacityTitleRow}>
-                <Feather name="sun" size={14} color={colors.textSecondary} />
-                <ThemedText
-                  weight="medium"
-                  style={[bgStyles.sectionHeading, { color: colors.textSecondary }]}
-                >
-                  OPACITY
-                </ThemedText>
-              </View>
-              <View
-                style={[
-                  bgStyles.opacityBadge,
-                  { backgroundColor: colors.surface, borderColor: colors.separator },
-                ]}
-              >
-                <ThemedText
-                  weight="semibold"
-                  style={[bgStyles.opacityValueText, { color: colors.text }]}
-                >
-                  {Math.round(liveOpacity * 100)}%
-                </ThemedText>
-              </View>
-            </View>
-
-            <Slider
-              style={bgStyles.slider}
-              minimumValue={0.1}
-              maximumValue={0.95}
-              step={0.01}
-              value={liveOpacity}
-              onValueChange={setLiveOpacity}
-              onSlidingComplete={handleSliderComplete}
-              minimumTrackTintColor={colors.accent}
-              maximumTrackTintColor={colors.separator}
-              thumbTintColor={colors.accent}
-              accessibilityLabel="Background image opacity"
-              accessibilityRole="adjustable"
-            />
-
-            <View style={bgStyles.presetChipsRow}>
-              {OPACITY_PRESETS.map((p) => {
-                const isActive = Math.abs(currentOpacity - p.value) < 0.05;
-                return (
-                  <Pressable
-                    key={p.label}
-                    onPress={() => handlePresetOpacity(p.value)}
-                    style={({ pressed }) => [
-                      bgStyles.chip,
-                      {
-                        backgroundColor: isActive ? colors.surface : "transparent",
-                        borderColor: isActive ? colors.accent : colors.separator,
-                      },
-                      pressed && press,
-                    ]}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: isActive }}
-                    accessibilityLabel={`Opacity ${p.label}`}
-                  >
-                    <ThemedText
-                      weight={isActive ? "semibold" : "regular"}
-                      style={[
-                        bgStyles.chipText,
-                        { color: isActive ? colors.text : colors.textSecondary },
-                      ]}
-                    >
-                      {p.label}
-                    </ThemedText>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-        ) : null}
-
-        <ThemedText
-          weight="medium"
-          style={[bgStyles.sectionHeading, { color: colors.textSecondary, marginTop: space.xs }]}
-        >
-          PRESETS
-        </ThemedText>
-
-        <View style={bgStyles.presetsGrid}>
-          {BACKGROUND_PRESETS.map((item, index) => {
-            const isSelected = currentUri === item.id;
-
-            return (
-              <Pressable
-                key={item.id}
-                onPress={() => handleSelectPreset(item.id)}
-                style={({ pressed }) => [
-                  bgStyles.presetGridCard,
-                  {
-                    backgroundColor: colors.surfaceMuted,
-                    borderColor: isSelected ? colors.accent : colors.separator,
-                  },
-                  isSelected && bgStyles.cardSelected,
-                  pressed && press,
-                ]}
-                accessibilityRole="button"
-                accessibilityState={{ selected: isSelected }}
-                accessibilityLabel={`Background preset ${index + 1}`}
-              >
-                <Image source={item.source} style={bgStyles.presetImage} resizeMode="cover" />
-
-                {isSelected ? (
-                  <View style={[bgStyles.checkBadgeTop, { backgroundColor: colors.accent }]}>
-                    <Feather name="check" size={11} color={isDark ? "#121215" : "#FAF8F5"} />
-                  </View>
-                ) : null}
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
-    </SettingsEditorScreen>
-  );
-}
-
-const bgStyles = StyleSheet.create({
-  container: {
-    gap: space.md - 2,
-  },
-  topGrid: {
-    flexDirection: "row",
-    gap: space.sm,
-  },
-  topCard: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    padding: space.sm + 2,
-    borderRadius: radius.md,
-    borderWidth: 1.5,
-    gap: space.sm,
-    position: "relative",
-  },
-  cardSelected: {
-    borderWidth: 2,
-  },
-  noneIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: radius.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  customThumbnail: {
-    width: 38,
-    height: 38,
-    borderRadius: radius.sm,
-    backgroundColor: "#ccc",
-  },
-  topCardText: {
-    flex: 1,
-    gap: 1,
-  },
-  topCardTitle: {
-    fontSize: 14,
-    lineHeight: 18,
-  },
-  topCardSubtitle: {
-    fontSize: 11,
-    lineHeight: 14,
-  },
-  checkBadge: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  checkBadgeTop: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.25,
-    shadowRadius: 2,
-    elevation: 3,
-  },
-  sectionHeading: {
-    fontSize: 11,
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-  },
-  opacityContainer: {
-    padding: space.md,
-    borderRadius: radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    gap: space.sm + 2,
-  },
-  opacityHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  opacityTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: space.xs + 2,
-  },
-  opacityBadge: {
-    paddingHorizontal: space.sm,
-    paddingVertical: 2,
-    borderRadius: radius.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  opacityValueText: {
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  slider: {
-    width: "100%",
-    height: 36,
-  },
-  presetChipsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: space.xs,
-  },
-  chip: {
-    flex: 1,
-    paddingVertical: 4,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radius.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  chipText: {
-    fontSize: 11,
-    lineHeight: 14,
-  },
-  presetsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    rowGap: space.md,
-  },
-  presetGridCard: {
-    width: "48%",
-    aspectRatio: 9 / 14,
-    borderRadius: radius.md,
-    borderWidth: 1.5,
-    overflow: "hidden",
-    position: "relative",
-  },
-  presetImage: {
-    width: "100%",
-    height: "100%",
   },
 });

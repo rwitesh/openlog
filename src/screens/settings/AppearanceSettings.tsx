@@ -1,6 +1,5 @@
-import { Feather } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { Image, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import {
   confirmDestructive,
   SettingsGroup,
@@ -10,13 +9,7 @@ import {
 import type { RootStackParamList } from "@/navigation/types";
 import { ThemedText } from "@/shared/components/ThemedText";
 import { APP_NAME } from "@/shared/constants";
-import {
-  ACCENT_OPTIONS,
-  DEFAULT_FONT_FAMILY,
-  resolveBackgroundSource,
-  usePreferences,
-  useTheme,
-} from "@/theme";
+import { ACCENT_OPTIONS, DEFAULT_FONT_FAMILY, usePreferences, useTheme } from "@/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "SettingsAppearance">;
 
@@ -33,27 +26,21 @@ export function AppearanceSettingsScreen({ navigation }: Props) {
   const activeFont = appearance.fontFamily || DEFAULT_FONT_FAMILY;
   const currentAccent = ACCENT_OPTIONS.find((a) => a.id === appearance.accent) ?? ACCENT_OPTIONS[0];
   const accentColor = isDark ? currentAccent.colorDark : currentAccent.colorLight;
-  const resolvedBgSource = resolveBackgroundSource(appearance.backgroundImageUri);
 
   const themeSummary =
     appearance.mode === "light"
-      ? "Light · Gallery White"
+      ? "Light · Washi Linen"
       : appearance.mode === "dark"
-        ? "Dark · Charcoal Black"
+        ? "Dark · Nocturne"
         : "System";
   const timelineSummary = `${
     entry.timelineStyle.charAt(0).toUpperCase() + entry.timelineStyle.slice(1)
   } · ${entry.timelineDensity === "comfortable" ? "Comfortable" : "Compact"}`;
-  const backgroundSummary = appearance.backgroundImageUri
-    ? `${appearance.backgroundImageUri.startsWith("file://") ? "Custom" : "Wallpaper"} · ${Math.round(
-        (appearance.backgroundImageOpacity ?? 0.35) * 100
-      )}%`
-    : "None";
 
   const handleReset = () =>
     confirmDestructive(
       "Reset Appearance?",
-      `This will restore ${APP_NAME}'s default theme, background, accent, and typography back to their canonical defaults.`,
+      `This will restore ${APP_NAME}'s default theme, accent, and typography back to their canonical defaults.`,
       "Reset to Defaults",
       async () => resetAppearanceDefaults()
     );
@@ -108,29 +95,6 @@ export function AppearanceSettingsScreen({ navigation }: Props) {
           subtitle={timelineSummary}
           onPress={() => navigation.navigate("SettingsTimeline")}
         />
-
-        <SettingsRow
-          icon="image"
-          title="Background"
-          subtitle={backgroundSummary}
-          onPress={() => navigation.navigate("SettingsBackground")}
-          badge={
-            resolvedBgSource ? (
-              <View style={[styles.thumbnailWrap, { borderColor: colors.separator }]}>
-                <Image source={resolvedBgSource} style={styles.thumbnailImage} resizeMode="cover" />
-              </View>
-            ) : (
-              <View
-                style={[
-                  styles.addIconWrap,
-                  { backgroundColor: colors.surface, borderColor: colors.separator },
-                ]}
-              >
-                <Feather name="plus" size={13} color={colors.textSecondary} />
-              </View>
-            )
-          }
-        />
       </SettingsGroup>
 
       <SettingsGroup>
@@ -164,24 +128,5 @@ const styles = StyleSheet.create({
   glyphText: {
     fontSize: 12,
     lineHeight: 16,
-  },
-  thumbnailWrap: {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
-    overflow: "hidden",
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  thumbnailImage: {
-    width: "100%",
-    height: "100%",
-  },
-  addIconWrap: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: StyleSheet.hairlineWidth,
   },
 });

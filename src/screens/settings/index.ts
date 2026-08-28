@@ -2,7 +2,6 @@ export { AboutSettingsScreen as SettingsAbout } from "./AboutSettings";
 export { AccessibilitySettingsScreen as SettingsAccessibility } from "./AccessibilitySettings";
 export {
   AccentSettingsScreen as SettingsAccent,
-  BackgroundSettingsScreen as SettingsBackground,
   ThemeSettingsScreen as SettingsTheme,
   TimelineSettingsScreen as SettingsTimeline,
   TypographySettingsScreen as SettingsTypography,

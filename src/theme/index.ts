@@ -6,7 +6,6 @@
  *   context:      Theme + Preferences provider, resolver, and hooks
  */
 
-export * from "./backgrounds";
 export * from "./context";
 export * from "./preferences";
 export * from "./tokens";

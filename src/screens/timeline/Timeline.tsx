@@ -6,7 +6,6 @@ import { useTimelineEntries } from "@/modules/entry";
 import { TimelineSearchLayer } from "@/modules/search";
 import { AddEntryFab, FAB_CLEARANCE, TimelineFeed, TimelineHeader } from "@/modules/timeline";
 import type { RootStackParamList } from "@/navigation/types";
-import { ThemedBackground } from "@/shared/components";
 import { CalendarPicker } from "@/shared/pickers";
 import { startOfDay } from "@/shared/utils/dates";
 import { space, useTheme } from "@/theme";
@@ -40,7 +39,6 @@ export function TimelineScreen({ navigation }: { navigation: Nav }) {
 
   return (
     <View style={[styles.flex, { backgroundColor: colors.background }]}>
-      <ThemedBackground />
       <TimelineHeader
         onOpenSearch={() => setSearchActive(true)}
         onOpenCalendar={() => setDayPickerOpen(true)}

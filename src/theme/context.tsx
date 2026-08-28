@@ -3,7 +3,6 @@ import { createContext, type ReactNode, useCallback, useContext, useMemo, useSta
 import { type ColorSchemeName, useColorScheme } from "react-native";
 
 import { setSettingsBatch } from "@/services/db/settings";
-import { resolveBackgroundSource } from "./backgrounds";
 import {
   ACCESSIBILITY_KEYS,
   type AccessibilityPreferences,
@@ -35,7 +34,6 @@ import {
   type SpacingScale,
   space,
   type TextSize,
-  type ThemeBackgroundConfig,
   type ThemeColors,
   type TypographyStyles,
 } from "./tokens";
@@ -59,7 +57,6 @@ export interface Theme {
   readonly spacing: SpacingScale;
   readonly radius: RadiusScale;
   readonly motion: MotionTokens;
-  readonly backgroundConfig?: ThemeBackgroundConfig;
 }
 
 export interface PreferencesContextValue {
@@ -112,16 +109,6 @@ export function resolveTheme(preferences: UserPreferences, systemScheme: SystemS
     spacing: space,
     radius,
     motion: createMotion(accessibility.motionLevel),
-    backgroundConfig: appearance.backgroundImageUri
-      ? {
-          imageUri: appearance.backgroundImageUri,
-          imageSource: resolveBackgroundSource(appearance.backgroundImageUri),
-          opacity:
-            typeof appearance.backgroundImageOpacity === "number"
-              ? appearance.backgroundImageOpacity
-              : 0.35,
-        }
-      : undefined,
   };
 }
 

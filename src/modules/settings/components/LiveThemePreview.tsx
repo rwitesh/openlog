@@ -1,5 +1,5 @@
 import { Feather } from "@expo/vector-icons";
-import { Image, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { TimelineRail } from "@/modules/timeline/components/TimelineRail";
 import { ThemedText } from "@/shared/components/ThemedText";
 import { radius, space, useEntryPreferences, useTheme } from "@/theme";
@@ -10,17 +10,15 @@ const MOCK_DAY_TS = 1715767200000;
 /**
  * Live timeline preview — two mock entries rendered through the REAL
  * TimelineRail, so every appearance preference (theme colors, timeline
- * style & density, timestamp/location details, typography, background)
+ * style & density, timestamp/location details, typography)
  * is reflected instantly while editing. Fixed height keeps the layout
  * stable when density toggles change content height.
  */
 export function LiveThemePreview() {
   const { theme } = useTheme();
   const { showTimestamp, showLocation, timelineDensity } = useEntryPreferences();
-  const { colors, typography, backgroundConfig } = theme;
+  const { colors, typography } = theme;
   const isCompact = timelineDensity === "compact";
-
-  const hasBackground = Boolean(backgroundConfig?.imageUri);
 
   return (
     <View
@@ -30,15 +28,6 @@ export function LiveThemePreview() {
       ]}
       accessibilityLabel="Live preview of timeline appearance"
     >
-      {/* Background image layer — mirrors App.tsx treatment exactly. */}
-      {hasBackground && backgroundConfig?.imageSource ? (
-        <Image
-          source={backgroundConfig.imageSource}
-          style={[StyleSheet.absoluteFill, { opacity: backgroundConfig.opacity ?? 0.35 }]}
-          resizeMode="cover"
-        />
-      ) : null}
-
       <View style={styles.feedPreview}>
         {/* Entry 1: opens the day with the date marker. */}
         <TimelineRail dayTs={MOCK_DAY_TS} showDate isFirst={false} isLast={false}>

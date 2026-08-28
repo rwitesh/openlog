@@ -21,7 +21,6 @@ import {
   SettingsAccent,
   SettingsAccessibility,
   SettingsAppearance,
-  SettingsBackground,
   SettingsPrivacy,
   SettingsProfile,
   SettingsTheme,
@@ -163,11 +162,6 @@ function AppNavigator({
         name="SettingsTimeline"
         component={SettingsTimeline}
         options={{ title: "Timeline & Editor", headerShadowVisible: false }}
-      />
-      <Stack.Screen
-        name="SettingsBackground"
-        component={SettingsBackground}
-        options={{ title: "Background", headerShadowVisible: false }}
       />
       <Stack.Screen
         name="SettingsAccessibility"

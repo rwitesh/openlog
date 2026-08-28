@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTimelineEntries } from "@/modules/entry";
 import { AddEntryFab, FAB_CLEARANCE, TimelineFeed } from "@/modules/timeline";
 import type { RootStackParamList } from "@/navigation/types";
-import { ScreenHeader, ThemedBackground } from "@/shared/components";
+import { ScreenHeader } from "@/shared/components";
 import { formatHeaderDate, isSameDay } from "@/shared/utils/dates";
 import { space, useTheme } from "@/theme";
 
@@ -21,8 +21,6 @@ export function DayTimelineScreen({ route, navigation }: Props) {
 
   return (
     <View style={[styles.flex, { backgroundColor: colors.background }]}>
-      <ThemedBackground />
-
       <ScreenHeader title={formatHeaderDate(dayTs)} onBack={() => navigation.goBack()} />
 
       <TimelineFeed

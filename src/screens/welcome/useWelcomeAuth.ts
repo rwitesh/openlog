@@ -18,7 +18,7 @@ import { IS_EXPO_GO, logDevWarning, reportError } from "@/shared/utils";
 type Navigation = NativeStackNavigationProp<RootStackParamList, "Welcome">;
 
 type Intent = "signup" | "login";
-export type Step = "choose" | "email" | "code" | "name";
+export type Step = "showcase" | "choose" | "email" | "code" | "name";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const GENERIC_ERROR = "Something went wrong. Please try again.";
@@ -98,7 +98,7 @@ export function useWelcomeAuth(navigation: Navigation, authOnly = false) {
   const { signUp, fetchStatus: signUpFetchStatus } = useSignUp();
   const { signIn, fetchStatus: signInFetchStatus } = useSignIn();
 
-  const [step, setStep] = useState<Step>(localMode ? "name" : "choose");
+  const [step, setStep] = useState<Step>(authOnly ? "choose" : "showcase");
   const [intent, setIntent] = useState<Intent>("signup");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -129,11 +129,16 @@ export function useWelcomeAuth(navigation: Navigation, authOnly = false) {
   // ones resume at the name step — whether interrupted mid-signup or created
   // outside the app, the missing piece is always just the name.
   useEffect(() => {
-    if (routedRef.current || !isLoaded || !isSignedIn || step !== "choose" || !user) return;
+    if (routedRef.current || !isLoaded || !isSignedIn || !user) return;
     routedRef.current = true;
     if (displayNameOf(user)) exitToApp();
     else setStep("name");
-  }, [isLoaded, isSignedIn, step, user, exitToApp]);
+  }, [isLoaded, isSignedIn, user, exitToApp]);
+
+  const finishShowcase = () => {
+    setErrorMessage(null);
+    setStep(localMode ? "name" : "choose");
+  };
 
   const startIntent = (next: Intent) => {
     setIntent(next);
@@ -145,6 +150,10 @@ export function useWelcomeAuth(navigation: Navigation, authOnly = false) {
   // before the code step invalidates the attempt.
   const goBackStep = () => {
     setErrorMessage(null);
+    if (!authOnly && (step === "name" || step === "choose")) {
+      setStep("showcase");
+      return;
+    }
     setStep(step === "name" ? "code" : step === "code" ? "email" : "choose");
   };
 
@@ -346,24 +355,31 @@ export function useWelcomeAuth(navigation: Navigation, authOnly = false) {
 
   const canContinue =
     !busy &&
-    (step === "email"
-      ? EMAIL_PATTERN.test(email.trim())
-      : step === "code"
-        ? code.trim().length === 6
-        : name.trim().length > 0);
+    (step === "showcase"
+      ? true
+      : step === "email"
+        ? EMAIL_PATTERN.test(email.trim())
+        : step === "code"
+          ? code.trim().length === 6
+          : name.trim().length > 0);
 
   const submitStep =
-    step === "email"
-      ? submitEmail
-      : step === "code"
-        ? submitCode
-        : localMode
-          ? saveLocalName
-          : submitName;
+    step === "showcase"
+      ? finishShowcase
+      : step === "email"
+        ? submitEmail
+        : step === "code"
+          ? submitCode
+          : localMode
+            ? saveLocalName
+            : submitName;
+
+  const canGoBack = step !== "showcase" && !(authOnly && step === "choose");
 
   return {
     localMode,
     step,
+    setStep,
     intent,
     email,
     setEmail,
@@ -374,8 +390,10 @@ export function useWelcomeAuth(navigation: Navigation, authOnly = false) {
     errorMessage,
     busy,
     canContinue,
+    canGoBack,
     startIntent,
     submitStep,
+    finishShowcase,
     resendCode,
     goBackStep,
     exitToApp,

@@ -11,8 +11,6 @@ export interface AppearancePreferences {
   mode: ThemeMode;
   fontFamily: FontName;
   textSize: TextSize;
-  backgroundImageUri?: string | null;
-  backgroundImageOpacity?: number;
 }
 
 export interface EntryPreferences {
@@ -48,8 +46,6 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
     mode: "system",
     fontFamily: DEFAULT_FONT_FAMILY,
     textSize: "regular",
-    backgroundImageUri: null,
-    backgroundImageOpacity: 0.35,
   },
   entry: {
     timelineStyle: "rail",
@@ -73,8 +69,6 @@ export const THEME_KEY = "theme";
 export const ACCENT_KEY = "accent_choice";
 export const FONT_KEY = "font_choice";
 export const TEXT_SIZE_KEY = "text_size";
-export const BACKGROUND_IMAGE_KEY = "background_image_uri";
-export const BACKGROUND_IMAGE_OPACITY_KEY = "background_image_opacity";
 export const TIMELINE_STYLE_KEY = "timeline_style";
 export const TIMELINE_DENSITY_KEY = "timeline_density";
 export const SHOW_LOCATION_KEY = "show_location_timeline";
@@ -91,8 +85,6 @@ export const APPEARANCE_KEYS: Record<keyof AppearancePreferences, string> = {
   mode: THEME_KEY,
   fontFamily: FONT_KEY,
   textSize: TEXT_SIZE_KEY,
-  backgroundImageUri: BACKGROUND_IMAGE_KEY,
-  backgroundImageOpacity: BACKGROUND_IMAGE_OPACITY_KEY,
 };
 
 export const ENTRY_KEYS: Record<keyof EntryPreferences, string> = {
@@ -144,21 +136,11 @@ export function parseUserPreferences(
     resolvedFont = rawFont;
   }
 
-  const rawOpacity = get(BACKGROUND_IMAGE_OPACITY_KEY);
-  const parsedOpacity = rawOpacity ? parseFloat(rawOpacity) : NaN;
-  const opacity = !Number.isNaN(parsedOpacity)
-    ? Math.min(Math.max(parsedOpacity, 0.05), 1.0)
-    : (DEFAULT_PREFERENCES.appearance.backgroundImageOpacity ?? 0.35);
-
-  const bgUri = get(BACKGROUND_IMAGE_KEY);
-
   const appearance: AppearancePreferences = {
     accent: (get(ACCENT_KEY) as AccentChoice) || DEFAULT_PREFERENCES.appearance.accent,
     mode: (get(THEME_KEY) as ThemeMode) || DEFAULT_PREFERENCES.appearance.mode,
     fontFamily: resolvedFont,
     textSize: (get(TEXT_SIZE_KEY) as TextSize) || DEFAULT_PREFERENCES.appearance.textSize,
-    backgroundImageUri: bgUri && bgUri !== "null" ? bgUri : null,
-    backgroundImageOpacity: opacity,
   };
 
   const entry: EntryPreferences = {
@@ -203,9 +185,5 @@ export function getAppearanceResetDbEntries(): Record<string, string> {
     [TIMELINE_DENSITY_KEY]: DEFAULT_PREFERENCES.entry.timelineDensity,
     [SHOW_TIMESTAMP_KEY]: String(DEFAULT_PREFERENCES.entry.showTimestamp),
     [SHOW_LOCATION_KEY]: String(DEFAULT_PREFERENCES.entry.showLocation),
-    [BACKGROUND_IMAGE_KEY]: "null",
-    [BACKGROUND_IMAGE_OPACITY_KEY]: String(
-      DEFAULT_PREFERENCES.appearance.backgroundImageOpacity ?? 0.35
-    ),
   };
 }
