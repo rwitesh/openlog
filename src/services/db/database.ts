@@ -16,31 +16,48 @@ function withLock<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
-  await db.execAsync(`PRAGMA journal_mode = WAL`);
-  await db.execAsync(`PRAGMA foreign_keys = ON`);
   await db.execAsync(`
-    CREATE TABLE IF NOT EXISTS entries (
-      id            TEXT PRIMARY KEY NOT NULL,
-      created_at    INTEGER NOT NULL,
-      updated_at    INTEGER NOT NULL,
-      text          TEXT,
-      images        TEXT,
-      audios        TEXT,
-      latitude      REAL,
-      longitude     REAL,
-      location_name TEXT
-    )
+    PRAGMA journal_mode = WAL;
+    PRAGMA synchronous = NORMAL;
+    PRAGMA busy_timeout = 5000;
+    PRAGMA foreign_keys = ON;
   `);
+
+  const versionRow = await db.getFirstAsync<{ user_version: number }>("PRAGMA user_version");
+  const currentVersion = versionRow?.user_version ?? 0;
+
+  if (currentVersion < 1) {
+    await db.withTransactionAsync(async () => {
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS entries (
+          id            TEXT PRIMARY KEY NOT NULL,
+          created_at    INTEGER NOT NULL,
+          updated_at    INTEGER NOT NULL,
+          text          TEXT,
+          images        TEXT,
+          audios        TEXT,
+          latitude      REAL,
+          longitude     REAL,
+          location_name TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_entries_created_at_id
+          ON entries (created_at DESC, id DESC);
+        CREATE TABLE IF NOT EXISTS settings (
+          key   TEXT PRIMARY KEY NOT NULL,
+          value TEXT NOT NULL
+        );
+        PRAGMA user_version = 1;
+      `);
+    });
+  }
+
+  // Ensure composite index exists and drop legacy single-column index on upgraded installs
   await db.execAsync(`
-    CREATE INDEX IF NOT EXISTS idx_entries_created_at
-      ON entries (created_at DESC)
+    CREATE INDEX IF NOT EXISTS idx_entries_created_at_id
+      ON entries (created_at DESC, id DESC);
+    DROP INDEX IF EXISTS idx_entries_created_at;
   `);
-  await db.execAsync(`
-    CREATE TABLE IF NOT EXISTS settings (
-      key   TEXT PRIMARY KEY NOT NULL,
-      value TEXT NOT NULL
-    )
-  `);
+
   await initSearchIndex(db);
 }
 

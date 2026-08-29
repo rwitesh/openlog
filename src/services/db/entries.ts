@@ -46,8 +46,13 @@ function locationParams(location?: EntryLocation | null) {
   return [location?.latitude ?? null, location?.longitude ?? null, location?.name ?? null] as const;
 }
 
+export interface EntryCursor {
+  createdAt: number;
+  id: string;
+}
+
 export interface PagedEntriesOptions {
-  cursor?: number;
+  cursor?: EntryCursor | number;
   monthTs?: number;
   dayTs?: number;
   limit?: number;
@@ -55,7 +60,7 @@ export interface PagedEntriesOptions {
 
 export interface PagedEntriesResult {
   entries: Entry[];
-  nextCursor?: number;
+  nextCursor?: EntryCursor;
   hasMore: boolean;
 }
 
@@ -69,8 +74,13 @@ export async function getPagedEntries(
     const params: (number | string)[] = [];
 
     if (cursor !== undefined) {
-      conditions.push("created_at < ?");
-      params.push(cursor);
+      if (typeof cursor === "number") {
+        conditions.push("created_at < ?");
+        params.push(cursor);
+      } else {
+        conditions.push("(created_at, id) < (?, ?)");
+        params.push(cursor.createdAt, cursor.id);
+      }
     }
 
     if (dayTs !== undefined) {
@@ -90,7 +100,7 @@ export async function getPagedEntries(
       SELECT ${ENTRY_COLUMNS}
         FROM entries
        ${whereClause}
-       ORDER BY created_at DESC
+       ORDER BY created_at DESC, id DESC
        LIMIT ?
     `;
     params.push(limit + 1);
@@ -99,11 +109,13 @@ export async function getPagedEntries(
     const hasMore = rows.length > limit;
     const resultRows = hasMore ? rows.slice(0, limit) : rows;
     const entries = resultRows.map(toEntry);
-    const nextCursor = entries.length > 0 ? entries[entries.length - 1].createdAt : undefined;
+    const last = entries[entries.length - 1];
+    const nextCursor: EntryCursor | undefined =
+      hasMore && last ? { createdAt: last.createdAt, id: last.id } : undefined;
 
     return {
       entries,
-      nextCursor: hasMore ? nextCursor : undefined,
+      nextCursor,
       hasMore,
     };
   });
@@ -142,8 +154,8 @@ export async function getEntryDaysForMonth(monthTs: number): Promise<Set<number>
 export async function getEntries(limit?: number): Promise<Entry[]> {
   return runDb(async (db) => {
     const query = limit
-      ? `SELECT ${ENTRY_COLUMNS} FROM entries ORDER BY created_at DESC LIMIT ?`
-      : `SELECT ${ENTRY_COLUMNS} FROM entries ORDER BY created_at DESC`;
+      ? `SELECT ${ENTRY_COLUMNS} FROM entries ORDER BY created_at DESC, id DESC LIMIT ?`
+      : `SELECT ${ENTRY_COLUMNS} FROM entries ORDER BY created_at DESC, id DESC`;
     const rows = limit
       ? await db.getAllAsync<EntryRecord>(query, limit)
       : await db.getAllAsync<EntryRecord>(query);
@@ -303,7 +315,7 @@ export async function deleteAllEntries(): Promise<string[]> {
 export async function getAllRawEntries(): Promise<Entry[]> {
   return runDb(async (db) => {
     const rows = await db.getAllAsync<EntryRecord>(
-      `SELECT ${ENTRY_COLUMNS} FROM entries ORDER BY created_at DESC`
+      `SELECT ${ENTRY_COLUMNS} FROM entries ORDER BY created_at DESC, id DESC`
     );
     return rows.map((row) => ({
       id: row.id,
