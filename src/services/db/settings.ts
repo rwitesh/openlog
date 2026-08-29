@@ -39,15 +39,20 @@ export async function setSetting(key: string, value: string): Promise<void> {
 }
 
 export async function setSettingsBatch(entries: Record<string, string>): Promise<void> {
+  const records = Object.entries(entries);
+  if (records.length === 0) return;
+
   await runDb(async (db) => {
-    for (const [key, value] of Object.entries(entries)) {
-      await db.runAsync(
-        `INSERT INTO settings (key, value) VALUES (?, ?)
-         ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-        key,
-        value
-      );
-    }
+    await db.withTransactionAsync(async () => {
+      for (const [key, value] of records) {
+        await db.runAsync(
+          `INSERT INTO settings (key, value) VALUES (?, ?)
+           ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+          key,
+          value
+        );
+      }
+    });
   });
 }
 

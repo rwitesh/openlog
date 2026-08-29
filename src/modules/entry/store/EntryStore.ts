@@ -3,6 +3,7 @@ import {
   createEntry,
   deleteAllEntries,
   deleteEntry,
+  type EntryCursor,
   getEntryById,
   getPagedEntries,
   type NewEntryInput,
@@ -130,7 +131,7 @@ export function useTimelineEntries(options: UseTimelineEntriesOptions = {}) {
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
 
-  const nextCursorRef = useRef<number | undefined>(undefined);
+  const nextCursorRef = useRef<EntryCursor | undefined>(undefined);
   const isFetchingMoreRef = useRef(false);
 
   const loadInitial = useCallback(async () => {
@@ -149,7 +150,7 @@ export function useTimelineEntries(options: UseTimelineEntriesOptions = {}) {
   }, [monthTs, dayTs, pageSize]);
 
   const loadMore = useCallback(async () => {
-    if (!hasMore || isFetchingMoreRef.current || nextCursorRef.current === undefined) {
+    if (!hasMore || isFetchingMoreRef.current || !nextCursorRef.current) {
       return;
     }
     isFetchingMoreRef.current = true;
