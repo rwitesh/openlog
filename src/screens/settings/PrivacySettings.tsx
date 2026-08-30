@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Switch, View } from "react-native";
 
-import { posthog } from "@/config/posthog";
+import { analytics } from "@/config/analytics";
 import { seedMockEntries, useEntries } from "@/modules/entry";
 import {
   confirmDestructive,
@@ -63,6 +63,7 @@ export function PrivacySettingsScreen() {
   const handleToggle = async (value: boolean) => {
     if (!value) {
       setSecurity({ biometricLock: false });
+      analytics.capture("biometric_lock_disabled");
       return;
     }
 
@@ -75,7 +76,7 @@ export function PrivacySettingsScreen() {
 
     if (confirmed) {
       setSecurity({ biometricLock: true });
-      posthog?.capture("biometric_lock_enabled");
+      analytics.capture("biometric_lock_enabled");
     }
   };
 
@@ -87,7 +88,7 @@ export function PrivacySettingsScreen() {
       void notifyBackupExportComplete(result.entryCount, result.mediaCount);
       const saved = await saveBackupArchive(result.fileUri, result.filename);
       if (saved) {
-        posthog?.capture("backup_exported", {
+        analytics.capture("backup_exported", {
           entry_count: result.entryCount,
           media_count: result.mediaCount,
           byte_size: result.byteSize,
@@ -113,7 +114,7 @@ export function PrivacySettingsScreen() {
     setIsImporting(true);
     try {
       const result = await importBackupArchive(fileUri);
-      posthog?.capture("backup_imported", {
+      analytics.capture("backup_imported", {
         entry_count: result.importedCount,
         media_count: result.mediaCount,
       });

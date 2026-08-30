@@ -8,7 +8,7 @@ import {
 } from "@clerk/expo";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { posthog } from "@/config/posthog";
+import { analytics } from "@/config/analytics";
 import { useProfile } from "@/modules/profile";
 import type { RootStackParamList } from "@/navigation/types";
 import { ONBOARDING_COMPLETED_KEY, setSetting } from "@/services/db/settings";
@@ -299,7 +299,7 @@ export function useWelcomeAuth(navigation: Navigation, authOnly = false) {
         setStep("name");
         return;
       }
-      posthog?.capture("login_completed");
+      analytics.capture("login_completed");
       exitToApp();
     });
 
@@ -319,8 +319,8 @@ export function useWelcomeAuth(navigation: Navigation, authOnly = false) {
       const lastName = rest.join(" ");
       await user.update({ firstName, ...(lastName ? { lastName } : {}) });
       setName(fullName);
-      if (intent === "signup") posthog?.capture("onboarding_completed");
-      else posthog?.capture("login_completed");
+      if (intent === "signup") analytics.capture("onboarding_completed");
+      else analytics.capture("login_completed");
       exitToApp();
     }, "Could not save your name. Please try again.");
 
@@ -339,7 +339,7 @@ export function useWelcomeAuth(navigation: Navigation, authOnly = false) {
     try {
       setErrorMessage(null);
       setName(fullName);
-      posthog?.capture("onboarding_completed");
+      analytics.capture("onboarding_completed");
       if (isLoaded && user && !displayNameOf(user)) {
         const [firstName, ...rest] = fullName.split(" ");
         const lastName = rest.join(" ");
