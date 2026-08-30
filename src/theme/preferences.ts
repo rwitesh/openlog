@@ -1,3 +1,4 @@
+import { hasFont } from "@/services/fonts/catalog";
 import type { AccentChoice, FontName, MotionLevel, TextSize } from "./tokens";
 import { DEFAULT_FONT_FAMILY } from "./tokens";
 
@@ -132,7 +133,8 @@ export function parseUserPreferences(
     resolvedFont = "Source Sans 3";
   } else if (rawFont === "serif") {
     resolvedFont = "Source Serif 4";
-  } else if (rawFont) {
+  } else if (rawFont && hasFont(rawFont)) {
+    // Unknown names (e.g. fonts removed from the catalog) fall back to default.
     resolvedFont = rawFont;
   }
 
