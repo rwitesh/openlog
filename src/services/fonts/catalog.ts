@@ -17,36 +17,28 @@ export const FONTS: readonly FontName[] = [
   "DM Sans",
   "Outfit",
   "Instrument Sans",
-  "Public Sans",
 
   // Editorial Serif
   "Source Serif 4",
   "Merriweather",
   "Lora",
   "EB Garamond",
-  "Playfair Display",
-  "Cormorant Garamond",
   "Libre Baskerville",
   "Newsreader",
   "Fraunces",
-  "Instrument Serif",
   "Crimson Pro",
 
   // Monospaced
   "JetBrains Mono",
   "IBM Plex Mono",
   "Fira Code",
-  "Source Code Pro",
-  "Space Mono",
   "Roboto Mono",
 
   // Handwriting & Intimate
   "Caveat",
   "Indie Flower",
   "Patrick Hand",
-  "Shadows Into Light",
   "Kalam",
-  "Dancing Script",
 ] as const;
 
 const FONT_SET = new Set<string>(FONTS);
