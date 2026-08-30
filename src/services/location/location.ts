@@ -83,7 +83,6 @@ async function coordsToPlace(latitude: number, longitude: number): Promise<Entry
 }
 
 async function readPosition(): Promise<Location.LocationObject | null> {
-  // First attempt fresh position fix
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
       return await Location.getCurrentPositionAsync({
@@ -96,7 +95,6 @@ async function readPosition(): Promise<Location.LocationObject | null> {
     }
   }
 
-  // Fallback to last known position if fresh fix fails
   try {
     return await Location.getLastKnownPositionAsync({
       maxAge: LAST_KNOWN_MAX_AGE_MS,
@@ -138,9 +136,7 @@ export async function fetchPlace(
     if (permission.canAskAgain) {
       permission = await Location.requestForegroundPermissionsAsync();
     }
-    if (permission.status !== "granted") {
-      return null;
-    }
+    if (permission.status !== "granted") return null;
   }
 
   const position = await readPosition();

@@ -1,4 +1,4 @@
-import { posthog } from "@/config/posthog";
+import { analytics } from "@/config/analytics";
 import { IS_EXPO_GO } from "./appInfo";
 
 /** Logs non-fatal issues during development without polluting production logs. */
@@ -21,5 +21,5 @@ export function reportError(
     console.warn(`[${event}]`, JSON.stringify(properties));
     return;
   }
-  posthog?.capture(event, properties);
+  analytics.capture(event, properties);
 }

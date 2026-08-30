@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from "react";
+import { analytics } from "@/config/analytics";
 import type { EntryLocation } from "@/shared/types";
 import { fetchPlace } from "./location";
 
@@ -34,6 +35,7 @@ export function useLocation(initialLocation?: EntryLocation | null) {
           setPlace(loc);
           setOn(true);
           setFailed(false);
+          analytics.capture("location_used");
         } else {
           setFailed(true);
           if (!place) {

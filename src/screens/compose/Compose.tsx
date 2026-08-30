@@ -2,7 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, type TextInput, View } from "react-native";
-import { posthog } from "@/config/posthog";
+import { analytics } from "@/config/analytics";
 import {
   ComposeAttachments,
   ComposeEditor,
@@ -114,10 +114,10 @@ export function ComposeScreen({ navigation, route }: Props) {
     };
 
     if (outcome === "created") {
-      posthog?.capture("entry_created", entryProperties);
+      analytics.capture("entry_created", entryProperties);
       navigation.goBack();
     } else if (outcome === "updated") {
-      posthog?.capture("entry_updated", entryProperties);
+      analytics.capture("entry_updated", entryProperties);
       setMode("view");
     }
   };
@@ -226,7 +226,7 @@ export function ComposeScreen({ navigation, route }: Props) {
           onEdit={() => setMode("edit")}
           onDelete={async () => {
             await removeEntry(existing.id);
-            posthog?.capture("entry_deleted", {
+            analytics.capture("entry_deleted", {
               has_text: Boolean(existing.text?.trim()),
               image_count: existing.images.length,
               audio_count: existing.audios.length,

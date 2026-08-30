@@ -1,13 +1,14 @@
 import { ClerkProvider, useUser } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
-import { NavigationContainer } from "@react-navigation/native";
+import { NavigationContainer, useNavigationContainerRef } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { PostHogErrorBoundary, PostHogProvider } from "posthog-react-native";
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode, useEffect, useRef } from "react";
 import { View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { analytics } from "@/config/analytics";
 import { clerkPublishableKey } from "@/config/clerk";
 import { posthog } from "@/config/posthog";
 import { AppLockGate } from "@/modules/auth";
@@ -83,10 +84,29 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 function AppContent({ showWelcome }: { showWelcome: boolean }) {
   const { theme, mode } = useTheme();
   const navTheme = useNavigationTheme();
+  const navigationRef = useNavigationContainerRef<RootStackParamList>();
+  const routeNameRef = useRef<string | undefined>(undefined);
+  const navigator = (
+    <AppNavigator showWelcome={showWelcome} backgroundColor={theme.colors.background} />
+  );
+
+  // Official React Navigation screen tracking: onReady fires for the initial
+  // route, onStateChange for every navigation after that.
+  const trackCurrentScreen = () => {
+    const name = navigationRef.current?.getCurrentRoute()?.name;
+    if (!name || routeNameRef.current === name) return;
+    routeNameRef.current = name;
+    analytics.screen(name);
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
-      <NavigationContainer theme={navTheme}>
+      <NavigationContainer
+        ref={navigationRef}
+        theme={navTheme}
+        onReady={trackCurrentScreen}
+        onStateChange={trackCurrentScreen}
+      >
         <ClerkNameSync />
         <StatusBar style={mode === "dark" ? "light" : "dark"} />
         {posthog ? (
@@ -94,10 +114,12 @@ function AppContent({ showWelcome }: { showWelcome: boolean }) {
             <PostHogErrorBoundary
               fallback={<View style={{ flex: 1, backgroundColor: theme.colors.background }} />}
             >
-              <AppNavigator showWelcome={showWelcome} backgroundColor={theme.colors.background} />
+              {navigator}
             </PostHogErrorBoundary>
           </PostHogProvider>
-        ) : null}
+        ) : (
+          navigator
+        )}
       </NavigationContainer>
     </View>
   );

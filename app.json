@@ -96,7 +96,8 @@
       ],
       "expo-sqlite",
       "expo-secure-store",
-      "@clerk/expo"
+      "@clerk/expo",
+      "expo-localization"
     ],
     "extra": {
       "eas": {
