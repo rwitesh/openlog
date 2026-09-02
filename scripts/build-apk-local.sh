@@ -43,7 +43,7 @@ export NODE_ENV=production
 # Override: APK_ARCH=armeabi-v7a,arm64-v8a npm run build:apk:local
 ARCHS="${APK_ARCH:-arm64-v8a}"
 
-npx expo prebuild --platform android --no-install
+npx expo prebuild --platform android --clean --no-install
 
 ANDROID_DIR="$ROOT/android"
 GRADLE_PROPS="$ANDROID_DIR/gradle.properties"

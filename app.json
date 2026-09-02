@@ -2,7 +2,7 @@
   "expo": {
     "name": "OpenLog",
     "slug": "openlog",
-    "version": "1.1.1",
+    "version": "1.2.0",
     "runtimeVersion": {
       "policy": "fingerprint"
     },
@@ -13,7 +13,7 @@
     "ios": {
       "supportsTablet": true,
       "deploymentTarget": "17.0",
-      "buildNumber": "3",
+      "buildNumber": "4",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Record voice entries on your timeline.",
         "NSLocationWhenInUseUsageDescription": "Attach your current location to entries.",
@@ -23,7 +23,7 @@
       "bundleIdentifier": "share.openlog.mobile"
     },
     "android": {
-      "versionCode": 3,
+      "versionCode": 4,
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundColor": "#3264e6",
