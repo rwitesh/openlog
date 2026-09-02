@@ -16,7 +16,7 @@ import { notifyStoreReload } from "@/modules/entry";
 import { getAllRawEntries, importEntriesBatch } from "@/services/db/entries";
 import { resolveMediaUri } from "@/services/media/storage";
 import { APP_SLUG } from "@/shared/constants";
-import type { Entry } from "@/shared/types";
+import type { Attachment, Entry } from "@/shared/types";
 import { APP_VERSION } from "@/shared/utils/appInfo";
 import { logDevWarning } from "@/shared/utils/devLog";
 
@@ -51,6 +51,7 @@ export interface InspectBackupResult {
     textSnippet: string;
     hasImages: boolean;
     hasAudios: boolean;
+    hasAttachments: boolean;
   }[];
 }
 
@@ -119,6 +120,21 @@ function normalizeMediaList(
   return normalized;
 }
 
+/** Same normalization as media lists, but keeps each document's name/mime/size metadata. */
+function normalizeAttachments(
+  attachments: Attachment[] | undefined,
+  collector: MediaCollector
+): Attachment[] {
+  if (!attachments || attachments.length === 0) return [];
+  return attachments
+    .filter((attachment) => attachment.uri)
+    .map((attachment) => ({
+      ...attachment,
+      uri: normalizeMediaList([attachment.uri], collector, "bin")[0],
+    }))
+    .filter((attachment) => Boolean(attachment.uri));
+}
+
 /**
  * Creates a complete portable archive containing the database dump
  * (`manifest.json` + `db.json`) and all attached photos and voice recordings (`media/`).
@@ -132,6 +148,7 @@ export async function exportBackupArchive(): Promise<ExportBackupResult> {
     ...entry,
     images: normalizeMediaList(entry.images, collector, "jpg"),
     audios: normalizeMediaList(entry.audios, collector, "m4a"),
+    attachments: normalizeAttachments(entry.attachments, collector),
   }));
 
   const manifest: ArchiveManifest = {
@@ -317,6 +334,7 @@ export async function inspectBackupArchive(fileUri: string): Promise<InspectBack
     textSnippet: e.text ? e.text.slice(0, 100).trim() : "(No text)",
     hasImages: Boolean(e.images?.length),
     hasAudios: Boolean(e.audios?.length),
+    hasAttachments: Boolean(e.attachments?.length),
   }));
 
   return {
@@ -333,7 +351,7 @@ export async function inspectBackupArchive(fileUri: string): Promise<InspectBack
 
 /**
  * Restores entries and attached media from an archive, replacing all current data.
- * Uses streaming decompression to write media files directly to disk without RAM bloat.
+ * Uses streaming decompression to write media attachments directly to disk without RAM bloat.
  */
 export async function importBackupArchive(fileUri: string): Promise<ImportBackupResult> {
   const sourceFile = new File(fileUri);

@@ -51,6 +51,15 @@ async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
     });
   }
 
+  if (currentVersion < 2) {
+    await db.withTransactionAsync(async () => {
+      await db.execAsync(`
+        ALTER TABLE entries ADD COLUMN attachments TEXT;
+        PRAGMA user_version = 2;
+      `);
+    });
+  }
+
   // Ensure composite index exists and drop legacy single-column index on upgraded installs
   await db.execAsync(`
     CREATE INDEX IF NOT EXISTS idx_entries_created_at_id

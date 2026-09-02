@@ -1,3 +1,4 @@
+export * from "./components/AttachmentChip";
 export * from "./components/AudioPlayer";
 export * from "./components/EntryDetailsModal";
 export * from "./components/EntryMenuButton";

@@ -7,5 +7,7 @@ export function entryContentTypeLabel(entry: Entry): string {
     parts.push(entry.images.length === 1 ? "1 Photo" : `${entry.images.length} Photos`);
   if (entry.audios?.length)
     parts.push(entry.audios.length === 1 ? "1 Voice note" : `${entry.audios.length} Voice notes`);
+  if (entry.attachments?.length)
+    parts.push(entry.attachments.length === 1 ? "1 File" : `${entry.attachments.length} Files`);
   return parts.length ? parts.join(" · ") : "Note";
 }

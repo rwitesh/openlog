@@ -2,7 +2,8 @@ import { Feather } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { ImageViewerModal } from "@/modules/entry/components/ImageViewerModal";
+import { AttachmentChip, ImageViewerModal } from "@/modules/entry";
+import type { Attachment } from "@/shared/types";
 import { metrics, press, radius, space, useTheme } from "@/theme";
 import { AudioDraftPreview } from "./AudioDraftPreview";
 
@@ -13,6 +14,8 @@ interface AttachmentsProps {
   onRemoveImage: (index: number) => void;
   audioUris?: string[];
   onRemoveAudio?: (index: number) => void;
+  attachments?: Attachment[];
+  onRemoveAttachment?: (index: number) => void;
   readOnly?: boolean;
 }
 
@@ -21,6 +24,8 @@ export function ComposeAttachments({
   onRemoveImage,
   audioUris = [],
   onRemoveAudio,
+  attachments = [],
+  onRemoveAttachment,
   readOnly = false,
 }: AttachmentsProps) {
   const { colors } = useTheme().theme;
@@ -29,8 +34,9 @@ export function ComposeAttachments({
 
   const hasImages = imageUris.length > 0;
   const hasAudio = audioUris.length > 0;
+  const hasAttachments = attachments.length > 0;
 
-  if (!hasImages && !hasAudio) return null;
+  if (!hasImages && !hasAudio && !hasAttachments) return null;
 
   const openImage = (index: number) => {
     setImageViewerIndex(index);
@@ -122,6 +128,20 @@ export function ComposeAttachments({
             ))}
           </View>
         ) : null}
+
+        {hasAttachments ? (
+          <View style={styles.attachmentList}>
+            {attachments.map((attachment, index) => (
+              <AttachmentChip
+                key={attachment.uri}
+                attachment={attachment}
+                onRemove={
+                  readOnly || !onRemoveAttachment ? undefined : () => onRemoveAttachment(index)
+                }
+              />
+            ))}
+          </View>
+        ) : null}
       </View>
 
       {hasImages ? (
@@ -201,5 +221,8 @@ const styles = StyleSheet.create({
   },
   audioList: {
     gap: space.sm,
+  },
+  attachmentList: {
+    gap: space.xs,
   },
 });
