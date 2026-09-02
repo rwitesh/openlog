@@ -73,6 +73,7 @@ Stores every journal entry created by the user.
 | `text` | `TEXT` | The body text of the journal entry. | Plaintext entry content. Indexed by full-text search. |
 | `images` | `TEXT` | JSON-encoded array of media filenames (e.g. `["photo1.jpg"]`). | Colocated with entry row for zero-join retrieval; references portable relative file paths. |
 | `audios` | `TEXT` | JSON-encoded array of voice note filenames (e.g. `["audio1.m4a"]`). | Colocated with entry row for zero-join retrieval; references portable relative file paths. |
+| `attachments` | `TEXT` | JSON-encoded array of documents (`[{"uri", "name", "mime", "size"}]` — PDFs, videos, spreadsheets, any file). | Same colocation rationale; keeps display metadata (name/size) with the URI so chips render without disk access. Added in schema v2. |
 | `latitude` | `REAL` | Reverse-geocoded GPS latitude. | Stored as floating point for spatial lookups or future mapping. |
 | `longitude` | `REAL` | Reverse-geocoded GPS longitude. | Stored as floating point for spatial lookups or future mapping. |
 | `location_name` | `TEXT` | Human-readable place name (e.g. "Tokyo, Japan"). | Searchable text descriptor for entry location. |

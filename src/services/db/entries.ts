@@ -1,9 +1,9 @@
-import { resolveMediaUriList } from "@/services/media/storage";
+import { resolveMediaUri, resolveMediaUriList } from "@/services/media/storage";
 import type { Entry, EntryLocation, NewEntryInput, UpdateEntryInput } from "@/shared/types";
 import { IS_EXPO_GO } from "@/shared/utils/appInfo";
 import { addDays, addMonths, startOfDay, startOfMonth } from "@/shared/utils/dates";
 import { runDb } from "./database";
-import { parseUris } from "./uris";
+import { parseAttachments, parseUris } from "./uris";
 
 export interface EntryRecord {
   id: string;
@@ -12,13 +12,14 @@ export interface EntryRecord {
   text: string | null;
   images: string | null;
   audios: string | null;
+  attachments: string | null;
   latitude: number | null;
   longitude: number | null;
   location_name: string | null;
 }
 
 const ENTRY_COLUMNS =
-  "id, created_at, updated_at, text, images, audios, latitude, longitude, location_name";
+  "id, created_at, updated_at, text, images, audios, attachments, latitude, longitude, location_name";
 
 function parseLocation(row: EntryRecord): EntryLocation | undefined {
   if (row.latitude == null || row.longitude == null) return undefined;
@@ -38,6 +39,12 @@ export function toEntry(row: EntryRecord): Entry {
     text: row.text ?? undefined,
     images: row.images ? resolveMediaUriList(parseUris(row.images)) : [],
     audios: row.audios ? resolveMediaUriList(parseUris(row.audios)) : [],
+    attachments: row.attachments
+      ? parseAttachments(row.attachments).map((attachment) => ({
+          ...attachment,
+          uri: resolveMediaUri(attachment.uri),
+        }))
+      : [],
     location: parseLocation(row),
   };
 }
@@ -180,15 +187,16 @@ export async function createEntry(input: NewEntryInput): Promise<Entry> {
 
     await db.runAsync(
       `INSERT INTO entries (
-         id, created_at, updated_at, text, images, audios,
+         id, created_at, updated_at, text, images, audios, attachments,
          latitude, longitude, location_name
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       id,
       createdAt,
       updatedAt,
       input.text ?? null,
       images.length ? JSON.stringify(images) : null,
       audios.length ? JSON.stringify(audios) : null,
+      input.attachments?.length ? JSON.stringify(input.attachments) : null,
       lat,
       lng,
       locationName
@@ -201,6 +209,7 @@ export async function createEntry(input: NewEntryInput): Promise<Entry> {
       text: input.text,
       images,
       audios,
+      attachments: input.attachments ?? [],
       location: input.location ?? undefined,
     };
   });
@@ -240,6 +249,13 @@ export async function updateEntry(id: string, input: UpdateEntryInput): Promise<
           : null
         : row.audios;
 
+    const filesJson =
+      input.attachments !== undefined
+        ? input.attachments.length
+          ? JSON.stringify(input.attachments)
+          : null
+        : row.attachments;
+
     await db.runAsync(
       `UPDATE entries
           SET created_at = ?,
@@ -247,6 +263,7 @@ export async function updateEntry(id: string, input: UpdateEntryInput): Promise<
               text = ?,
               images = ?,
               audios = ?,
+              attachments = ?,
               latitude = ?,
               longitude = ?,
               location_name = ?
@@ -256,6 +273,7 @@ export async function updateEntry(id: string, input: UpdateEntryInput): Promise<
       text,
       imagesJson,
       audiosJson,
+      filesJson,
       lat,
       lng,
       locationName,
@@ -269,6 +287,7 @@ export async function updateEntry(id: string, input: UpdateEntryInput): Promise<
       text,
       images: imagesJson,
       audios: audiosJson,
+      attachments: filesJson,
       latitude: lat,
       longitude: lng,
       location_name: locationName,
@@ -281,13 +300,16 @@ export async function deleteEntry(id: string): Promise<string[]> {
     const row = await db.getFirstAsync<{
       images: string | null;
       audios: string | null;
-    }>(`SELECT images, audios FROM entries WHERE id = ?`, id);
+      attachments: string | null;
+    }>(`SELECT images, audios, attachments FROM entries WHERE id = ?`, id);
     await db.runAsync(`DELETE FROM entries WHERE id = ?`, id);
 
     if (!row) return [];
     const mediaUris: string[] = [];
     if (row.images) mediaUris.push(...parseUris(row.images));
     if (row.audios) mediaUris.push(...parseUris(row.audios));
+    if (row.attachments)
+      mediaUris.push(...parseAttachments(row.attachments).map((attachment) => attachment.uri));
     return mediaUris;
   });
 }
@@ -298,7 +320,8 @@ export async function deleteAllEntries(): Promise<string[]> {
     const rows = await db.getAllAsync<{
       images: string | null;
       audios: string | null;
-    }>(`SELECT images, audios FROM entries`);
+      attachments: string | null;
+    }>(`SELECT images, audios, attachments FROM entries`);
 
     await db.runAsync(`DELETE FROM entries`);
 
@@ -306,6 +329,8 @@ export async function deleteAllEntries(): Promise<string[]> {
     for (const row of rows) {
       if (row.images) mediaUris.push(...parseUris(row.images));
       if (row.audios) mediaUris.push(...parseUris(row.audios));
+      if (row.attachments)
+        mediaUris.push(...parseAttachments(row.attachments).map((attachment) => attachment.uri));
     }
     return mediaUris;
   });
@@ -324,6 +349,7 @@ export async function getAllRawEntries(): Promise<Entry[]> {
       text: row.text ?? undefined,
       images: row.images ? parseUris(row.images) : [],
       audios: row.audios ? parseUris(row.audios) : [],
+      attachments: row.attachments ? parseAttachments(row.attachments) : [],
       location: parseLocation(row),
     }));
   });
@@ -338,9 +364,9 @@ export async function importEntriesBatch(entries: Entry[]): Promise<number> {
       await db.runAsync(`DELETE FROM entries`);
       const insertStmt = await db.prepareAsync(
         `INSERT INTO entries (
-           id, created_at, updated_at, text, images, audios,
+           id, created_at, updated_at, text, images, audios, attachments,
            latitude, longitude, location_name
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       );
 
       try {
@@ -348,6 +374,7 @@ export async function importEntriesBatch(entries: Entry[]): Promise<number> {
           const [lat, lng, locationName] = locationParams(entry.location);
           const imagesJson = entry.images?.length ? JSON.stringify(entry.images) : null;
           const audiosJson = entry.audios?.length ? JSON.stringify(entry.audios) : null;
+          const filesJson = entry.attachments?.length ? JSON.stringify(entry.attachments) : null;
           const text = entry.text ?? null;
           const createdAt = entry.createdAt;
           const updatedAt = entry.updatedAt ?? createdAt;
@@ -359,6 +386,7 @@ export async function importEntriesBatch(entries: Entry[]): Promise<number> {
             text,
             imagesJson,
             audiosJson,
+            filesJson,
             lat,
             lng,
             locationName,

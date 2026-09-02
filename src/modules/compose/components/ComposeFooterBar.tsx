@@ -2,53 +2,78 @@ import { Feather } from "@expo/vector-icons";
 import { Pressable, StyleSheet, View } from "react-native";
 import { Toolbar } from "@/shared/components/Toolbar";
 import { metrics, press, space, useTheme } from "@/theme";
-import { MAX_IMAGES } from "../types";
+import { MAX_ATTACHMENTS, MAX_IMAGES } from "../types";
 import { LiveRecordingBar } from "./LiveRecordingBar";
 
 interface FooterBarProps {
   imageCount: number;
+  attachmentCount: number;
   isRecording: boolean;
   canSave: boolean;
   recordingDurationMs: number;
   recordingLevels?: number[];
   onPickImage: () => void;
+  onPickAttachments: () => void;
   onToggleRecording: () => void;
   onSave: () => void;
 }
 
 export function ComposeFooterBar({
   imageCount,
+  attachmentCount,
   isRecording,
   canSave,
   recordingDurationMs,
   recordingLevels,
   onPickImage,
+  onPickAttachments,
   onToggleRecording,
   onSave,
 }: FooterBarProps) {
   const { colors } = useTheme().theme;
   const imagesFull = imageCount >= MAX_IMAGES;
+  const attachmentsFull = attachmentCount >= MAX_ATTACHMENTS;
 
   return (
     <Toolbar>
       {!isRecording ? (
-        <Pressable
-          onPress={onPickImage}
-          disabled={imagesFull}
-          hitSlop={space.sm}
-          style={({ pressed }) => [
-            styles.toolBtn,
-            imagesFull && styles.toolBtnDisabled,
-            pressed && press,
-          ]}
-          accessibilityLabel="Add photo"
-        >
-          <Feather
-            name="image"
-            size={metrics.iconMd}
-            color={imagesFull ? colors.textTertiary : colors.textSecondary}
-          />
-        </Pressable>
+        <>
+          <Pressable
+            onPress={onPickImage}
+            disabled={imagesFull}
+            hitSlop={space.sm}
+            style={({ pressed }) => [
+              styles.toolBtn,
+              imagesFull && styles.toolBtnDisabled,
+              pressed && press,
+            ]}
+            accessibilityLabel="Add photo"
+          >
+            <Feather
+              name="image"
+              size={metrics.iconMd}
+              color={imagesFull ? colors.textTertiary : colors.textSecondary}
+            />
+          </Pressable>
+
+          <Pressable
+            onPress={onPickAttachments}
+            disabled={attachmentsFull}
+            hitSlop={space.sm}
+            style={({ pressed }) => [
+              styles.toolBtn,
+              attachmentsFull && styles.toolBtnDisabled,
+              pressed && press,
+            ]}
+            accessibilityLabel="Attach file"
+          >
+            <Feather
+              name="paperclip"
+              size={metrics.iconMd}
+              color={attachmentsFull ? colors.textTertiary : colors.textSecondary}
+            />
+          </Pressable>
+        </>
       ) : null}
 
       <Pressable

@@ -5,6 +5,16 @@ export interface EntryLocation {
   name?: string;
 }
 
+/** A generic attached document (PDF, spreadsheet, video, anything) kept alongside an entry. */
+export interface Attachment {
+  /** Durable file URI inside the app's media directory. */
+  uri: string;
+  /** Original filename shown to the user, e.g. "Invoice.pdf". */
+  name: string;
+  mime?: string;
+  size?: number;
+}
+
 export interface Entry {
   id: string;
   createdAt: number;
@@ -12,6 +22,7 @@ export interface Entry {
   text?: string;
   images: string[];
   audios: string[];
+  attachments: Attachment[];
   location?: EntryLocation;
 }
 
@@ -19,6 +30,7 @@ export interface NewEntryInput {
   text?: string;
   images?: string[];
   audios?: string[];
+  attachments?: Attachment[];
   createdAt?: number;
   location?: EntryLocation | null;
 }
@@ -27,6 +39,7 @@ export interface UpdateEntryInput {
   text?: string;
   images?: string[];
   audios?: string[];
+  attachments?: Attachment[];
   createdAt?: number;
   location?: EntryLocation | null;
 }

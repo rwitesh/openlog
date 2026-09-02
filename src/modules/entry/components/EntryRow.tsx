@@ -20,6 +20,7 @@ import type { Entry } from "@/shared/types";
 import { formatTime } from "@/shared/utils/dates";
 import { press, radius, space, typography, useEntryPreferences, useTheme } from "@/theme";
 import { useEntries } from "../store/EntryStore";
+import { AttachmentChip } from "./AttachmentChip";
 import { AudioPlayer } from "./AudioPlayer";
 import { EntryDetailsModal } from "./EntryDetailsModal";
 import { EntryMenuButton } from "./EntryMenuButton";
@@ -82,8 +83,10 @@ function EntryRowBase({ entry, animate }: EntryRowProps) {
   const bodyText = entry.text?.trim() ? entry.text : undefined;
   const images = entry.images ?? [];
   const audios = entry.audios ?? [];
+  const attachments = entry.attachments ?? [];
   const hasImages = images.length > 0;
   const hasAudio = audios.length > 0;
+  const hasAttachments = attachments.length > 0;
   const hasText = Boolean(bodyText);
   const locationName = entry.location ? locationPlaceTitle(entry.location) : undefined;
 
@@ -258,6 +261,23 @@ function EntryRowBase({ entry, animate }: EntryRowProps) {
             ))}
           </View>
         ) : null}
+
+        {hasAttachments ? (
+          <View
+            style={[
+              styles.attachmentList,
+              hasText || hasImages || hasAudio
+                ? isCompact
+                  ? styles.attachmentAfterContentCompact
+                  : styles.attachmentAfterContent
+                : undefined,
+            ]}
+          >
+            {attachments.map((attachment) => (
+              <AttachmentChip key={attachment.uri} attachment={attachment} />
+            ))}
+          </View>
+        ) : null}
       </Animated.View>
 
       {hasImages ? (
@@ -335,6 +355,15 @@ const styles = StyleSheet.create({
     marginTop: space.xs + 2,
   },
   audioList: {
+    gap: space.xs,
+  },
+  attachmentAfterContent: {
+    marginTop: space.md,
+  },
+  attachmentAfterContentCompact: {
+    marginTop: space.xs + 2,
+  },
+  attachmentList: {
     gap: space.xs,
   },
   singleImageWrap: {

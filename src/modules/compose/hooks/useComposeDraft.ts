@@ -3,7 +3,7 @@ import { Alert } from "react-native";
 
 import { addEntry, patchEntry } from "@/modules/entry";
 import { getCachedPlace, useLocation } from "@/services/location";
-import type { Entry } from "@/shared/types";
+import type { Attachment, Entry } from "@/shared/types";
 import { logDevWarning } from "@/shared/utils/devLog";
 import { canSaveDraft, fromDraft } from "../utils/DraftTransform";
 
@@ -13,6 +13,7 @@ export type SaveOutcome = "created" | "updated" | "aborted";
 interface ComposeMedia {
   images: string[];
   audios: string[];
+  attachments: Attachment[];
   isRecording: boolean;
 }
 
@@ -27,7 +28,12 @@ export function useComposeDraft(existing: Entry | undefined, media: ComposeMedia
   const location = useLocation(existing ? existing.location : getCachedPlace());
 
   const canSave =
-    canSaveDraft({ text, images: media.images, audios: media.audios }) &&
+    canSaveDraft({
+      text,
+      images: media.images,
+      audios: media.audios,
+      attachments: media.attachments,
+    }) &&
     !media.isRecording &&
     !saving;
 
@@ -40,6 +46,7 @@ export function useComposeDraft(existing: Entry | undefined, media: ComposeMedia
         text,
         images: media.images,
         audios: media.audios,
+        attachments: media.attachments,
         createdAt: when,
         location: location.on && location.place ? location.place : null,
       });
@@ -59,7 +66,17 @@ export function useComposeDraft(existing: Entry | undefined, media: ComposeMedia
     } finally {
       setSaving(false);
     }
-  }, [canSave, text, media.images, media.audios, when, location.on, location.place, existing]);
+  }, [
+    canSave,
+    text,
+    media.images,
+    media.audios,
+    media.attachments,
+    when,
+    location.on,
+    location.place,
+    existing,
+  ]);
 
   /** Discard edits and restore the entry's stored draft fields. */
   const reset = useCallback(() => {

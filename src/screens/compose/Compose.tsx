@@ -110,6 +110,7 @@ export function ComposeScreen({ navigation, route }: Props) {
       has_text: draft.text.trim().length > 0,
       image_count: media.images.length,
       audio_count: media.audios.length,
+      file_count: media.attachments.length,
       has_location: Boolean(location.on && location.place),
     };
 
@@ -169,6 +170,8 @@ export function ComposeScreen({ navigation, route }: Props) {
                 onRemoveImage={media.removeImage}
                 audioUris={media.audios}
                 onRemoveAudio={media.removeAudio}
+                attachments={media.attachments}
+                onRemoveAttachment={media.removeAttachment}
                 readOnly
               />
             ) : null}
@@ -182,16 +185,23 @@ export function ComposeScreen({ navigation, route }: Props) {
               onRemoveImage={media.removeImage}
               audioUris={media.audios}
               onRemoveAudio={media.removeAudio}
+              attachments={media.attachments}
+              onRemoveAttachment={media.removeAttachment}
               readOnly={false}
             />
             <ComposeFooterBar
               imageCount={media.images.length}
+              attachmentCount={media.attachments.length}
               isRecording={media.isRecording}
               canSave={draft.canSave}
               recordingDurationMs={media.recordingDurationMs}
               recordingLevels={media.recordingLevels}
               onPickImage={async () => {
                 await media.pickImage();
+                keepFocus();
+              }}
+              onPickAttachments={async () => {
+                await media.pickAttachments();
                 keepFocus();
               }}
               onToggleRecording={async () => {
@@ -230,6 +240,7 @@ export function ComposeScreen({ navigation, route }: Props) {
               has_text: Boolean(existing.text?.trim()),
               image_count: existing.images.length,
               audio_count: existing.audios.length,
+              file_count: existing.attachments.length,
               has_location: Boolean(existing.location),
             });
             navigation.goBack();

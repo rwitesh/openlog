@@ -43,7 +43,7 @@ export async function searchEntries(
   return runDb(async (db) => {
     try {
       const rows = await db.getAllAsync<SearchRecord>(
-        `SELECT e.id, e.created_at, e.updated_at, e.text, e.images, e.audios,
+        `SELECT e.id, e.created_at, e.updated_at, e.text, e.images, e.audios, e.attachments,
                 e.latitude, e.longitude, e.location_name,
                 snippet(entries_fts, 0, char(1), char(2), '…', ${SNIPPET_WORDS}) AS text_snippet,
                 snippet(entries_fts, 1, char(1), char(2), '…', ${SNIPPET_WORDS}) AS location_snippet
