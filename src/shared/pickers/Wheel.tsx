@@ -19,16 +19,20 @@ interface WheelProps<T> {
   selected: T;
   label: (item: T) => string;
   onSelect: (item: T) => void;
+  keyExtractor?: (item: T) => string;
 }
 
-export function Wheel<T>({ items, selected, label, onSelect }: WheelProps<T>) {
+export function Wheel<T>({ items, selected, label, onSelect, keyExtractor }: WheelProps<T>) {
   const { colors } = useTheme().theme;
   const listRef = useRef<ScrollView>(null);
   const selectedIndex = Math.max(0, items.indexOf(selected));
 
   const snapToIndex = (index: number) => {
     const clamped = Math.max(0, Math.min(items.length - 1, index));
-    onSelect(items[clamped]!);
+    const item = items[clamped];
+    if (item !== undefined) {
+      onSelect(item);
+    }
     listRef.current?.scrollTo({ y: clamped * ITEM_HEIGHT, animated: true });
   };
 
@@ -55,12 +59,9 @@ export function Wheel<T>({ items, selected, label, onSelect }: WheelProps<T>) {
       >
         {items.map((item, index) => {
           const active = item === selected;
+          const key = keyExtractor ? keyExtractor(item) : label(item);
           return (
-            <Pressable
-              key={`${label(item)}-${index}`}
-              onPress={() => snapToIndex(index)}
-              style={styles.item}
-            >
+            <Pressable key={key} onPress={() => snapToIndex(index)} style={styles.item}>
               <ThemedText
                 weight={active ? "semibold" : "regular"}
                 style={[

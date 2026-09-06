@@ -31,28 +31,31 @@ export function AudioWaveform({
   const { colors } = useTheme().theme;
   const count = variant === "live" ? LIVE_WAVEFORM_BAR_COUNT : WAVEFORM_BAR_COUNT;
 
-  const bars = useMemo(
-    () => (levels?.length ? liveWaveformLevels(levels, count) : waveformHeights(seed, count)),
-    [levels, count, seed]
-  );
+  const bars = useMemo(() => {
+    const raw = levels?.length ? liveWaveformLevels(levels, count) : waveformHeights(seed, count);
+    return raw.map((level, slot) => ({
+      key: `bar-${slot}`,
+      level,
+    }));
+  }, [levels, count, seed]);
 
   const clamped = clampRatio(progress);
   const isLive = variant === "live";
 
   return (
     <View style={[styles.wrap, { height }]}>
-      {bars.map((level, index) => {
+      {bars.map((bar, index) => {
         const active = !isLive && (index + 1) / bars.length <= clamped;
 
         return (
           <View
-            key={index}
+            key={bar.key}
             style={[
               styles.bar,
               {
-                height: Math.max(3, level * height),
+                height: Math.max(3, bar.level * height),
                 backgroundColor: isLive || active ? colors.marker : colors.line,
-                opacity: isLive ? 0.55 + level * 0.45 : 1,
+                opacity: isLive ? 0.55 + bar.level * 0.45 : 1,
               },
             ]}
           />

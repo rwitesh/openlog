@@ -1,6 +1,7 @@
 import { SNIPPET_MARK_END, SNIPPET_MARK_START } from "@/services/db/search";
 
 export interface SnippetSegment {
+  key: string;
   text: string;
   highlighted: boolean;
 }
@@ -16,7 +17,13 @@ export function splitSnippet(snippet: string): SnippetSegment[] {
     const at = snippet.indexOf(mark, cursor);
     const text = at === -1 ? snippet.slice(cursor) : snippet.slice(cursor, at);
 
-    if (text) segments.push({ text, highlighted });
+    if (text) {
+      segments.push({
+        key: `${cursor}:${highlighted ? "h" : "t"}`,
+        text,
+        highlighted,
+      });
+    }
     if (at === -1) break;
 
     cursor = at + mark.length;
