@@ -26,10 +26,10 @@ export const SearchHighlight = memo(function SearchHighlight({
 
   return (
     <Text numberOfLines={numberOfLines} style={[base, { color: colors.text }]}>
-      {segments.map((segment, index) =>
+      {segments.map((segment) =>
         segment.highlighted ? (
           <Text
-            key={index}
+            key={segment.key}
             style={[
               base,
               {
@@ -42,7 +42,7 @@ export const SearchHighlight = memo(function SearchHighlight({
             {segment.text}
           </Text>
         ) : (
-          <Text key={index} style={[base, styles.inherit]}>
+          <Text key={segment.key} style={[base, styles.inherit]}>
             {segment.text}
           </Text>
         )

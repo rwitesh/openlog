@@ -74,7 +74,7 @@ export function ComposeAttachments({
               >
                 {imageUris.map((uri, index) => (
                   <Pressable
-                    key={`${uri}-${index}`}
+                    key={uri}
                     onPress={() => openImage(index)}
                     style={({ pressed }) => [
                       styles.detailThumbnailWrap,
@@ -101,7 +101,7 @@ export function ComposeAttachments({
               keyboardShouldPersistTaps="handled"
             >
               {imageUris.map((uri, index) => (
-                <View key={`${uri}-${index}`} style={styles.previewRow}>
+                <View key={uri} style={styles.previewRow}>
                   <Image source={{ uri }} style={styles.preview} contentFit="cover" />
                   <Pressable
                     onPress={() => onRemoveImage(index)}
@@ -121,7 +121,7 @@ export function ComposeAttachments({
           <View style={styles.audioList}>
             {audioUris.map((uri, index) => (
               <AudioDraftPreview
-                key={`${uri}-${index}`}
+                key={uri}
                 uri={uri}
                 onRemove={readOnly || !onRemoveAudio ? undefined : () => onRemoveAudio(index)}
               />

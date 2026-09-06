@@ -176,6 +176,9 @@ export function useTimelineEntries(options: UseTimelineEntriesOptions = {}) {
     }
   }, [monthTs, dayTs, pageSize]);
 
+  const loadInitialRef = useRef(loadInitial);
+  loadInitialRef.current = loadInitial;
+
   const loadMore = useCallback(async () => {
     if (!hasMore || isFetchingMoreRef.current || !nextCursorRef.current) {
       return;
@@ -219,7 +222,7 @@ export function useTimelineEntries(options: UseTimelineEntriesOptions = {}) {
       }
 
       if (mutation.type === "reload") {
-        void loadInitial();
+        void loadInitialRef.current();
         return;
       }
 
@@ -242,7 +245,7 @@ export function useTimelineEntries(options: UseTimelineEntriesOptions = {}) {
         }
       }
     });
-  }, [monthTs, dayTs, loadInitial]);
+  }, [monthTs, dayTs]);
 
   return {
     entries,
