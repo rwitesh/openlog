@@ -242,7 +242,7 @@ export function useTimelineEntries(options: UseTimelineEntriesOptions = {}) {
         }
       }
     });
-  }, [monthTs, dayTs]);
+  }, [monthTs, dayTs, loadInitial]);
 
   return {
     entries,
@@ -255,9 +255,9 @@ export function useTimelineEntries(options: UseTimelineEntriesOptions = {}) {
 }
 
 /** Hook to fetch and listen to a single entry's live state. */
-export function useEntry(id?: string) {
-  const [entry, setEntry] = useState<Entry | null>(() =>
-    id ? (entryCache.get(id) ?? null) : null
+export function useEntry(id?: string): Entry | null | undefined {
+  const [entry, setEntry] = useState<Entry | null | undefined>(() =>
+    id ? entryCache.get(id) : null
   );
 
   useEffect(() => {
@@ -266,10 +266,19 @@ export function useEntry(id?: string) {
       return;
     }
 
+    const cached = entryCache.get(id);
+    if (cached) {
+      setEntry(cached);
+    }
+
     let active = true;
-    fetchEntry(id).then((result) => {
-      if (active) setEntry(result);
-    });
+    fetchEntry(id)
+      .then((result) => {
+        if (active) setEntry(result);
+      })
+      .catch(() => {
+        if (active) setEntry(null);
+      });
 
     const unsubscribe = subscribeMutations((mutation) => {
       if (mutation.type === "clear" || (mutation.type === "delete" && mutation.id === id)) {

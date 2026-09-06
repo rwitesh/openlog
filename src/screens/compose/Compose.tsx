@@ -16,6 +16,7 @@ import type { RootStackParamList } from "@/navigation/types";
 import { ScreenHeader } from "@/shared/components";
 import { Layout, useKeepFocus } from "@/shared/components/Layout";
 import { CalendarPicker, TimePicker } from "@/shared/pickers";
+import type { Entry } from "@/shared/types";
 import { withTimeOfDay } from "@/shared/utils/dates";
 import { metrics, press, space, useTheme } from "@/theme";
 
@@ -24,6 +25,55 @@ type Props = NativeStackScreenProps<RootStackParamList, "Compose">;
 export function ComposeScreen({ navigation, route }: Props) {
   const { colors } = useTheme().theme;
   const entryId = route.params?.entryId;
+  const entry = useEntry(entryId);
+
+  // Editing an entry that no longer exists — leave.
+  useEffect(() => {
+    if (!entryId) return;
+    if (entry === null) {
+      // Entry was checked and doesn't exist
+      const timer = setTimeout(() => {
+        navigation.goBack();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [entryId, entry, navigation]);
+
+  if (entryId && entry === undefined) {
+    return (
+      <Layout.Screen style={[styles.screen, { backgroundColor: colors.background }]}>
+        <ScreenHeader title="Entry" onBack={() => navigation.goBack()} />
+      </Layout.Screen>
+    );
+  }
+
+  if (entryId && entry === null) {
+    return (
+      <Layout.Screen style={[styles.screen, { backgroundColor: colors.background }]}>
+        <ScreenHeader title="Entry" onBack={() => navigation.goBack()} />
+      </Layout.Screen>
+    );
+  }
+
+  return (
+    <ComposeContent
+      key={entry?.id ?? "new"}
+      navigation={navigation}
+      route={route}
+      existing={entry ?? undefined}
+    />
+  );
+}
+
+interface ComposeContentProps {
+  navigation: Props["navigation"];
+  route: Props["route"];
+  existing?: Entry;
+}
+
+function ComposeContent({ navigation, route, existing }: ComposeContentProps) {
+  const { colors } = useTheme().theme;
+  const entryId = existing?.id;
   const [mode, setMode] = useState<"view" | "edit">(
     route.params?.mode ?? (entryId ? "view" : "edit")
   );
@@ -33,8 +83,6 @@ export function ComposeScreen({ navigation, route }: Props) {
   const [detailsOpen, setDetailsOpen] = useState(false);
 
   const { removeEntry } = useEntries();
-  const entry = useEntry(entryId);
-  const existing = entry ?? undefined;
 
   const inputRef = useRef<TextInput>(null);
   const keepFocus = useKeepFocus(inputRef);
@@ -52,18 +100,6 @@ export function ComposeScreen({ navigation, route }: Props) {
       return () => clearTimeout(timer);
     }
   }, [isReadOnly]);
-
-  // Editing an entry that no longer exists — leave.
-  useEffect(() => {
-    if (!entryId) return;
-    if (entry === null) {
-      // Entry was checked and doesn't exist
-      const timer = setTimeout(() => {
-        navigation.goBack();
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [entryId, entry, navigation]);
 
   const title = isReadOnly ? "Entry" : existing ? "Edit entry" : "New entry";
 
