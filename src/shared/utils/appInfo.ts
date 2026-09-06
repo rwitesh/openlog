@@ -22,3 +22,14 @@ export const BUILD_NUMBER: string | null = Application.nativeBuildVersion ?? nul
  * Native application ID / bundle identifier.
  */
 export const APPLICATION_ID: string | null = Application.applicationId ?? null;
+
+/**
+ * Formats byte count into a human-readable string (e.g. "25.4 MB").
+ */
+export function formatBytes(bytes: number): string {
+  if (bytes <= 0) return "0 B";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}

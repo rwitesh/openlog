@@ -1,5 +1,5 @@
 import { Platform } from "react-native";
-import { IS_EXPO_GO } from "@/shared/utils/appInfo";
+import { formatBytes, IS_EXPO_GO } from "@/shared/utils/appInfo";
 import { logDevWarning } from "@/shared/utils/devLog";
 
 type NotificationsModule = typeof import("expo-notifications");
@@ -24,7 +24,6 @@ function getNotifications(): NotificationsModule | null {
     try {
       cachedModule.setNotificationHandler({
         handleNotification: async () => ({
-          shouldShowAlert: true,
           shouldPlaySound: true,
           shouldSetBadge: false,
           shouldShowBanner: true,
@@ -66,6 +65,12 @@ export async function requestNotificationPermission(): Promise<boolean> {
         vibrationPattern: [0, 250, 250, 250],
         lightColor: "#8B5CF6",
       });
+      await Notifications.setNotificationChannelAsync("backup-progress", {
+        name: "Backup & Restore Progress",
+        importance: Notifications.AndroidImportance.LOW,
+        enableVibrate: false,
+        sound: null,
+      });
     }
 
     return finalStatus === "granted";
@@ -103,28 +108,118 @@ export async function sendLocalNotification(
   }
 }
 
+const BACKUP_NOTIFICATION_ID = "openlog-backup-progress";
+
 /**
- * Notifies the user when an archive export has finished packing.
+ * Shows or updates an ongoing notification in the notification bar while backup/restore is in progress.
+ */
+export async function notifyBackupProgress(title: string, body: string): Promise<void> {
+  const Notifications = getNotifications();
+  if (!Notifications) return;
+
+  try {
+    await Notifications.scheduleNotificationAsync({
+      identifier: BACKUP_NOTIFICATION_ID,
+      content: {
+        title,
+        body,
+        sound: false,
+        sticky: true,
+        autoDismiss: false,
+      },
+      trigger: Platform.OS === "android" ? { channelId: "backup-progress" } : null,
+    });
+  } catch (error) {
+    logDevWarning("notifications:notifyBackupProgress", error);
+  }
+}
+
+/**
+ * Dismisses the ongoing backup/restore notification (e.g. on cancellation).
+ */
+export async function dismissBackupProgressNotification(): Promise<void> {
+  const Notifications = getNotifications();
+  if (!Notifications) return;
+
+  try {
+    await Notifications.dismissNotificationAsync(BACKUP_NOTIFICATION_ID);
+  } catch (error) {
+    logDevWarning("notifications:dismissBackupProgress", error);
+  }
+}
+
+/**
+ * Notifies the user when an archive export has completed packing and saving.
  */
 export async function notifyBackupExportComplete(
   entryCount: number,
-  mediaCount: number
+  byteSize?: number
 ): Promise<void> {
-  await sendLocalNotification(
-    "Backup archive saved",
-    `Backup stored: ${entryCount.toLocaleString()} entries and ${mediaCount} media files packaged.`
-  );
+  const Notifications = getNotifications();
+  if (!Notifications) return;
+
+  const sizeText = byteSize ? ` (${formatBytes(byteSize)})` : "";
+  try {
+    await Notifications.scheduleNotificationAsync({
+      identifier: BACKUP_NOTIFICATION_ID,
+      content: {
+        title: "Backup archive saved",
+        body: `Backup stored: ${entryCount.toLocaleString()} ${entryCount === 1 ? "entry" : "entries"} packaged${sizeText}.`,
+        sound: true,
+        sticky: false,
+        autoDismiss: true,
+      },
+      trigger: Platform.OS === "android" ? { channelId: "backup" } : null,
+    });
+  } catch (error) {
+    logDevWarning("notifications:notifyBackupExportComplete", error);
+  }
 }
 
 /**
  * Notifies the user when an archive restore completes.
  */
-export async function notifyBackupImportComplete(
-  importedCount: number,
-  mediaCount: number
-): Promise<void> {
-  await sendLocalNotification(
-    "Import complete",
-    `Successfully restored ${importedCount.toLocaleString()} entries and ${mediaCount} media files.`
-  );
+export async function notifyBackupImportComplete(importedCount: number): Promise<void> {
+  const Notifications = getNotifications();
+  if (!Notifications) return;
+
+  try {
+    await Notifications.scheduleNotificationAsync({
+      identifier: BACKUP_NOTIFICATION_ID,
+      content: {
+        title: "Import complete",
+        body: `Successfully restored ${importedCount.toLocaleString()} ${importedCount === 1 ? "entry" : "entries"}.`,
+        sound: true,
+        sticky: false,
+        autoDismiss: true,
+      },
+      trigger: Platform.OS === "android" ? { channelId: "backup" } : null,
+    });
+  } catch (error) {
+    logDevWarning("notifications:notifyBackupImportComplete", error);
+  }
+}
+
+/**
+ * Notifies the user when an archive export or restore operation fails.
+ */
+export async function notifyBackupError(title: string, body: string): Promise<void> {
+  const Notifications = getNotifications();
+  if (!Notifications) return;
+
+  try {
+    await Notifications.scheduleNotificationAsync({
+      identifier: BACKUP_NOTIFICATION_ID,
+      content: {
+        title,
+        body,
+        sound: true,
+        sticky: false,
+        autoDismiss: true,
+      },
+      trigger: Platform.OS === "android" ? { channelId: "backup" } : null,
+    });
+  } catch (error) {
+    logDevWarning("notifications:notifyBackupError", error);
+  }
 }

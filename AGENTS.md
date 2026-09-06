@@ -25,7 +25,7 @@ A local-first personal timeline: journal entries, quick notes, photos, voice mem
 - **Entry model** (`src/shared/types/entry.ts`): `id, createdAt, updatedAt, text?, images[], audios[], attachments[], location?`. `attachments` are generic documents (`Attachment` = `{uri, name, mime?, size?}` — PDFs, videos, spreadsheets, anything). Media-only and attachment-only entries are valid (text optional).
 - **Timeline:** FlatList → `toTimelineItems` (month dividers, date markers), `TimelineRail` (rail/minimal/clean styles + comfortable/compact density), `EntryRow` (6-line preview + "Read more"), `ImageViewerModal`, `AudioPlayer`.
 - **Compose:** view/edit modes; attachments via `useMediaAttachments`; date/time/location badges.
-- **Backup:** `.openlog` streaming ZIP (manifest + db.json + media), merge or atomic-replace restore, dry-run inspect. See `docs/BACKUP_SYSTEM_DESIGN.md`.
+- **Backup:** `.openlog` streaming ZIP (manifest + db.json + media), merge or atomic-replace restore, dry-run inspect.
 - **Themes:** `src/theme/tokens.ts` — two base atmospheres, 12 mood accents, WCAG AA/AAA.
 
 ## 3. Engineering Principles

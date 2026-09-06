@@ -46,6 +46,16 @@ export function resolveMediaUriList(uris: string[]): string[] {
   return uris.map(resolveMediaUri);
 }
 
+/** Generates a collision-free filename with UUID for durable media storage. */
+export function createMediaFilename(ext: string): string {
+  const cleanExt = ext.replace(/^\./, "").toLowerCase() || "bin";
+  const uuid =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  return `${uuid}.${cleanExt}`;
+}
+
 /**
  * Copies a picked/recorded file into the app's private document directory so
  * it survives app restarts (cache and picker URIs are not durable).
@@ -69,7 +79,7 @@ export async function persistMedia(sourceUri: string, ext: string): Promise<stri
     }
   }
 
-  const name = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  const name = createMediaFilename(ext);
   const dest = new File(dir, name);
 
   await new File(sourceUri).copy(dest);

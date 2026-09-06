@@ -1,3 +1,5 @@
+import { File, Paths } from "expo-file-system";
+import * as Sharing from "expo-sharing";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Switch, View } from "react-native";
 
@@ -11,14 +13,28 @@ import {
 } from "@/modules/settings";
 import { authenticate, type BiometricSupport, getBiometricSupport } from "@/services/auth";
 import {
+  cancelActiveBackup,
+  cancelActiveRestore,
+  copyBackupToDirectory,
   exportBackupArchive,
+  type InspectBackupResult,
   importBackupArchive,
   inspectBackupArchive,
   pickBackupArchiveFile,
-  saveBackupArchive,
+  pickBackupDestinationDirectory,
+  setExportController,
+  setImportController,
+  useBackupStatus,
 } from "@/services/backup";
 import { deleteMediaList } from "@/services/media";
-import { notifyBackupExportComplete, notifyBackupImportComplete } from "@/services/notifications";
+import {
+  dismissBackupProgressNotification,
+  notifyBackupError,
+  notifyBackupExportComplete,
+  notifyBackupImportComplete,
+  notifyBackupProgress,
+  requestNotificationPermission,
+} from "@/services/notifications";
 import { ThemedText } from "@/shared/components/ThemedText";
 import { IS_EXPO_GO, logDevWarning } from "@/shared/utils";
 import { press, space, typography, usePreferences, useTheme } from "@/theme";
@@ -36,8 +52,7 @@ export function PrivacySettingsScreen() {
   const [support, setSupport] = useState<BiometricSupport | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [seedingCount, setSeedingCount] = useState<number | null>(null);
-  const [isExporting, setIsExporting] = useState(false);
-  const [isImporting, setIsImporting] = useState(false);
+  const { isExporting, isImporting } = useBackupStatus();
 
   const enabled = preferences.security.biometricLock;
 
@@ -81,85 +96,214 @@ export function PrivacySettingsScreen() {
   };
 
   const handleExport = async () => {
-    if (isExporting) return;
-    setIsExporting(true);
+    if (isExporting || isImporting) return;
+
+    // 1. Pick destination folder FIRST
+    let targetDir = null;
+    let useShareFallback = false;
     try {
-      const result = await exportBackupArchive();
-      void notifyBackupExportComplete(result.entryCount, result.mediaCount);
-      const saved = await saveBackupArchive(result.fileUri, result.filename);
-      if (saved) {
-        analytics.capture("backup_exported", {
-          entry_count: result.entryCount,
-          media_count: result.mediaCount,
-          byte_size: result.byteSize,
-        });
-        void notifyBackupExportComplete(result.entryCount, result.mediaCount);
-        Alert.alert(
-          "Backup Saved",
-          `${result.entryCount.toLocaleString()} entries and ${result.mediaCount} media files.`
-        );
+      targetDir = await pickBackupDestinationDirectory();
+      if (!targetDir) return; // User cancelled
+    } catch (err) {
+      logDevWarning("settings:pickExportDir", err);
+      useShareFallback = true;
+    }
+
+    void requestNotificationPermission();
+
+    const controller = new AbortController();
+    setExportController(controller);
+
+    void notifyBackupProgress("Backing up OpenLog…", "Packaging your entries…");
+
+    try {
+      const result = await exportBackupArchive({
+        signal: controller.signal,
+        onProgress: (processed, total, phase) => {
+          if (total === 0) return;
+          const step = phase === "entries" ? 25 : 10;
+          if (processed % step !== 0 && processed !== total) return;
+          const body =
+            phase === "entries"
+              ? `Packaging entries (${processed.toLocaleString()}/${total.toLocaleString()})…`
+              : `Saving backup (${processed.toLocaleString()}/${total.toLocaleString()})…`;
+          void notifyBackupProgress("Backing up OpenLog…", body);
+        },
+      });
+
+      if (controller.signal.aborted) return;
+
+      if (targetDir) {
+        try {
+          await copyBackupToDirectory(result.fileUri, result.filename, targetDir);
+        } catch (copyErr) {
+          logDevWarning("settings:copyBackupToDir", copyErr);
+          const isAvailable = await Sharing.isAvailableAsync();
+          if (isAvailable) {
+            await Sharing.shareAsync(result.fileUri, {
+              mimeType: "application/octet-stream",
+              UTI: "public.archive",
+            });
+            try {
+              new File(result.fileUri).delete();
+            } catch {
+              // ignore
+            }
+          } else {
+            throw copyErr;
+          }
+        }
+      } else if (useShareFallback) {
+        const isAvailable = await Sharing.isAvailableAsync();
+        if (isAvailable) {
+          await Sharing.shareAsync(result.fileUri, {
+            mimeType: "application/octet-stream",
+            UTI: "public.archive",
+          });
+          try {
+            new File(result.fileUri).delete();
+          } catch {
+            // ignore
+          }
+        } else {
+          throw new Error("No storage destination available on this device.");
+        }
       }
+
+      analytics.capture("backup_exported", {
+        entry_count: result.counts.entry,
+        byte_size: result.byteSize,
+      });
+
+      void notifyBackupExportComplete(result.counts.entry, result.byteSize);
     } catch (error) {
+      if (controller.signal.aborted) {
+        void dismissBackupProgressNotification();
+        return;
+      }
       logDevWarning("settings:exportBackup", error);
-      Alert.alert(
-        "Save Failed",
+      void notifyBackupError(
+        "Backup failed",
         "Could not store backup. Please check available device storage and try again."
       );
     } finally {
-      setIsExporting(false);
+      setExportController(null);
     }
   };
 
-  const performImport = async (fileUri: string) => {
-    setIsImporting(true);
+  const handleCancelExport = () => {
+    cancelActiveBackup();
+    void dismissBackupProgressNotification();
+  };
+
+  const executeImport = async (fileUri: string) => {
+    void requestNotificationPermission();
+
+    const controller = new AbortController();
+    setImportController(controller);
+
+    void notifyBackupProgress("Restoring OpenLog…", "Restoring your entries…");
+
     try {
-      const result = await importBackupArchive(fileUri);
+      const result = await importBackupArchive(fileUri, {
+        signal: controller.signal,
+      });
+
+      if (controller.signal.aborted) return;
+
       analytics.capture("backup_imported", {
         entry_count: result.importedCount,
-        media_count: result.mediaCount,
       });
-      void notifyBackupImportComplete(result.importedCount, result.mediaCount);
-      Alert.alert(
-        "Import Complete",
-        `Successfully restored ${result.importedCount.toLocaleString()} entries and ${result.mediaCount} media files.`
-      );
+
+      void notifyBackupImportComplete(result.importedCount);
     } catch (error) {
+      if (controller.signal.aborted) {
+        void dismissBackupProgressNotification();
+        return;
+      }
       logDevWarning("settings:importBackup", error);
-      Alert.alert("Restore Failed", `Could not restore. Please select a valid backup file.`);
+      void notifyBackupError(
+        "Restore failed",
+        "Could not restore backup. Please verify the selected file is valid."
+      );
     } finally {
-      setIsImporting(false);
+      setImportController(null);
+      try {
+        const tempFile = new File(fileUri);
+        if (tempFile.exists && tempFile.uri.includes(Paths.cache.uri)) {
+          tempFile.delete();
+        }
+      } catch (cleanupErr) {
+        logDevWarning("settings:cleanupImportTemp", cleanupErr);
+      }
     }
   };
 
   const handleImport = async () => {
-    if (isImporting) return;
+    if (isImporting || isExporting) return;
+
+    let fileUri: string | null = null;
     try {
-      const fileUri = await pickBackupArchiveFile();
-      if (!fileUri) return;
-
-      const info = await inspectBackupArchive(fileUri);
-      const dateStr = new Date(info.createdAt).toLocaleDateString(undefined, {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      });
-
-      Alert.alert(
-        "Restore Backup",
-        `Backup from ${dateStr} with ${info.entryCount.toLocaleString()} entries.\n\nThis replaces all entries and media currently on this device.`,
-        [
-          {
-            text: "Restore",
-            style: "destructive",
-            onPress: () => void performImport(fileUri),
-          },
-          { text: "Cancel", style: "cancel" },
-        ]
-      );
+      fileUri = await pickBackupArchiveFile();
     } catch (error) {
-      logDevWarning("settings:inspectArchive", error);
-      Alert.alert("Invalid File", "Please select a valid backup file.");
+      const msg = error instanceof Error ? error.message : "Failed to select backup file.";
+      Alert.alert("Invalid File", msg);
+      return;
     }
+
+    if (!fileUri) return;
+
+    let preview: InspectBackupResult;
+    try {
+      preview = await inspectBackupArchive(fileUri);
+    } catch (error) {
+      logDevWarning("settings:inspectBackup", error);
+      const msg =
+        error instanceof Error
+          ? error.message
+          : "This backup file could not be read or is corrupted.";
+      Alert.alert("Cannot Restore Backup", msg);
+      try {
+        new File(fileUri).delete();
+      } catch {
+        // ignore
+      }
+      return;
+    }
+
+    const dateStr = new Date(preview.createdAt).toLocaleDateString(undefined, {
+      dateStyle: "medium",
+    });
+    const entryLabel = `${preview.counts.entry.toLocaleString()} ${preview.counts.entry === 1 ? "entry" : "entries"}`;
+    Alert.alert(
+      "Restore Backup?",
+      `This backup from ${dateStr} contains ${entryLabel}.\n\nRestoring will replace all current entries on this device. This cannot be undone.`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+          onPress: () => {
+            try {
+              new File(fileUri).delete();
+            } catch {
+              // ignore
+            }
+          },
+        },
+        {
+          text: "Restore",
+          style: "destructive",
+          onPress: () => {
+            void executeImport(fileUri);
+          },
+        },
+      ]
+    );
+  };
+
+  const handleCancelImport = () => {
+    cancelActiveRestore();
+    void dismissBackupProgressNotification();
   };
 
   const confirmDeleteEntries = () =>
@@ -211,21 +355,69 @@ export function PrivacySettingsScreen() {
         <SettingsRow
           icon="upload"
           title="Export"
-          subtitle={isExporting ? "Saving backup…" : "Save all your data to a backup file"}
-          badge={isExporting ? <ActivityIndicator size="small" color={colors.marker} /> : undefined}
-          showChevron={false}
-          onPress={() => void handleExport()}
+          subtitle={
+            isExporting
+              ? "Packaging & saving to selected folder…"
+              : "Save all your data to a backup file"
+          }
+          badge={
+            isExporting ? (
+              <View style={styles.inFlightRow}>
+                <ActivityIndicator size="small" color={colors.marker} />
+                <Pressable
+                  onPress={handleCancelExport}
+                  hitSlop={8}
+                  style={({ pressed }) => [styles.cancelBtn, pressed && press]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Cancel export"
+                >
+                  <ThemedText
+                    style={[typography.caption, { color: colors.destructive, fontWeight: "600" }]}
+                  >
+                    Cancel
+                  </ThemedText>
+                </Pressable>
+              </View>
+            ) : undefined
+          }
+          showChevron={!isExporting}
+          onPress={() => {
+            if (!isExporting) void handleExport();
+          }}
         />
 
         <SettingsRow
           icon="download"
           title="Import"
           subtitle={
-            isImporting ? "Restoring…" : "Restore from a backup file, replacing current data"
+            isImporting
+              ? "Restoring entries…"
+              : "Restore from a backup file, replacing current data"
           }
-          badge={isImporting ? <ActivityIndicator size="small" color={colors.marker} /> : undefined}
-          showChevron={false}
-          onPress={() => void handleImport()}
+          badge={
+            isImporting ? (
+              <View style={styles.inFlightRow}>
+                <ActivityIndicator size="small" color={colors.marker} />
+                <Pressable
+                  onPress={handleCancelImport}
+                  hitSlop={8}
+                  style={({ pressed }) => [styles.cancelBtn, pressed && press]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Cancel import"
+                >
+                  <ThemedText
+                    style={[typography.caption, { color: colors.destructive, fontWeight: "600" }]}
+                  >
+                    Cancel
+                  </ThemedText>
+                </Pressable>
+              </View>
+            ) : undefined
+          }
+          showChevron={!isImporting}
+          onPress={() => {
+            if (!isImporting) void handleImport();
+          }}
         />
       </SettingsGroup>
 
@@ -293,5 +485,14 @@ const styles = StyleSheet.create({
   },
   deleteBtn: {
     paddingVertical: space.sm,
+  },
+  inFlightRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.sm,
+  },
+  cancelBtn: {
+    paddingHorizontal: space.xs,
+    paddingVertical: 2,
   },
 });

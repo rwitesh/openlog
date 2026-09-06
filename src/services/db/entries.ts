@@ -30,7 +30,7 @@ function parseLocation(row: EntryRecord): EntryLocation | undefined {
   };
 }
 
-/** Maps a raw `entries` row onto the app-side {@link Entry} shape. */
+/** Maps a database row onto the app-side {@link Entry} shape with resolved media URIs. */
 export function toEntry(row: EntryRecord): Entry {
   return {
     id: row.id,
@@ -336,31 +336,52 @@ export async function deleteAllEntries(): Promise<string[]> {
   });
 }
 
-/** Fetches all entries with raw relative media paths for export packaging. */
-export async function getAllRawEntries(): Promise<Entry[]> {
+/** Returns the total count of entries stored in the database. */
+export async function getEntriesCount(): Promise<number> {
   return runDb(async (db) => {
-    const rows = await db.getAllAsync<EntryRecord>(
-      `SELECT ${ENTRY_COLUMNS} FROM entries ORDER BY created_at DESC, id DESC`
-    );
-    return rows.map((row) => ({
-      id: row.id,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-      text: row.text ?? undefined,
-      images: row.images ? parseUris(row.images) : [],
-      audios: row.audios ? parseUris(row.audios) : [],
-      attachments: row.attachments ? parseAttachments(row.attachments) : [],
-      location: parseLocation(row),
-    }));
+    const row = await db.getFirstAsync<{ count: number }>(`SELECT COUNT(*) as count FROM entries`);
+    return row?.count ?? 0;
   });
 }
 
-/** Transactional full restore of entries from an archive, replacing all existing rows. */
-export async function importEntriesBatch(entries: Entry[]): Promise<number> {
+/** Maps a database row to an entry, keeping media paths as stored in SQLite (for backup). */
+function toStoredEntry(row: EntryRecord): Entry {
+  return {
+    id: row.id,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    text: row.text ?? undefined,
+    images: row.images ? parseUris(row.images) : [],
+    audios: row.audios ? parseUris(row.audios) : [],
+    attachments: row.attachments ? parseAttachments(row.attachments) : [],
+    location: parseLocation(row),
+  };
+}
+
+/** Offset/limit page of entries with stored media paths, for backup export. */
+export async function getEntriesPage(offset: number, limit: number): Promise<Entry[]> {
+  return runDb(async (db) => {
+    const rows = await db.getAllAsync<EntryRecord>(
+      `SELECT ${ENTRY_COLUMNS} FROM entries ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`,
+      [limit, offset]
+    );
+    return rows.map(toStoredEntry);
+  });
+}
+
+/** Replaces all entries in a single transaction (restore from backup). */
+export async function importEntriesBatched(
+  entries: Entry[],
+  options?: { signal?: AbortSignal }
+): Promise<number> {
   return runDb(async (db) => {
     let inserted = 0;
 
     await db.withTransactionAsync(async () => {
+      if (options?.signal?.aborted) {
+        throw new Error("Import cancelled");
+      }
+
       await db.runAsync(`DELETE FROM entries`);
       const insertStmt = await db.prepareAsync(
         `INSERT INTO entries (
@@ -371,6 +392,9 @@ export async function importEntriesBatch(entries: Entry[]): Promise<number> {
 
       try {
         for (const entry of entries) {
+          if (options?.signal?.aborted) {
+            throw new Error("Import cancelled");
+          }
           const [lat, lng, locationName] = locationParams(entry.location);
           const imagesJson = entry.images?.length ? JSON.stringify(entry.images) : null;
           const audiosJson = entry.audios?.length ? JSON.stringify(entry.audios) : null;
