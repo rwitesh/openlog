@@ -359,88 +359,116 @@ export async function importBackupArchive(fileUri: string): Promise<ImportBackup
     throw new Error("Selected backup file does not exist.");
   }
 
-  const mediaDir = new Directory(Paths.document, "media");
-  if (mediaDir.exists) {
-    mediaDir.delete();
+  const stagingDir = new Directory(Paths.cache, "restore_media_staging");
+  if (stagingDir.exists) {
+    stagingDir.delete();
   }
-  mediaDir.create({ idempotent: true, intermediates: true });
+  stagingDir.create({ idempotent: true, intermediates: true });
 
   let dbData: ArchiveDb | null = null;
   let restoredMediaCount = 0;
+  let isRestored = false;
 
-  const unzipper = new Unzip();
-  unzipper.register(UnzipInflate);
-  unzipper.register(UnzipPassThrough);
+  try {
+    const unzipper = new Unzip();
+    unzipper.register(UnzipInflate);
+    unzipper.register(UnzipPassThrough);
 
-  unzipper.onfile = (file) => {
-    if (file.name === "db.json") {
-      const chunks: Uint8Array[] = [];
-      file.ondata = (err, chunk, final) => {
-        if (err) throw err;
-        chunks.push(chunk);
-        if (final) {
-          dbData = JSON.parse(strFromU8(concatChunks(chunks))) as ArchiveDb;
-        }
-      };
-      file.start();
-    } else if (file.name.startsWith("media/")) {
-      const filename = sanitizeMediaFilename(file.name);
-      if (!filename || filename === "." || filename === "..") return;
-      try {
-        const destFile = new File(mediaDir, filename);
-        destFile.create({ overwrite: true });
-        const handle = destFile.open(FileMode.WriteOnly);
-
+    unzipper.onfile = (file) => {
+      if (file.name === "db.json") {
+        const chunks: Uint8Array[] = [];
         file.ondata = (err, chunk, final) => {
-          if (err) {
-            handle.close();
-            logDevWarning("importBackupArchive:fileStream", err);
-            return;
-          }
-          handle.writeBytes(chunk);
+          if (err) throw err;
+          chunks.push(chunk);
           if (final) {
-            handle.close();
-            restoredMediaCount++;
+            dbData = JSON.parse(strFromU8(concatChunks(chunks))) as ArchiveDb;
           }
         };
         file.start();
-      } catch (err) {
-        logDevWarning("importBackupArchive:mediaFile", err);
+      } else if (file.name.startsWith("media/")) {
+        const filename = sanitizeMediaFilename(file.name);
+        if (!filename || filename === "." || filename === "..") return;
+        try {
+          const destFile = new File(stagingDir, filename);
+          destFile.create({ overwrite: true });
+          const handle = destFile.open(FileMode.WriteOnly);
+
+          file.ondata = (err, chunk, final) => {
+            if (err) {
+              handle.close();
+              logDevWarning("importBackupArchive:fileStream", err);
+              return;
+            }
+            handle.writeBytes(chunk);
+            if (final) {
+              handle.close();
+              restoredMediaCount++;
+            }
+          };
+          file.start();
+        } catch (err) {
+          logDevWarning("importBackupArchive:mediaFile", err);
+        }
+      }
+    };
+
+    const CHUNK_SIZE = 256 * 1024;
+    const readHandle = sourceFile.open(FileMode.ReadOnly);
+    try {
+      const fileSize = readHandle.size ?? 0;
+      let bytesRead = 0;
+      while (bytesRead < fileSize) {
+        const chunk = readHandle.readBytes(Math.min(CHUNK_SIZE, fileSize - bytesRead));
+        if (chunk.length === 0) break;
+        bytesRead += chunk.length;
+        unzipper.push(chunk, bytesRead >= fileSize);
+      }
+      if (fileSize === 0) {
+        unzipper.push(new Uint8Array(0), true);
+      }
+    } finally {
+      readHandle.close();
+    }
+
+    const parsedDbData = dbData as unknown as ArchiveDb | null;
+    if (!parsedDbData || !Array.isArray(parsedDbData.entries)) {
+      throw new Error("Invalid or corrupted backup file: entries list is missing.");
+    }
+
+    const importedCount = await importEntriesBatch(parsedDbData.entries);
+
+    // Only after database transaction commit succeeds:
+    // replace durable media directory with the staged media directory.
+    const mediaDir = new Directory(Paths.document, "media");
+    if (mediaDir.exists) {
+      mediaDir.delete();
+    }
+    if (stagingDir.exists) {
+      await stagingDir.move(mediaDir);
+    }
+    if (!mediaDir.exists) {
+      mediaDir.create({ idempotent: true, intermediates: true });
+    }
+
+    isRestored = true;
+    notifyStoreReload();
+
+    return {
+      importedCount,
+      mediaCount: restoredMediaCount,
+    };
+  } finally {
+    if (!isRestored) {
+      try {
+        const leftoverStagingDir = new Directory(Paths.cache, "restore_media_staging");
+        if (leftoverStagingDir.exists) {
+          leftoverStagingDir.delete();
+        }
+      } catch (cleanupErr) {
+        logDevWarning("importBackupArchive:cleanupStaging", cleanupErr);
       }
     }
-  };
-
-  const CHUNK_SIZE = 256 * 1024;
-  const readHandle = sourceFile.open(FileMode.ReadOnly);
-  try {
-    const fileSize = readHandle.size ?? 0;
-    let bytesRead = 0;
-    while (bytesRead < fileSize) {
-      const chunk = readHandle.readBytes(Math.min(CHUNK_SIZE, fileSize - bytesRead));
-      if (chunk.length === 0) break;
-      bytesRead += chunk.length;
-      unzipper.push(chunk, bytesRead >= fileSize);
-    }
-    if (fileSize === 0) {
-      unzipper.push(new Uint8Array(0), true);
-    }
-  } finally {
-    readHandle.close();
   }
-
-  const parsedDbData = dbData as unknown as ArchiveDb | null;
-  if (!parsedDbData || !Array.isArray(parsedDbData.entries)) {
-    throw new Error("Invalid or corrupted backup file: entries list is missing.");
-  }
-
-  const importedCount = await importEntriesBatch(parsedDbData.entries);
-
-  notifyStoreReload();
-
-  return {
-    importedCount,
-    mediaCount: restoredMediaCount,
-  };
 }
 
 /**
