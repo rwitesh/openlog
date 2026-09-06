@@ -49,14 +49,24 @@ export function resolveMediaUriList(uris: string[]): string[] {
 /**
  * Copies a picked/recorded file into the app's private document directory so
  * it survives app restarts (cache and picker URIs are not durable).
+ * If the file is already in the durable media directory, returns its active URI as-is.
  */
 export async function persistMedia(sourceUri: string, ext: string): Promise<string> {
   const dir = mediaDirectory();
   dir.create({ idempotent: true, intermediates: true });
 
-  // If already in durable media directory, return as-is
-  if (sourceUri.includes("/Documents/media/")) {
-    return sourceUri;
+  const resolved = resolveMediaUri(sourceUri);
+  const dirUri = dir.uri.endsWith("/") ? dir.uri : `${dir.uri}/`;
+
+  // If already in durable media directory, return active URI as-is without re-copying
+  if (resolved.startsWith(dirUri)) {
+    try {
+      if (new File(resolved).exists) {
+        return resolved;
+      }
+    } catch {
+      // Fall through to copy if checking existence throws
+    }
   }
 
   const name = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;

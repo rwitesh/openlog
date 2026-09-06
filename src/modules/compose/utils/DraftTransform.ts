@@ -1,4 +1,4 @@
-import { persistMedia } from "@/services/media/storage";
+import { persistAttachmentList, persistMedia } from "@/services/media";
 import type { NewEntryInput } from "@/shared/types";
 import type { Draft } from "../types";
 
@@ -22,8 +22,10 @@ export async function fromDraft(draft: Draft): Promise<NewEntryInput | null> {
     ? await Promise.all(draft.audios.map((audioUri) => persistMedia(audioUri, "m4a")))
     : [];
 
-  // Attachments are persisted at pick time; their URIs are already durable.
-  const attachments = draft.attachments?.length ? draft.attachments : [];
+  // Attachments are persisted when saving, keeping drafts ephemeral.
+  const attachments = draft.attachments?.length
+    ? await persistAttachmentList(draft.attachments)
+    : [];
 
   if (text || images.length || audios.length || attachments.length) {
     return { text, images, audios, attachments, createdAt, location };
