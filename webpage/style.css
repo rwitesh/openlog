@@ -3,6 +3,10 @@
   --bg: #fdfdf7;
   --link: #06c;
   --muted: #666;
+  --changelog-added: #15803d;
+  --changelog-fixed: #1d4ed8;
+  --changelog-improved: #7c3aed;
+  --changelog-removed: #b91c1c;
 }
 * {
   box-sizing: border-box;
@@ -66,6 +70,22 @@ li {
 }
 strong {
   font-weight: 700;
+}
+.changelog-tag {
+  font-weight: 700;
+  margin-right: 0.35em;
+}
+.changelog-added {
+  color: var(--changelog-added);
+}
+.changelog-fixed {
+  color: var(--changelog-fixed);
+}
+.changelog-improved {
+  color: var(--changelog-improved);
+}
+.changelog-removed {
+  color: var(--changelog-removed);
 }
 ::selection {
   background: var(--fg);
