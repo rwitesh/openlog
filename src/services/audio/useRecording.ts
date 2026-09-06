@@ -7,11 +7,13 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import { analytics } from "@/config/analytics";
 import { RECORDING_OPTIONS, RECORDING_POLL_MS } from "./constants";
+import { useAudioCoordinator } from "./usePlayback";
 import { liveWaveformLevels, meteringToLevel } from "./waveform";
 
 const MAX_LIVE_SAMPLES = 48;
 
 export function useRecording() {
+  const coordinator = useAudioCoordinator();
   const recorder = useAudioRecorder(RECORDING_OPTIONS);
   const recorderState = useAudioRecorderState(recorder, RECORDING_POLL_MS);
 
@@ -48,6 +50,7 @@ export function useRecording() {
     const { granted } = await requestRecordingPermissionsAsync();
     if (!granted) return false;
 
+    coordinator.pauseAll();
     await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
     setRecordedUri(undefined);
     setRecordedDurationMs(undefined);
@@ -59,12 +62,13 @@ export function useRecording() {
     recorder.record();
     analytics.capture("audio_recording_started");
     return true;
-  }, [recorder]);
+  }, [coordinator, recorder]);
 
   const stop = useCallback(async () => {
     const status = recorder.getStatus();
     const levels = liveWaveformLevels(samplesRef.current);
     await recorder.stop();
+    void setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true }).catch(() => {});
 
     if (recorder.uri) {
       setRecordedUri(recorder.uri);

@@ -30,6 +30,7 @@ import {
 } from "@/screens/settings";
 import { Timeline } from "@/screens/timeline";
 import { Welcome } from "@/screens/welcome";
+import { AudioProvider } from "@/services/audio";
 import { Layout } from "@/shared/components";
 import { useAppBootstrap } from "@/shared/hooks";
 import { IS_EXPO_GO, logDevWarning } from "@/shared/utils";
@@ -216,9 +217,11 @@ export default function App() {
           <Layout>
             <AppProviders initialPreferences={preferences}>
               <ProfileProvider initialName={userName}>
-                <AppLockGate>
-                  <AppContent showWelcome={showWelcome} />
-                </AppLockGate>
+                <AudioProvider>
+                  <AppLockGate>
+                    <AppContent showWelcome={showWelcome} />
+                  </AppLockGate>
+                </AudioProvider>
               </ProfileProvider>
             </AppProviders>
           </Layout>
