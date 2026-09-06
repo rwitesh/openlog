@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
-import { Pressable, StyleSheet, View } from "react-native";
+import { useEffect } from "react";
+import { BackHandler, Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/shared/components/ThemedText";
@@ -17,6 +18,12 @@ export function LockScreen({ prompting, onUnlock }: LockScreenProps) {
   const { theme, resolvedMode } = useTheme();
   const { colors } = theme;
   const dark = resolvedMode === "dark";
+
+  // Absorb hardware back presses on Android so underlying screens cannot be popped while locked.
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => true);
+    return () => subscription.remove();
+  }, []);
 
   // Symmetric top/bottom padding (the larger of the two insets) so the
   // centered block sits at the optical center — asymmetric insets would

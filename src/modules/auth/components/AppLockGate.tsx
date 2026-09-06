@@ -3,15 +3,18 @@
  *
  * Mounted once at the root (inside AppProviders, so preferences and theme
  * are available). While `security.biometricLock` is enabled and the app is
- * locked it renders the themed lock screen instead of app content; the
- * lock lifecycle itself lives in `useAppLock`.
+ * locked it renders the themed lock screen as a full-screen overlay above
+ * the app content.
+ *
+ * Children are kept continuously mounted so in-progress compose drafts,
+ * media selections, and navigation states are preserved across lock cycles.
  */
 
-import { StatusBar } from "expo-status-bar";
 import type { ReactNode } from "react";
+import { StyleSheet, View } from "react-native";
 
 import { useAppLock } from "@/services/auth";
-import { usePreferences, useTheme } from "@/theme";
+import { usePreferences } from "@/theme";
 import { LockScreen } from "./LockScreen";
 
 interface AppLockGateProps {
@@ -20,17 +23,35 @@ interface AppLockGateProps {
 
 export function AppLockGate({ children }: AppLockGateProps) {
   const { preferences } = usePreferences();
-  const { mode } = useTheme();
   const { locked, prompting, unlock } = useAppLock(preferences.security.biometricLock);
 
-  if (!locked) {
-    return <>{children}</>;
-  }
-
   return (
-    <>
-      <StatusBar style={mode === "dark" ? "light" : "dark"} />
-      <LockScreen prompting={prompting} onUnlock={() => void unlock()} />
-    </>
+    <View style={styles.container}>
+      <View
+        style={styles.container}
+        pointerEvents={locked ? "none" : "auto"}
+        aria-hidden={locked}
+        accessibilityElementsHidden={locked}
+        importantForAccessibility={locked ? "no-hide-descendants" : "auto"}
+      >
+        {children}
+      </View>
+      {locked ? (
+        <View style={styles.overlay}>
+          <LockScreen prompting={prompting} onUnlock={() => void unlock()} />
+        </View>
+      ) : null}
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFill,
+    zIndex: 999,
+    elevation: 999,
+  },
+});
