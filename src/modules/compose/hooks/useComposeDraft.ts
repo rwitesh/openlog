@@ -4,6 +4,7 @@ import { Alert } from "react-native";
 import { addEntry, patchEntry } from "@/modules/entry";
 import { getCachedPlace, useLocation } from "@/services/location";
 import type { Attachment, Entry } from "@/shared/types";
+import { getInitialWhen } from "@/shared/utils/dates";
 import { logDevWarning } from "@/shared/utils/devLog";
 import { canSaveDraft, fromDraft } from "../utils/DraftTransform";
 
@@ -21,9 +22,13 @@ interface ComposeMedia {
  * Scalar draft state (text, timestamp, location) plus the pipeline that
  * persists the whole draft — media included — into a stored entry.
  */
-export function useComposeDraft(existing: Entry | undefined, media: ComposeMedia) {
+export function useComposeDraft(
+  existing: Entry | undefined,
+  media: ComposeMedia,
+  initialDate?: number
+) {
   const [text, setText] = useState(() => existing?.text ?? "");
-  const [when, setWhen] = useState(() => existing?.createdAt ?? Date.now());
+  const [when, setWhen] = useState(() => getInitialWhen(existing?.createdAt, initialDate));
   const [saving, setSaving] = useState(false);
   const location = useLocation(existing ? existing.location : getCachedPlace());
 
@@ -81,9 +86,9 @@ export function useComposeDraft(existing: Entry | undefined, media: ComposeMedia
   /** Discard edits and restore the entry's stored draft fields. */
   const reset = useCallback(() => {
     setText(existing?.text ?? "");
-    setWhen(existing?.createdAt ?? Date.now());
+    setWhen(getInitialWhen(existing?.createdAt, initialDate));
     location.reset();
-  }, [existing, location.reset]);
+  }, [existing, initialDate, location.reset]);
 
   return { text, setText, when, setWhen, location, canSave, save, reset };
 }

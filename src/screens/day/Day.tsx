@@ -17,7 +17,7 @@ export function DayTimelineScreen({ route, navigation }: Props) {
   const { colors } = useTheme();
 
   const isToday = isSameDay(dayTs, Date.now());
-  const bottomInset = isToday ? FAB_CLEARANCE + insets.bottom : insets.bottom;
+  const bottomInset = FAB_CLEARANCE + insets.bottom;
 
   return (
     <View style={[styles.flex, { backgroundColor: colors.background }]}>
@@ -28,12 +28,12 @@ export function DayTimelineScreen({ route, navigation }: Props) {
         paddingTop={space.sm}
         bottomInset={bottomInset}
         emptyTitle="A quiet day"
-        emptyBody={isToday ? "Tap + to write." : "Nothing written that day."}
+        emptyBody={isToday ? "Tap + to write." : "Tap + to add something for this day."}
         animateFirst={isToday}
         onEndReached={loadMore}
       />
 
-      {isToday ? <AddEntryFab onPress={() => navigation.navigate("Compose")} /> : null}
+      <AddEntryFab onPress={() => navigation.navigate("Compose", { initialDate: dayTs })} />
     </View>
   );
 }

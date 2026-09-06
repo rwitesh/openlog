@@ -219,3 +219,22 @@ export function formatMonthName(ts: number): string {
   const d = new Date(ts);
   return MONTHS_LONG[d.getMonth()];
 }
+
+/**
+ * Determine initial timestamp for composing an entry:
+ * - If editing an existing entry, preserve its stored createdAt timestamp.
+ * - If initialDate is provided as start-of-day (e.g. from Day view), attach the current clock time.
+ * - If initialDate contains an explicit time of day, use it directly.
+ * - Fall back to `now` (defaulting to Date.now()).
+ */
+export function getInitialWhen(
+  existingCreatedAt?: number,
+  initialDate?: number,
+  now = Date.now()
+): number {
+  if (existingCreatedAt !== undefined) return existingCreatedAt;
+  if (initialDate !== undefined) {
+    return initialDate === startOfDay(initialDate) ? withTimeOfDay(initialDate, now) : initialDate;
+  }
+  return now;
+}

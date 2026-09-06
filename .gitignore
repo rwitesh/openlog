@@ -43,6 +43,7 @@ yarn-error.*
 # agent skills
 .claude/
 .agents/
+.gemini/
 skills-lock.json
 
 tmp*
