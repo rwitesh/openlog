@@ -55,9 +55,13 @@ export function ComposeScreen({ navigation, route }: Props) {
     );
   }
 
+  const composeKey =
+    entry?.id ??
+    (route.params?.initialDate !== undefined ? `new-${route.params.initialDate}` : "new");
+
   return (
     <ComposeContent
-      key={entry?.id ?? "new"}
+      key={composeKey}
       navigation={navigation}
       route={route}
       existing={entry ?? undefined}
@@ -88,7 +92,7 @@ function ComposeContent({ navigation, route, existing }: ComposeContentProps) {
   const keepFocus = useKeepFocus(inputRef);
 
   const media = useMediaAttachments(existing);
-  const draft = useComposeDraft(existing, media);
+  const draft = useComposeDraft(existing, media, route.params?.initialDate);
   const { location } = draft;
 
   // Pre-focus the writing surface when entering compose or switching to edit mode
