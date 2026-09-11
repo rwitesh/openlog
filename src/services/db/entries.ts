@@ -1,7 +1,13 @@
+import { restoreMarkerKey } from "@/services/backup/restoreTransaction";
 import { resolveMediaUri, resolveMediaUriList } from "@/services/media/storage";
 import type { Entry, EntryLocation, NewEntryInput, UpdateEntryInput } from "@/shared/types";
-import { addDays, addMonths, startOfDay, startOfMonth } from "@/shared/utils/dates";
+import { addMonths, startOfDay, startOfMonth } from "@/shared/utils/dates";
 import { runDb } from "./database";
+import {
+  buildPagedEntryQuery,
+  type EntryCursor,
+  type PagedEntriesOptions,
+} from "./entryPagination";
 import { parseAttachments, parseUris } from "./uris";
 
 export interface EntryRecord {
@@ -52,17 +58,7 @@ function locationParams(location?: EntryLocation | null) {
   return [location?.latitude ?? null, location?.longitude ?? null, location?.name ?? null] as const;
 }
 
-export interface EntryCursor {
-  createdAt: number;
-  id: string;
-}
-
-export interface PagedEntriesOptions {
-  cursor?: EntryCursor | number;
-  monthTs?: number;
-  dayTs?: number;
-  limit?: number;
-}
+export type { EntryCursor, PagedEntriesOptions } from "./entryPagination";
 
 export interface PagedEntriesResult {
   entries: Entry[];
@@ -74,44 +70,10 @@ export interface PagedEntriesResult {
 export async function getPagedEntries(
   options: PagedEntriesOptions = {}
 ): Promise<PagedEntriesResult> {
-  const { cursor, monthTs, dayTs, limit = 50 } = options;
+  const { limit = 50 } = options;
   return runDb(async (db) => {
-    const conditions: string[] = [];
-    const params: (number | string)[] = [];
-
-    if (cursor !== undefined) {
-      if (typeof cursor === "number") {
-        conditions.push("created_at < ?");
-        params.push(cursor);
-      } else {
-        conditions.push("(created_at, id) < (?, ?)");
-        params.push(cursor.createdAt, cursor.id);
-      }
-    }
-
-    if (dayTs !== undefined) {
-      const start = startOfDay(dayTs);
-      const end = addDays(start, 1);
-      conditions.push("created_at >= ? AND created_at < ?");
-      params.push(start, end);
-    } else if (monthTs !== undefined) {
-      const start = startOfMonth(monthTs);
-      const end = addMonths(monthTs, 1);
-      conditions.push("created_at >= ? AND created_at < ?");
-      params.push(start, end);
-    }
-
-    const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
-    const query = `
-      SELECT ${ENTRY_COLUMNS}
-        FROM entries
-       ${whereClause}
-       ORDER BY created_at DESC, id DESC
-       LIMIT ?
-    `;
-    params.push(limit + 1);
-
-    const rows = await db.getAllAsync<EntryRecord>(query, ...params);
+    const page = buildPagedEntryQuery(ENTRY_COLUMNS, options);
+    const rows = await db.getAllAsync<EntryRecord>(page.query, ...page.params, limit + 1);
     const hasMore = rows.length > limit;
     const resultRows = hasMore ? rows.slice(0, limit) : rows;
     const entries = resultRows.map(toEntry);
@@ -370,11 +332,16 @@ export async function getEntriesPage(offset: number, limit: number): Promise<Ent
 
 /** Replaces all entries in a single transaction (restore from backup). */
 export async function importEntriesBatched(
-  entries: Entry[],
-  options?: { signal?: AbortSignal }
+  entries: Iterable<Entry> | AsyncIterable<Entry>,
+  options?: {
+    signal?: AbortSignal;
+    expectedCounts?: { entry: number; images: number; audio: number; attachments: number };
+    restoreTransactionId?: string;
+  }
 ): Promise<number> {
   return runDb(async (db) => {
     let inserted = 0;
+    const counts = { images: 0, audio: 0, attachments: 0 };
 
     await db.withTransactionAsync(async () => {
       if (options?.signal?.aborted) {
@@ -390,7 +357,7 @@ export async function importEntriesBatched(
       );
 
       try {
-        for (const entry of entries) {
+        for await (const entry of entries) {
           if (options?.signal?.aborted) {
             throw new Error("Import cancelled");
           }
@@ -401,6 +368,18 @@ export async function importEntriesBatched(
           const text = entry.text ?? null;
           const createdAt = entry.createdAt;
           const updatedAt = entry.updatedAt ?? createdAt;
+
+          if (
+            typeof entry.id !== "string" ||
+            !Number.isFinite(createdAt) ||
+            !Number.isFinite(updatedAt) ||
+            (entry.text !== undefined && typeof entry.text !== "string") ||
+            !Array.isArray(entry.images) ||
+            !Array.isArray(entry.audios) ||
+            !Array.isArray(entry.attachments)
+          ) {
+            throw new Error("Invalid backup entry.");
+          }
 
           await insertStmt.executeAsync([
             entry.id,
@@ -415,6 +394,27 @@ export async function importEntriesBatched(
             locationName,
           ]);
           inserted++;
+          counts.images += entry.images.length;
+          counts.audio += entry.audios.length;
+          counts.attachments += entry.attachments.length;
+        }
+
+        if (
+          options?.expectedCounts &&
+          (inserted !== options.expectedCounts.entry ||
+            counts.images !== options.expectedCounts.images ||
+            counts.audio !== options.expectedCounts.audio ||
+            counts.attachments !== options.expectedCounts.attachments)
+        ) {
+          throw new Error("Backup data does not match the manifest counts.");
+        }
+
+        if (options?.restoreTransactionId) {
+          await db.runAsync(
+            `INSERT INTO settings (key, value) VALUES (?, ?)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+            [restoreMarkerKey, options.restoreTransactionId]
+          );
         }
       } finally {
         await insertStmt.finalizeAsync();

@@ -6,7 +6,11 @@ This audit covered the application entry points, screens, feature modules, theme
 
 The audit is static plus build-tool verification. It does not replace device testing on every supported Android/iOS version or a third-party penetration test.
 
-## Changes made
+## Resolution status
+
+The five findings below are already resolved in the current codebase. The three originally high-priority findings have since been partially or fully remediated as recorded below; the remaining test gaps are explicitly retained rather than treated as complete coverage.
+
+### Resolved user-impacting findings
 
 ### Native development only
 
@@ -17,21 +21,23 @@ The audit is static plus build-tool verification. It does not replace device tes
 - Removed all Expo Go detection, disabled-feature branches, special error messages, and Expo Go-only database seeding controls.
 - Deleted `scripts/build-apk-local.sh`. It ran destructive `expo prebuild --clean`, rewrote generated Gradle properties with macOS-specific `sed`, built a release binary while naming it “dev,” and mixed build/install concerns. The standard Expo native commands now own this path.
 
-### User-impacting fixes
-
 1. **Media deletion could create permanent broken entries.** Image/audio removal deleted the underlying file before updating SQLite. If the database update failed, the entry still referenced a file that no longer existed. The code now updates SQLite first; the existing post-commit cleanup removes unreferenced files afterward.
 2. **Notification permission was requested without context.** Entering the timeline prompted for notifications even though notifications are only used around backup/restore. The startup prompt was removed; permission remains requested at the relevant backup/restore action.
-3. **Preference persistence failures were unhandled.** Theme/profile writes could reject without any captured diagnostic. Failures are now reported without including journal content or the profile name.
+3. **Preference persistence failures were unhandled.** Theme/profile writes could reject without any captured diagnostic. Failures are now reported without including entry content or the profile name.
 4. **Expo package drift.** SDK 57 patch dependencies were aligned with Expo Doctor, reducing native/JavaScript mismatch risk.
 5. **Known high-severity dependency advisory.** The safe `npm audit fix` upgraded the vulnerable XML parser path. The high-severity advisory is no longer present.
 
-## Remaining risks and recommended improvements
+## Follow-up remediation and remaining risks
 
-### High priority
+### High priority — implemented and verified
 
-1. **Backup restore is not crash-atomic across SQLite and the filesystem.** The implementation rolls back correctly when JavaScript throws, but an OS kill between swapping the media directory and committing SQLite can leave the database and files out of sync. Add a durable restore journal in the documents directory and recover/roll back incomplete restores during bootstrap.
-2. **Backup import has no resource ceilings.** A selected archive can expand until device storage is exhausted, and `db.json` is parsed as one in-memory object. Add compressed/uncompressed byte limits, per-file limits, duplicate-path rejection, maximum entry/media counts, and streaming JSON validation/import. This matters most for corrupt or untrusted `.openlog` files.
-3. **Very limited automated coverage.** The only executable tests cover date initialization. Add tests for database migrations, cursor pagination, FTS synchronization, entry/media mutation ordering, backup validation/rollback, preference parsing, and authentication state transitions.
+1. **Crash-atomic backup restore.** A durable restore transaction record is written in the documents directory before the media/database handoff. Bootstrap recovery uses that record plus a SQLite commit marker to either finalize a committed restore or restore the prior media directory after an interrupted handoff.
+2. **Bounded backup import.** Import now limits archive, expanded, member, manifest, database, and individual-entry sizes; rejects duplicate and unexpected paths; caps entries and media; streams archive input to staged files; and incrementally parses `db.json` entries rather than loading its entry list as one object.
+3. **Automated coverage expanded.** Executable tests now exercise database migration, cursor pagination, FTS insert/update/delete synchronization, entry/media mutation ordering, backup validation and rollback/recovery, persisted-preference parsing, and authentication state transitions.
+
+Validation evidence for this status: the restore transaction record is created before media replacement and read during database bootstrap; the import path enforces the stated ceilings while reading the archive and streams entry decoding from staged `db.json`; the automated suite covers migration, pagination, FTS synchronization, entry/media mutation ordering, backup validation and rollback/recovery, preference parsing, and authentication state transitions. The entry store still persists media changes before scheduling unreferenced-file cleanup; notification permission requests remain confined to the notification/backup flow; preference and profile persistence rejection paths report sanitized diagnostics; `package.json` uses Expo SDK 57-compatible package ranges; and the prior high-severity XML-parser advisory remains absent after the safe audit update.
+
+Remaining validation work: device-level interruption testing is still needed to validate restore recovery under an actual OS kill.
 
 ### Medium priority
 
@@ -49,11 +55,11 @@ After the safe audit fix, npm reports moderate transitive advisories:
 - `stream-json` and an old nested `uuid` through Clerk's Solana wallet dependency tree. No compatible upstream fix is currently exposed in this dependency graph.
 - an old nested `uuid` through Expo config tooling. No compatible upstream fix is currently exposed in this dependency graph.
 
-These paths are transitive; they are not directly called by OpenLog's journal/backup code. Recheck them on every Clerk, Expo, and React Navigation update. Do not use `npm audit fix --force` here because its suggested React Navigation downgrade would likely break the app.
+These paths are transitive; they are not directly called by OpenLog's entry or backup code. Recheck them on every Clerk, Expo, and React Navigation update. Do not use `npm audit fix --force` here because its suggested React Navigation downgrade would likely break the app.
 
 ## Privacy observations
 
-- Journal text, locations, attachment names, photos, and audio are not deliberately sent to PostHog.
+- Entry text, locations, attachment names, photos, and audio are not deliberately sent to PostHog.
 - Analytics include coarse event metadata such as media counts, durations, screen names, and backup byte/entry counts.
 - Authentication is optional in the current beta configuration, while local biometric lock is independent of Clerk.
 - `.env` and signing-key patterns are ignored; `.env.example` contains placeholders only.

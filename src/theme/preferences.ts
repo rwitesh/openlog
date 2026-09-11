@@ -1,6 +1,7 @@
 import { hasFont } from "@/services/fonts/catalog";
+import { parsePersistedChoice } from "./preferenceParsing";
 import type { AccentChoice, FontName, MotionLevel, TextSize } from "./tokens";
-import { DEFAULT_FONT_FAMILY } from "./tokens";
+import { ACCENT_OPTIONS, DEFAULT_FONT_FAMILY } from "./tokens";
 
 export type ThemeMode = "system" | "light" | "dark";
 export type TimelineStyle = "rail" | "minimal" | "clean";
@@ -139,29 +140,53 @@ export function parseUserPreferences(
   }
 
   const appearance: AppearancePreferences = {
-    accent: (get(ACCENT_KEY) as AccentChoice) || DEFAULT_PREFERENCES.appearance.accent,
-    mode: (get(THEME_KEY) as ThemeMode) || DEFAULT_PREFERENCES.appearance.mode,
+    accent: parsePersistedChoice(
+      get(ACCENT_KEY),
+      ACCENT_OPTIONS.map((option) => option.id),
+      DEFAULT_PREFERENCES.appearance.accent
+    ),
+    mode: parsePersistedChoice(
+      get(THEME_KEY),
+      ["system", "light", "dark"],
+      DEFAULT_PREFERENCES.appearance.mode
+    ),
     fontFamily: resolvedFont,
-    textSize: (get(TEXT_SIZE_KEY) as TextSize) || DEFAULT_PREFERENCES.appearance.textSize,
+    textSize: parsePersistedChoice(
+      get(TEXT_SIZE_KEY),
+      ["compact", "regular", "generous"],
+      DEFAULT_PREFERENCES.appearance.textSize
+    ),
   };
 
   const entry: EntryPreferences = {
-    timelineStyle:
-      (get(TIMELINE_STYLE_KEY) as TimelineStyle) || DEFAULT_PREFERENCES.entry.timelineStyle,
-    timelineDensity:
-      (get(TIMELINE_DENSITY_KEY) as TimelineDensity) || DEFAULT_PREFERENCES.entry.timelineDensity,
+    timelineStyle: parsePersistedChoice(
+      get(TIMELINE_STYLE_KEY),
+      ["rail", "minimal", "clean"],
+      DEFAULT_PREFERENCES.entry.timelineStyle
+    ),
+    timelineDensity: parsePersistedChoice(
+      get(TIMELINE_DENSITY_KEY),
+      ["comfortable", "compact"],
+      DEFAULT_PREFERENCES.entry.timelineDensity
+    ),
     showTimestamp: get(SHOW_TIMESTAMP_KEY) !== "false",
     showLocation: get(SHOW_LOCATION_KEY) !== "false",
   };
 
   const writing: WritingPreferences = {
-    editorTextSize:
-      (get(EDITOR_TEXT_SIZE_KEY) as EditorTextSize) || DEFAULT_PREFERENCES.writing.editorTextSize,
+    editorTextSize: parsePersistedChoice(
+      get(EDITOR_TEXT_SIZE_KEY),
+      ["regular", "large"],
+      DEFAULT_PREFERENCES.writing.editorTextSize
+    ),
   };
 
   const accessibility: AccessibilityPreferences = {
-    motionLevel:
-      (get(MOTION_LEVEL_KEY) as MotionLevel) || DEFAULT_PREFERENCES.accessibility.motionLevel,
+    motionLevel: parsePersistedChoice(
+      get(MOTION_LEVEL_KEY),
+      ["full", "subtle", "reduced"],
+      DEFAULT_PREFERENCES.accessibility.motionLevel
+    ),
   };
 
   const security: SecurityPreferences = {

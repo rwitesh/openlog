@@ -14,11 +14,20 @@ import type { RootStackParamList } from "@/navigation/types";
 import { ONBOARDING_COMPLETED_KEY, setSetting } from "@/services/db/settings";
 import { AUTH_REQUIRED_FOR_ONBOARDING } from "@/shared/constants";
 import { logDevWarning, reportError } from "@/shared/utils";
+import {
+  authenticatedWelcomeStep,
+  initialWelcomeStep,
+  isAuthenticatedUserNamed,
+  stepAfterBack,
+  stepAfterShowcase,
+  type WelcomeAuthIntent,
+  type WelcomeAuthStep,
+} from "./welcomeAuthFlow";
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, "Welcome">;
 
-type Intent = "signup" | "login";
-export type Step = "showcase" | "choose" | "email" | "code" | "name";
+type Intent = WelcomeAuthIntent;
+export type Step = WelcomeAuthStep;
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const GENERIC_ERROR = "Something went wrong. Please try again.";
@@ -75,17 +84,6 @@ function report(where: string, raw: unknown, info: { code: string | null; messag
   });
 }
 
-function displayNameOf(
-  user?: { firstName: string | null; lastName: string | null } | null
-): string | null {
-  return (
-    [user?.firstName, user?.lastName]
-      .map((part) => part?.trim())
-      .filter(Boolean)
-      .join(" ") || null
-  );
-}
-
 // localMode: beta local name onboarding; authOnly (Profile login) always uses Clerk.
 export function useWelcomeAuth(navigation: Navigation, authOnly = false) {
   const localMode = !AUTH_REQUIRED_FOR_ONBOARDING && !authOnly;
@@ -95,7 +93,7 @@ export function useWelcomeAuth(navigation: Navigation, authOnly = false) {
   const { signUp, fetchStatus: signUpFetchStatus } = useSignUp();
   const { signIn, fetchStatus: signInFetchStatus } = useSignIn();
 
-  const [step, setStep] = useState<Step>(authOnly ? "choose" : "showcase");
+  const [step, setStep] = useState<Step>(() => initialWelcomeStep(authOnly));
   const [intent, setIntent] = useState<Intent>("signup");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -128,13 +126,13 @@ export function useWelcomeAuth(navigation: Navigation, authOnly = false) {
   useEffect(() => {
     if (routedRef.current || !isLoaded || !isSignedIn || !user) return;
     routedRef.current = true;
-    if (displayNameOf(user)) exitToApp();
+    if (authenticatedWelcomeStep(user) === "complete") exitToApp();
     else setStep("name");
   }, [isLoaded, isSignedIn, user, exitToApp]);
 
   const finishShowcase = () => {
     setErrorMessage(null);
-    setStep(localMode ? "name" : "choose");
+    setStep(stepAfterShowcase(localMode));
   };
 
   const startIntent = (next: Intent) => {
@@ -147,11 +145,7 @@ export function useWelcomeAuth(navigation: Navigation, authOnly = false) {
   // before the code step invalidates the attempt.
   const goBackStep = () => {
     setErrorMessage(null);
-    if (!authOnly && (step === "name" || step === "choose")) {
-      setStep("showcase");
-      return;
-    }
-    setStep(step === "name" ? "code" : step === "code" ? "email" : "choose");
+    setStep(stepAfterBack(step, authOnly));
   };
 
   // Clerk returns expected failures as { error } results but throws on
@@ -288,7 +282,7 @@ export function useWelcomeAuth(navigation: Navigation, authOnly = false) {
       }
       if (!(await finalize("login"))) return;
       // An account created outside the app may lack the name entirely.
-      if (!displayNameOf(user)) {
+      if (!isAuthenticatedUserNamed(user)) {
         setStep("name");
         return;
       }
@@ -333,7 +327,7 @@ export function useWelcomeAuth(navigation: Navigation, authOnly = false) {
       setErrorMessage(null);
       setName(fullName);
       analytics.capture("onboarding_completed");
-      if (isLoaded && user && !displayNameOf(user)) {
+      if (isLoaded && user && !isAuthenticatedUserNamed(user)) {
         const [firstName, ...rest] = fullName.split(" ");
         const lastName = rest.join(" ");
         user

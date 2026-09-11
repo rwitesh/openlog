@@ -1,206 +1,301 @@
-import { Directory, File, FileMode, Paths } from "expo-file-system";
+import { File, FileMode, Paths } from "expo-file-system";
 import { strFromU8, Unzip, UnzipInflate, UnzipPassThrough } from "fflate";
 
 import { notifyStoreReload } from "@/modules/entry";
 import { importEntriesBatched } from "@/services/db/entries";
-import { logDevWarning } from "@/shared/utils/devLog";
+import type { Entry } from "@/shared/types";
 
-import { assertArchiveManifest, assertManifestMatchesEntries, concatChunks } from "./shared";
-import type { ArchiveDb, ArchiveManifest, ImportBackupOptions, ImportBackupResult } from "./types";
+import {
+  clearRestoreTransaction,
+  createRestoreTransaction,
+  RESTORE_MEDIA_DIR,
+  RESTORE_NEXT_MEDIA_DIR,
+  RESTORE_PREVIOUS_MEDIA_DIR,
+  updateRestoreTransaction,
+} from "./restoreTransaction";
+import { assertArchiveManifest } from "./shared";
+import {
+  ARCHIVE_FORMAT,
+  ARCHIVE_SCHEMA_VERSION,
+  type ArchiveManifest,
+  type ImportBackupOptions,
+  type ImportBackupResult,
+} from "./types";
 
-function sanitizeMediaFilename(name: string): string {
-  const base = name.replace(/^media\//, "");
-  const sanitized = base.replace(/[/\\?%*:|"<>]/g, "_");
-  if (!sanitized || sanitized === "." || sanitized === "..") {
+const LIMITS = {
+  archiveBytes: 512 * 1024 * 1024,
+  uncompressedBytes: 2 * 1024 * 1024 * 1024,
+  memberBytes: 256 * 1024 * 1024,
+  manifestBytes: 256 * 1024,
+  dbBytes: 256 * 1024 * 1024,
+  entryBytes: 2 * 1024 * 1024,
+  entries: 100_000,
+  media: 100_000,
+} as const;
+
+function mediaFilename(path: string): string {
+  if (!path.startsWith("media/") || path.length <= "media/".length) {
     throw new Error("Invalid media path in backup archive.");
   }
-  return sanitized;
+  const filename = path.slice("media/".length);
+  if (filename.includes("/") || filename.includes("\\") || filename === "." || filename === "..") {
+    throw new Error("Invalid media path in backup archive.");
+  }
+  return filename;
 }
 
-/**
- * Restores entries and attached media from an archive, replacing all current data.
- * Rolls back media and database changes when decompression or import fails.
- */
+async function* readEntries(file: File): AsyncGenerator<Entry> {
+  const handle = file.open(FileMode.ReadOnly);
+  const decoder = new TextDecoder();
+  let text = "";
+  let started = false;
+  let finished = false;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  let item = "";
+
+  const consume = function* (): Generator<Entry> {
+    let index = 0;
+    if (!started) {
+      const match = /^\s*\{\s*"entries"\s*:\s*\[/.exec(text);
+      if (!match) {
+        if (text.length > 64) throw new Error("Invalid backup file: entries list is missing.");
+        return;
+      }
+      started = true;
+      index = match[0].length;
+    }
+    for (; index < text.length; index++) {
+      const char = text[index];
+      if (depth === 0) {
+        if (/\s|,/.test(char)) continue;
+        if (char === "]") {
+          const suffix = text.slice(index + 1);
+          if (!/^\s*}\s*$/.test(suffix)) throw new Error("Invalid backup file: malformed entries.");
+          finished = true;
+          text = "";
+          return;
+        }
+        if (char !== "{") throw new Error("Invalid backup file: malformed entries.");
+      }
+      item += char;
+      if (inString) {
+        if (escaped) escaped = false;
+        else if (char === "\\") escaped = true;
+        else if (char === '"') inString = false;
+      } else if (char === '"') inString = true;
+      else if (char === "{") depth++;
+      else if (char === "}") {
+        depth--;
+        if (depth === 0) {
+          if (item.length > LIMITS.entryBytes)
+            throw new Error("Invalid backup file: entry is too large.");
+          yield JSON.parse(item) as Entry;
+          item = "";
+        }
+      }
+      if (item.length > LIMITS.entryBytes)
+        throw new Error("Invalid backup file: entry is too large.");
+    }
+    text = item;
+    item = "";
+  };
+
+  try {
+    const size = handle.size ?? 0;
+    let read = 0;
+    while (read < size) {
+      const chunk = handle.readBytes(Math.min(128 * 1024, size - read));
+      if (chunk.length === 0) break;
+      read += chunk.length;
+      text += decoder.decode(chunk, { stream: read < size });
+      yield* consume();
+    }
+    text += decoder.decode();
+    yield* consume();
+    if (!started || !finished || depth !== 0 || inString || text.length > 0) {
+      throw new Error("Invalid backup file: malformed entries.");
+    }
+  } finally {
+    handle.close();
+  }
+}
+
+/** Restores a bounded, validated archive with a durable transaction record around the media/database handoff. */
 export async function importBackupArchive(
   fileUri: string,
   options?: ImportBackupOptions
 ): Promise<ImportBackupResult> {
   const sourceFile = new File(fileUri);
   if (!sourceFile.exists) throw new Error("Selected backup file does not exist.");
+  const archiveBytes = sourceFile.info().size ?? 0;
+  if (archiveBytes > LIMITS.archiveBytes) throw new Error("Backup file is too large to restore.");
   if (options?.signal?.aborted) throw new Error("Import cancelled");
 
-  const stagingDir = new Directory(Paths.cache, "restore_media_staging");
-  if (stagingDir.exists) stagingDir.delete();
-  stagingDir.create({ idempotent: true, intermediates: true });
-
-  const backupStagingDir = new Directory(Paths.cache, "media_backup_staging");
-  if (backupStagingDir.exists) backupStagingDir.delete();
-
-  const dbTempFile = new File(Paths.cache, "restore_db_temp.json");
+  if (RESTORE_NEXT_MEDIA_DIR.exists) RESTORE_NEXT_MEDIA_DIR.delete();
+  RESTORE_NEXT_MEDIA_DIR.create({ idempotent: true, intermediates: true });
+  const dbTempFile = new File(Paths.cache, "restore-db.json");
   if (dbTempFile.exists) dbTempFile.delete();
   dbTempFile.create({ overwrite: true });
   const dbHandle = dbTempFile.open(FileMode.WriteOnly);
-
-  let fatalError: Error | null = null;
-  let isRestored = false;
-  const parsed = { manifest: null as ArchiveManifest | null };
+  let manifest: ArchiveManifest | null = null;
+  let failure: Error | null = null;
+  let totalUncompressed = 0;
+  let mediaCount = 0;
+  const paths = new Set<string>();
 
   try {
     const unzipper = new Unzip();
     unzipper.register(UnzipInflate);
     unzipper.register(UnzipPassThrough);
-
-    unzipper.onfile = (file) => {
-      if (fatalError) return;
-
-      if (file.name === "manifest.json") {
-        const chunks: Uint8Array[] = [];
-        file.ondata = (err, chunk, final) => {
-          if (err) {
-            fatalError = err instanceof Error ? err : new Error(String(err));
-            return;
-          }
-          chunks.push(chunk);
-          if (final) {
-            try {
-              parsed.manifest = JSON.parse(strFromU8(concatChunks(chunks))) as ArchiveManifest;
-              assertArchiveManifest(parsed.manifest);
-            } catch (parseErr) {
-              fatalError = parseErr instanceof Error ? parseErr : new Error(String(parseErr));
-            }
-          }
-        };
-        file.start();
-      } else if (file.name === "db.json") {
-        file.ondata = (err, chunk) => {
-          if (err) {
-            fatalError = err instanceof Error ? err : new Error(String(err));
-            return;
-          }
-          try {
-            dbHandle.writeBytes(chunk);
-          } catch (writeErr) {
-            fatalError = writeErr instanceof Error ? writeErr : new Error(String(writeErr));
-          }
-        };
-        file.start();
-      } else if (file.name.startsWith("media/") && !file.name.endsWith("/")) {
+    unzipper.onfile = (member) => {
+      if (failure) return;
+      if (paths.has(member.name)) {
+        failure = new Error("Invalid backup file: duplicate archive path.");
+        return;
+      }
+      paths.add(member.name);
+      if (member.originalSize !== undefined && member.originalSize > LIMITS.memberBytes) {
+        failure = new Error("Invalid backup file: archive member is too large.");
+        return;
+      }
+      if (
+        member.name !== "manifest.json" &&
+        member.name !== "db.json" &&
+        !member.name.startsWith("media/")
+      ) {
+        failure = new Error("Invalid backup file: unexpected archive path.");
+        return;
+      }
+      if (member.name.startsWith("media/")) {
         try {
-          const filename = sanitizeMediaFilename(file.name);
-          const destFile = new File(stagingDir, filename);
-          destFile.create({ overwrite: true });
-          const handle = destFile.open(FileMode.WriteOnly);
-
-          file.ondata = (err, chunk, final) => {
-            if (err) {
-              handle.close();
-              fatalError = err instanceof Error ? err : new Error(String(err));
-              return;
-            }
-            try {
-              handle.writeBytes(chunk);
-              if (final) {
-                handle.close();
-              }
-            } catch (writeErr) {
-              handle.close();
-              fatalError = writeErr instanceof Error ? writeErr : new Error(String(writeErr));
-            }
-          };
-          file.start();
-        } catch (err) {
-          fatalError = err instanceof Error ? err : new Error(String(err));
+          mediaFilename(member.name);
+          mediaCount++;
+          if (mediaCount > LIMITS.media)
+            throw new Error("Invalid backup file: too many media files.");
+        } catch (error) {
+          failure = error instanceof Error ? error : new Error(String(error));
+          return;
         }
       }
+      const chunks: Uint8Array[] = [];
+      let memberBytes = 0;
+      let mediaHandle: ReturnType<File["open"]> | null = null;
+      if (member.name.startsWith("media/")) {
+        const destination = new File(RESTORE_NEXT_MEDIA_DIR, mediaFilename(member.name));
+        destination.create({ overwrite: true });
+        mediaHandle = destination.open(FileMode.WriteOnly);
+      }
+      member.ondata = (error, chunk, final) => {
+        if (error) {
+          failure = error instanceof Error ? error : new Error(String(error));
+          mediaHandle?.close();
+          return;
+        }
+        memberBytes += chunk.length;
+        totalUncompressed += chunk.length;
+        if (memberBytes > LIMITS.memberBytes || totalUncompressed > LIMITS.uncompressedBytes) {
+          failure = new Error("Invalid backup file: archive expands beyond the restore limit.");
+          mediaHandle?.close();
+          return;
+        }
+        try {
+          if (member.name === "db.json") dbHandle.writeBytes(chunk);
+          else if (mediaHandle) mediaHandle.writeBytes(chunk);
+          else {
+            if (memberBytes > LIMITS.manifestBytes)
+              throw new Error("Invalid backup manifest: too large.");
+            chunks.push(chunk);
+          }
+          if (final) {
+            mediaHandle?.close();
+            if (member.name === "manifest.json") {
+              manifest = JSON.parse(strFromU8(concat(chunks))) as ArchiveManifest;
+              assertArchiveManifest(manifest, ARCHIVE_FORMAT, ARCHIVE_SCHEMA_VERSION);
+            }
+          }
+        } catch (writeError) {
+          failure = writeError instanceof Error ? writeError : new Error(String(writeError));
+          mediaHandle?.close();
+        }
+      };
+      member.start();
     };
-
-    const CHUNK_SIZE = 256 * 1024;
-    const readHandle = sourceFile.open(FileMode.ReadOnly);
+    const handle = sourceFile.open(FileMode.ReadOnly);
     try {
-      const fileSize = readHandle.size ?? 0;
-      let bytesRead = 0;
-      while (bytesRead < fileSize) {
-        if (fatalError) throw fatalError;
+      const size = handle.size ?? 0;
+      let read = 0;
+      while (read < size) {
+        if (failure) throw failure;
         if (options?.signal?.aborted) throw new Error("Import cancelled");
-        const chunk = readHandle.readBytes(Math.min(CHUNK_SIZE, fileSize - bytesRead));
+        const chunk = handle.readBytes(Math.min(256 * 1024, size - read));
         if (chunk.length === 0) break;
-        bytesRead += chunk.length;
-        options?.onProgress?.(bytesRead, fileSize);
-        unzipper.push(chunk, bytesRead >= fileSize);
+        read += chunk.length;
+        options?.onProgress?.(read, size);
+        unzipper.push(chunk, read >= size);
       }
     } finally {
-      readHandle.close();
+      handle.close();
+    }
+    if (failure) throw failure;
+    if (!manifest || !paths.has("db.json"))
+      throw new Error("Invalid backup file: manifest or entries missing.");
+    const validatedManifest = manifest as ArchiveManifest;
+    if ((dbTempFile.info().size ?? 0) > LIMITS.dbBytes)
+      throw new Error("Invalid backup file: entries data is too large.");
+    if (
+      validatedManifest.counts.entry > LIMITS.entries ||
+      validatedManifest.counts.images +
+        validatedManifest.counts.audio +
+        validatedManifest.counts.attachments >
+        LIMITS.media
+    ) {
+      throw new Error("Invalid backup file: item count exceeds the restore limit.");
     }
 
-    if (fatalError) throw fatalError;
-    if (options?.signal?.aborted) throw new Error("Import cancelled");
+    const transaction = await createRestoreTransaction();
+    if (RESTORE_PREVIOUS_MEDIA_DIR.exists) RESTORE_PREVIOUS_MEDIA_DIR.delete();
+    await updateRestoreTransaction(transaction, "swapping-media");
+    if (RESTORE_MEDIA_DIR.exists) RESTORE_MEDIA_DIR.move(RESTORE_PREVIOUS_MEDIA_DIR);
+    RESTORE_NEXT_MEDIA_DIR.move(RESTORE_MEDIA_DIR);
+    await updateRestoreTransaction(transaction, "media-swapped");
 
-    if (!parsed.manifest) {
-      throw new Error("Invalid backup file: manifest is missing or invalid.");
+    try {
+      const importedCount = await importEntriesBatched(readEntries(dbTempFile), {
+        signal: options?.signal,
+        expectedCounts: validatedManifest.counts,
+        restoreTransactionId: transaction.id,
+      });
+      await updateRestoreTransaction(transaction, "database-committed");
+      if (RESTORE_PREVIOUS_MEDIA_DIR.exists) RESTORE_PREVIOUS_MEDIA_DIR.delete();
+      clearRestoreTransaction();
+      notifyStoreReload();
+      return { importedCount };
+    } catch (error) {
+      if (RESTORE_MEDIA_DIR.exists) RESTORE_MEDIA_DIR.delete();
+      if (transaction.hadPreviousMedia && RESTORE_PREVIOUS_MEDIA_DIR.exists) {
+        RESTORE_PREVIOUS_MEDIA_DIR.move(RESTORE_MEDIA_DIR);
+      } else {
+        RESTORE_MEDIA_DIR.create({ idempotent: true, intermediates: true });
+      }
+      clearRestoreTransaction();
+      throw error;
     }
   } finally {
     dbHandle.close();
+    if (dbTempFile.exists) dbTempFile.delete();
+    if (RESTORE_NEXT_MEDIA_DIR.exists) RESTORE_NEXT_MEDIA_DIR.delete();
   }
+}
 
-  let dbData: ArchiveDb;
-  try {
-    dbData = JSON.parse(await dbTempFile.text()) as ArchiveDb;
-  } catch {
-    throw new Error("Invalid backup file: unable to parse entries.");
+function concat(chunks: Uint8Array[]): Uint8Array {
+  const size = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+  const result = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    result.set(chunk, offset);
+    offset += chunk.length;
   }
-
-  if (!Array.isArray(dbData?.entries)) {
-    throw new Error("Invalid backup file: entries list is missing.");
-  }
-
-  assertManifestMatchesEntries(parsed.manifest, dbData.entries);
-
-  if (options?.signal?.aborted) throw new Error("Import cancelled");
-
-  const mediaDir = new Directory(Paths.document, "media");
-  let movedExisting = false;
-
-  try {
-    if (mediaDir.exists) {
-      await mediaDir.move(backupStagingDir);
-      movedExisting = true;
-    }
-    if (stagingDir.exists) {
-      await stagingDir.move(mediaDir);
-    }
-    if (!mediaDir.exists) {
-      mediaDir.create({ idempotent: true, intermediates: true });
-    }
-
-    const importedCount = await importEntriesBatched(dbData.entries, { signal: options?.signal });
-
-    if (backupStagingDir.exists) {
-      try {
-        backupStagingDir.delete();
-      } catch {
-        // ignore
-      }
-    }
-
-    isRestored = true;
-    notifyStoreReload();
-
-    return { importedCount };
-  } catch (err) {
-    try {
-      if (mediaDir.exists) mediaDir.delete();
-      if (movedExisting && backupStagingDir.exists) await backupStagingDir.move(mediaDir);
-      if (!mediaDir.exists) mediaDir.create({ idempotent: true, intermediates: true });
-    } catch (rollbackErr) {
-      logDevWarning("importBackupArchive:rollback", rollbackErr);
-    }
-    throw err;
-  } finally {
-    try {
-      if (dbTempFile.exists) dbTempFile.delete();
-      if (!isRestored && stagingDir.exists) stagingDir.delete();
-    } catch {
-      // ignore
-    }
-  }
+  return result;
 }

@@ -13,6 +13,7 @@ import {
 import { deleteMediaList } from "@/services/media";
 import type { Entry } from "@/shared/types";
 import { addDays, addMonths, startOfDay, startOfMonth } from "@/shared/utils/dates";
+import { commitMediaUpdate } from "./mediaMutation";
 
 export type EntryMutation =
   | { type: "add"; entry: Entry }
@@ -53,33 +54,15 @@ export async function addEntry(input: NewEntryInput): Promise<Entry> {
 
 export async function patchEntry(id: string, input: UpdateEntryInput): Promise<Entry> {
   const existing = entryCache.get(id) ?? (await getEntryById(id));
-  const entry = await updateEntry(id, input);
+  const entry = existing
+    ? await commitMediaUpdate({
+        existing,
+        input,
+        update: () => updateEntry(id, input),
+        cleanup: deleteMediaList,
+      })
+    : await updateEntry(id, input);
   entryCache.set(entry.id, entry);
-
-  if (existing) {
-    const unreferencedUris: string[] = [];
-    if (input.images !== undefined) {
-      const remainingImages = new Set(input.images);
-      for (const uri of existing.images) {
-        if (!remainingImages.has(uri)) unreferencedUris.push(uri);
-      }
-    }
-    if (input.audios !== undefined) {
-      const remainingAudios = new Set(input.audios);
-      for (const uri of existing.audios) {
-        if (!remainingAudios.has(uri)) unreferencedUris.push(uri);
-      }
-    }
-    if (input.attachments !== undefined) {
-      const remainingAttachments = new Set(input.attachments.map((a) => a.uri));
-      for (const a of existing.attachments) {
-        if (!remainingAttachments.has(a.uri)) unreferencedUris.push(a.uri);
-      }
-    }
-    if (unreferencedUris.length > 0) {
-      void deleteMediaList(unreferencedUris);
-    }
-  }
 
   notifyMutation({ type: "update", entry });
   return entry;

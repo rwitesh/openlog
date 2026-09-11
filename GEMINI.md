@@ -1,50 +1,46 @@
-# OpenLog — Agent & Engineering Guidelines
+# OpenLog — Project Guide for Coding Agents
 
-## What OpenLog Is
+## Product boundary
 
-A local-first personal timeline: journal entries, quick notes, photos, voice memos, and kept files — all dated on one continuous chronological spine. It is a tool for whatever the user keeps (journal, notes, life-log), not a social network, not a productivity suite, not a file manager.
+OpenLog is a local-first personal timeline. People can keep notes, journals, plans, tasks, goals, hobbies, photos, recordings, files, and anything else they choose. Every artifact belongs to one chronological entry; text is optional.
 
----
+Do not describe, name, or design OpenLog as only a journal, task manager, social network, productivity suite, or file manager. Use neutral terms such as **entry**, **timeline**, **content**, **media**, and **attachment** unless a narrower term is genuinely required by the feature.
 
-## 1. Design Psychology
+## Product principles
 
-- **Calm software.** The interface protects attention; every element earns its place. Working memory during writing/reflection is ~3–4 items — never add surfaces that compete with thought.
-- **Attention Budget:**
-  - **Essential** (writing canvas, save, timeline feed) — zero visual competition.
-  - **Helpful** (rail, dates, calendar jump) — quiet, low-contrast, peripheral.
-  - **Optional** (media, location) — progressive disclosure; never in the writing path.
-  - **Distracting** (wallpapers, badges, streaks, interrogative prompts) — eliminated.
-- **No extrinsic gamification.** No streaks, guilt nudges, vanity metrics, or engagement hooks. Serendipity (re-encountering the past) over obligation.
-- **Warm palette.** Washi Linen light / Nocturne Warm dark (`#141312`, no cold-blue dark mode). The mood accent is reserved for the temporal spine (rail markers) and primary actions only. Metadata and media stay muted.
-- **One spine, many lenses.** Everything is an entry on the timeline. Retrieval views (e.g., a media grid) are lenses over the same data — never parallel surfaces or second data models. Deep-link every artifact back to its entry.
+- Protect attention. The writing surface and timeline are essential; dates, rail, and calendar navigation are quiet; media and location stay progressive.
+- Keep one timeline and many retrieval lenses. A grid, search result, or media view filters the same entries; it never creates a parallel data model.
+- Prefer calm, warm, low-contrast UI. Reserve the mood accent for primary actions and the temporal spine. Dark mode is Nocturne Warm (`#141312`), never cold blue.
+- Do not add streaks, badges, vanity metrics, guilt prompts, wallpaper-like decoration, or engagement mechanics.
+- Treat private content as private. Analytics may record coarse product events, never entry text, attachment names, locations, media, or profile values.
 
-## 2. Current Implementation
+## Engineering rules
 
-- **Stack:** Expo / React Native, single `NativeStack` (no tab navigator), `expo-sqlite` (WAL + FTS5), `expo-image`, Clerk (optional auth), PostHog (product analytics only — never content).
-- **Layout:** `src/modules/<domain>/{components,hooks,store,utils}`, `src/screens/<screen>`, `src/services/{db,backup,media,audio,fonts,location}`, `src/theme` (tokens + preferences).
-- **Entry model** (`src/shared/types/entry.ts`): `id, createdAt, updatedAt, text?, images[], audios[], attachments[], location?`. `attachments` are generic documents (`Attachment` = `{uri, name, mime?, size?}` — PDFs, videos, spreadsheets, anything). Media-only and attachment-only entries are valid (text optional).
-- **Timeline:** FlatList → `toTimelineItems` (month dividers, date markers), `TimelineRail` (rail/minimal/clean styles + comfortable/compact density), `EntryRow` (6-line preview + "Read more"), `ImageViewerModal`, `AudioPlayer`.
-- **Compose:** view/edit modes; attachments via `useMediaAttachments`; date/time/location badges.
-- **Backup:** `.openlog` streaming ZIP (manifest + db.json + media), merge or atomic-replace restore, dry-run inspect.
-- **Themes:** `src/theme/tokens.ts` — two base atmospheres, 12 mood accents, WCAG AA/AAA.
+- Read the relevant code and follow its established contract before editing. Fix the cause, not only the symptom.
+- Keep code that changes together together. Prefer one coherent 100–300 line module over several tiny forwarding files.
+- Create a file only when it owns a distinct reusable concept, platform boundary, or independently testable domain rule. Do not create barrels, wrappers, one-function helpers, or test-only production layers.
+- Colocate single-use UI. Extract a component only when it serves at least two distinct surfaces.
+- Use explicit object-shaped contracts rather than positional argument chains. Keep types strict; never use `any`.
+- Name domain concepts accurately and neutrally. Infrastructure names must describe the mechanism or transaction, not imply that all user content is a journal.
+- Write comments only for an invariant, intentional trade-off, or non-obvious constraint. Do not narrate obvious code or add decorative banners.
+- Preserve local-first behavior. For mutations spanning SQLite and files, commit the database state before destructive cleanup and make recovery deterministic after interruption.
+- Make archive, import, and media code defensive: validate untrusted input before mutation, bound resource use, and leave the existing data recoverable on failure.
 
-## 3. Engineering Principles
+## Change discipline
 
-- **Code that changes together lives together.** A feature's types, defaults, and schema serialization belong in one cohesive file.
-- **The Two-File Rule.** Adding, modifying, or removing a setting/feature touches at most 2 files (domain definition + screen UI).
-- **Avoid micro-file sprawl.** Prefer a readable 100–300 line file over 8 disjointed 20-line files. No wrappers or barrels that only re-export.
-- **Colocate single-use UI.** Extract shared components only when reused across 2+ distinct surfaces. No single-use double wrapping.
-- **Object contracts over positional parameters.** Pass cohesive typed objects (e.g., `preferences`) instead of argument chains.
-- **Strict type safety.** `npm run typecheck` must pass with 0 errors. Never use `any`.
+- Keep a feature change small and cohesive. Do not use a broad refactor to solve an unrelated problem.
+- Preserve public behavior unless the request explicitly changes it. Update types, persistence, UI, and tests together when a contract changes.
+- Do not add dependencies or new architecture when a clear local solution exists. For Expo packages, use `npx expo install` so versions match the SDK.
+- Do not claim a device-only behavior was verified without running it on a device or emulator.
 
-## 4. Code Cleanliness
+## Verification
 
-- Self-explanatory code through naming and data flow.
-- No decorative comment banners (`/* ----- */`, `// =====`).
-- Comments only for non-obvious domain logic, invariants, or intentional constraints.
+Run the checks that cover the change; for ordinary source changes, run all of these:
 
-## 5. Verification (every change)
+```bash
+npm test
+npm run typecheck
+npx @biomejs/biome check src scripts
+```
 
-1. `npm run typecheck` → 0 errors.
-2. `npx @biomejs/biome check src` → 0 errors, 0 warnings.
-3. Both themes (light + dark) render correctly.
+Also inspect both light and dark themes for UI changes. For native filesystem, permissions, media, or interruption behavior, test on a relevant Android/iOS target when one is available and state clearly when that validation could not be run.
