@@ -3,27 +3,62 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>OpenLog</title>
+<meta name="description" content="OpenLog is a local-first timeline for notes, journals, plans, todos, memories, media, and more.">
+<title>OpenLog — A calm place for what matters</title>
 <link rel="icon" type="image/png" href="favicon.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <main>
-<header><span class="brand"><img src="icon.png" alt="" width="48" height="48">OpenLog</span></header>
-<p>OpenLog keeps writing simple, so you can think less about the app and more about your words. Write journals, notes, todos, and plans. Keep the stories and photos that matter to you. Everything stays on your phone.</p>
-<ul>
-<li><a href="changelog.html">Changelog</a></li>
-<li><a href="privacy-policy.html">Privacy Policy</a></li>
-<li><a href="terms.html">Terms and Conditions</a></li>
-</ul>
-<div class="contact">
-  <span>Contact</span>
-  <a href="mailto:rwiteshbera@gmail.com">rwiteshbera@gmail.com</a>
-</div>
+  <header>
+    <a class="brand" href="index.html"><img src="icon.png" alt="" width="42" height="42">OpenLog</a>
+    <nav aria-label="Site navigation">
+      <a href="changelog.html">Changelog</a>
+      <a href="privacy-policy.html">Privacy</a>
+      <a href="terms.html">Terms</a>
+    </nav>
+  </header>
+
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="hero-copy">
+      <p class="eyebrow">One timeline for your content</p>
+      <h1 id="hero-title">Keep everything in one place.</h1>
+      <p class="lede">OpenLog brings notes, journals, plans, todos, memories, and other content into one timeline. Add text or keep an entry as simple as a photo, recording, document, or attachment.</p>
+      <div class="hero-actions">
+        <a class="button" href="privacy-policy.html">How your data works</a>
+        <a class="button ghost" href="changelog.html">See what’s new</a>
+      </div>
+    </div>
+    <aside class="hero-note" aria-label="What an entry can hold">
+      <p class="note-kicker">What an entry can include</p>
+      <div class="note-row"><span class="note-mark">Aa</span><span>A thought, plan, or passing detail</span></div>
+      <div class="note-row"><span class="note-mark">▧</span><span>Photos, recordings, and documents</span></div>
+      <div class="note-row"><span class="note-mark">⌖</span><span>A place, only when you choose to add it</span></div>
+      <p class="note-foot">Kept on your device. Ready when you are.</p>
+    </aside>
+  </section>
+
+  <hr class="rule">
+  <p class="section-label">Designed for real life</p>
+  <section class="feature-grid" aria-label="OpenLog features">
+    <article class="feature">
+      <h2>One timeline</h2>
+      <p>Keep writing, tasks, goals, hobbies, and everyday fragments together. Search and calendar views help you find the same entries again.</p>
+    </article>
+    <article class="feature">
+      <h2>More than words</h2>
+      <p>Attach photos, voice recordings, documents, and other attachments to an entry. Location is optional and stays tucked away until you need it.</p>
+    </article>
+    <article class="feature">
+      <h2>Yours by default</h2>
+      <p>OpenLog works locally and offline. Export a portable backup when you choose, with previews and recovery protections built in.</p>
+    </article>
+  </section>
+
+  <footer class="home-footer">
+    <span>OpenLog · made by <a href="https://x.com/rwiteshbera" target="_blank" rel="noopener noreferrer">Rwitesh Bera</a></span>
+    <a href="mailto:rwiteshbera@gmail.com">Get in touch</a>
+  </footer>
 </main>
 </body>
 </html>
