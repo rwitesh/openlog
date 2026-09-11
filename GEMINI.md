@@ -38,8 +38,8 @@ Do not describe, name, or design OpenLog as only a journal, task manager, social
 Run the checks that cover the change; for ordinary source changes, run all of these:
 
 ```bash
-npm test
-npm run typecheck
+pnpm test
+pnpm typecheck
 npx @biomejs/biome check src scripts
 ```
 
