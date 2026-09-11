@@ -1,9 +1,8 @@
 import * as DocumentPicker from "expo-document-picker";
 import * as Sharing from "expo-sharing";
-import { Alert, Platform } from "react-native";
+import { Alert } from "react-native";
 
 import type { Attachment } from "@/shared/types";
-import { IS_EXPO_GO } from "@/shared/utils/appInfo";
 import { logDevWarning } from "@/shared/utils/devLog";
 import { persistMedia, resolveMediaUri } from "./storage";
 
@@ -22,19 +21,6 @@ function fileExtension(name: string, mime?: string): string {
  */
 export async function pickDocuments(maxCount: number): Promise<Attachment[]> {
   if (maxCount <= 0) return [];
-
-  // Expo Go sandboxes file access per experience while the system document picker
-  // hands back a URI from the global cache it cannot read — a development/prod
-  // build has one sandbox and works. Say so instead of failing silently.
-  if (IS_EXPO_GO) {
-    Alert.alert(
-      "Not available in Expo Go",
-      Platform.OS === "android"
-        ? "Attaching files needs the OpenLog development build on this device."
-        : "Attaching files needs the OpenLog development build."
-    );
-    return [];
-  }
 
   const result = await DocumentPicker.getDocumentAsync({
     type: "*/*",

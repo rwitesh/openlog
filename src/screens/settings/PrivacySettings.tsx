@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Switch, View } from "react-native";
 
 import { analytics } from "@/config/analytics";
-import { seedMockEntries, useEntries } from "@/modules/entry";
+import { useEntries } from "@/modules/entry";
 import {
   confirmDestructive,
   SettingsGroup,
@@ -36,7 +36,7 @@ import {
   requestNotificationPermission,
 } from "@/services/notifications";
 import { ThemedText } from "@/shared/components/ThemedText";
-import { IS_EXPO_GO, logDevWarning } from "@/shared/utils";
+import { logDevWarning } from "@/shared/utils";
 import { press, space, typography, usePreferences, useTheme } from "@/theme";
 
 /**
@@ -51,7 +51,6 @@ export function PrivacySettingsScreen() {
   const { clearAll } = useEntries();
   const [support, setSupport] = useState<BiometricSupport | null>(null);
   const [verifying, setVerifying] = useState(false);
-  const [seedingCount, setSeedingCount] = useState<number | null>(null);
   const { isExporting, isImporting } = useBackupStatus();
 
   const enabled = preferences.security.biometricLock;
@@ -314,18 +313,6 @@ export function PrivacySettingsScreen() {
       async () => deleteMediaList(await clearAll())
     );
 
-  const handleSeed = async (count: number) => {
-    setSeedingCount(count);
-    try {
-      await seedMockEntries(count);
-      Alert.alert("Success", `Created ${count.toLocaleString()} test entries.`);
-    } catch {
-      Alert.alert("Error", "Failed to generate mock entries.");
-    } finally {
-      setSeedingCount(null);
-    }
-  };
-
   return (
     <SettingsScreenScroll>
       <SettingsGroup label="SECURITY">
@@ -432,33 +419,6 @@ export function PrivacySettingsScreen() {
             Delete all entries
           </ThemedText>
         </Pressable>
-
-        {IS_EXPO_GO ? (
-          <View style={{ marginTop: space.md, gap: space.sm }}>
-            <Pressable
-              onPress={() => void handleSeed(1000)}
-              disabled={seedingCount !== null}
-              style={({ pressed }) => [styles.deleteBtn, pressed && press]}
-            >
-              <ThemedText style={[typography.settingLabel, { color: colors.marker }]}>
-                {seedingCount === 1000
-                  ? "Generating 1,000 entries…"
-                  : "Generate 1,000 test entries (Expo Go)"}
-              </ThemedText>
-            </Pressable>
-            <Pressable
-              onPress={() => void handleSeed(10000)}
-              disabled={seedingCount !== null}
-              style={({ pressed }) => [styles.deleteBtn, pressed && press]}
-            >
-              <ThemedText style={[typography.settingLabel, { color: colors.marker }]}>
-                {seedingCount === 10000
-                  ? "Generating 10,000 entries…"
-                  : "Generate 10,000 test entries (Expo Go)"}
-              </ThemedText>
-            </Pressable>
-          </View>
-        ) : null}
       </SettingsGroup>
     </SettingsScreenScroll>
   );

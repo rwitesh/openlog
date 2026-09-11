@@ -33,7 +33,7 @@ import { Welcome } from "@/screens/welcome";
 import { AudioProvider } from "@/services/audio";
 import { Layout } from "@/shared/components";
 import { useAppBootstrap } from "@/shared/hooks";
-import { IS_EXPO_GO, logDevWarning } from "@/shared/utils";
+import { logDevWarning } from "@/shared/utils";
 import { AppProviders, useNavigationTheme, useTheme } from "@/theme";
 
 /** Holds the splash screen until local bootstrap (fonts + preferences) finishes;
@@ -73,9 +73,7 @@ function ClerkNameSync() {
   return null;
 }
 
-if (!IS_EXPO_GO) {
-  SplashScreen.setOptions({ duration: 400, fade: true });
-}
+SplashScreen.setOptions({ duration: 400, fade: true });
 SplashScreen.preventAutoHideAsync().catch((error) => {
   logDevWarning("startup:preventAutoHideAsync", error);
 });

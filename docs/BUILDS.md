@@ -1,131 +1,92 @@
-# OpenLog Build & Execution Guide
+# Native Development and Metro
 
-Practical, command-focused guide for local testing, unlimited builds, EAS cloud releases, and unified Expo fingerprinting.
+OpenLog uses an installed native development build. Expo Go is not part of the development or release workflow.
 
----
+## First run on Android
 
-## 1. Quick Command Cheat Sheet
+Prerequisites:
 
-| What you want to do | Command | Notes |
-|---|---|---|
-| **Daily live dev (Expo Go)** | `npm start` | Fast, free, live reload |
-| **Native live dev on emulator/device** | `npm run android` | Runs dev build on connected device |
-| **Build & install APK to phone directly** | `npm run android:release` | **One-step**: builds locally & pushes via ADB |
-| **Build APK locally only** | `npm run build:apk:local` | Unlimited, free, saves to `dist/openlog-release.apk` |
-| **Push already built APK to phone** | `npm run android:install` | Runs `adb install -r` |
-| **Check native fingerprint hash** | `npm run fingerprint` | Shows current native layer hash |
-| **EAS local build** | `npm run eas:local` | Uses your machine with EAS pipeline |
-| **EAS cloud development APK** | `npm run eas:dev` | Signed APK built in EAS cloud |
-| **EAS cloud production AAB** | `npm run eas:prod` | Google Play ready App Bundle |
-| **Typecheck project** | `npm run typecheck` | Validates TypeScript across all files |
-| **Lint & Format** | `npm run lint:fix` | Biome autofix for styles & lints |
+- Android Studio with an SDK and emulator, or a USB-connected Android device with USB debugging enabled
+- JDK 17 (Android Studio's bundled JDK is suitable)
+- `adb` available on `PATH`
+- Project environment values copied from `.env.example` into `.env`
 
----
+Install dependencies and build, install, and launch the debug app:
 
-## 2. Unified Fingerprint (Local & Cloud)
-
-OpenLog uses the standard Expo fingerprint policy in `app.json`:
-```json
-"runtimeVersion": {
-  "policy": "fingerprint"
-}
-```
-
-### How it works:
-- **Same Fingerprint Everywhere**: Expo calculates the **exact same deterministic hash** on your local machine and on EAS cloud.
-- **Automatic Sync**: 
-  - When you change native code (Android configs, permissions, native npm modules), the fingerprint hash automatically updates.
-  - When you only change JS/UI code, the fingerprint remains identical.
-- **View current hash**:
-  ```bash
-  npm run fingerprint
-  ```
-
----
-
-## 3. Local Testing & Unlimited Free Builds
-
-No EAS cloud credits or build queues are used. Build as many times as you want.
-
-### Workflow A: One-Shot Build + Direct ADB Push (Recommended)
-Connect phone via USB (with USB Debugging enabled) or start an Android Emulator, then run:
 ```bash
-npm run android:release
+npm ci
+npm run android
 ```
-*Compiles the release APK and immediately installs/updates it on your device.*
 
-### Workflow B: Build APK Only
+`npm run android` compiles the native debug app, installs it, starts Metro, and launches OpenLog. Use `npm run android:device` when more than one emulator/device is available and you want an interactive device choice.
+
+## Daily development
+
+After the native app has been installed once, JavaScript and TypeScript changes only need Metro:
+
 ```bash
-npm run build:apk:local
+npm start
 ```
-*Outputs to `dist/openlog-release.apk` for manual sharing or sideloading.*
 
-### Workflow C: Push Existing APK via ADB
+Open the installed OpenLog development app if it does not launch automatically. Fast Refresh connects to Metro on port 8081.
+
+Rebuild the native app with `npm run android` after changing any native dependency, Expo config plugin, permission, `app.json`, or Android native code.
+
+## Commands
+
+| Command | Purpose |
+|---|---|
+| `npm start` | Start Metro for the installed development client |
+| `npm run start:clear` | Clear Metro's cache and start the development client server |
+| `npm run android` | Build/install the Android debug app and start Metro |
+| `npm run android:device` | Select a connected device, then build/install and start Metro |
+| `npm run android:clean` | Clear native build caches, rebuild/install, and start Metro |
+| `npm run android:metro` | Start Metro and request launch on the connected Android device |
+| `npm run adb:devices` | List attached Android devices and authorization state |
+| `npm run adb:reverse` | Forward device port 8081 to local Metro over USB |
+| `npm run adb:logs` | Show React Native and Expo Android logs |
+| `npm run eas:dev` | Build an installable Android development client with EAS |
+| `npm run eas:prod` | Build the production Android App Bundle with EAS |
+
+## Debugging
+
+With Metro focused, press `j` to open React Native DevTools. Press `r` to reload the app.
+
+For a physical Android device connected over USB:
+
 ```bash
-npm run android:install
+npm run adb:devices
+npm run adb:reverse
+npm start
 ```
 
-### Workflow D: EAS Local Build Pipeline
-```bash
-npm run eas:local
-```
+If the device is `unauthorized`, unlock it and accept the USB debugging prompt. If Metro behaves as though it has stale code, use `npm run start:clear`. If Java/Kotlin or native dependency compilation is stale, use `npm run android:clean`.
 
----
+## EAS development builds
 
-## 4. EAS Cloud Builds
+The `development` profile in `eas.json` has `developmentClient: true` and produces an internal APK:
 
-Requires logging into your Expo account once:
-```bash
-npx eas-cli@latest login
-```
-
-### Build Development APK (Cloud)
 ```bash
 npm run eas:dev
 ```
-*Download link and QR code will appear in terminal once built.*
 
-### Build Play Store Production AAB (Cloud)
+Install the APK from the EAS build page, then run `npm start` locally to serve the JavaScript bundle. A cloud-built client and local Metro must be on a reachable network; USB users can use `npm run adb:reverse`.
+
+## Production builds
+
 ```bash
 npm run eas:prod
 ```
 
-### Publish Over-The-Air (OTA) Update
-Publishes an instant JS update matching the current fingerprint:
-```bash
-npx eas-cli@latest update --branch development --message "Your update description"
-```
+This produces an Android App Bundle. Production builds do not connect to Metro.
 
----
-
-## 5. Development & Code Quality
+## Verification before a build
 
 ```bash
-# Start Metro bundler for Expo Go
-npm start
-
-# Type checking
 npm run typecheck
-
-# Linting and formatting
 npm run lint
-npm run lint:fix
-npm run format
+npm test
+npx expo-doctor
 ```
 
----
-
-## 6. Quick Troubleshooting
-
-- **Device not found with ADB**:
-  ```bash
-  adb devices
-  ```
-  Ensure USB debugging is enabled and your device is listed as `device` (not `unauthorized`).
-
-- **Android environment variables**:
-  ```bash
-  export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
-  export ANDROID_HOME="$HOME/Library/Android/sdk"
-  ```
-
+Do not use `npx expo start --go` for this project. It bypasses OpenLog's native development client and cannot represent the app's native module behavior.
