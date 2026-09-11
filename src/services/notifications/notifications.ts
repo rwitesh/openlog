@@ -1,5 +1,5 @@
 import { Platform } from "react-native";
-import { formatBytes, IS_EXPO_GO } from "@/shared/utils/appInfo";
+import { formatBytes } from "@/shared/utils/appInfo";
 import { logDevWarning } from "@/shared/utils/devLog";
 
 type NotificationsModule = typeof import("expo-notifications");
@@ -7,10 +7,6 @@ let cachedModule: NotificationsModule | null = null;
 let isHandlerConfigured = false;
 
 function getNotifications(): NotificationsModule | null {
-  if (IS_EXPO_GO) {
-    return null;
-  }
-
   if (!cachedModule) {
     try {
       cachedModule = require("expo-notifications") as NotificationsModule;
@@ -41,7 +37,6 @@ function getNotifications(): NotificationsModule | null {
 
 /**
  * Requests notification permissions if not already granted.
- * Fully disabled in Expo Go to avoid Expo Go Android SDK 53+ module restrictions.
  */
 export async function requestNotificationPermission(): Promise<boolean> {
   const Notifications = getNotifications();
@@ -81,7 +76,7 @@ export async function requestNotificationPermission(): Promise<boolean> {
 }
 
 /**
- * Dispatches an immediate local notification (disabled in Expo Go).
+ * Dispatches an immediate local notification.
  */
 export async function sendLocalNotification(
   title: string,

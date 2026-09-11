@@ -13,7 +13,7 @@ import { useProfile } from "@/modules/profile";
 import type { RootStackParamList } from "@/navigation/types";
 import { ONBOARDING_COMPLETED_KEY, setSetting } from "@/services/db/settings";
 import { AUTH_REQUIRED_FOR_ONBOARDING } from "@/shared/constants";
-import { IS_EXPO_GO, logDevWarning, reportError } from "@/shared/utils";
+import { logDevWarning, reportError } from "@/shared/utils";
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, "Welcome">;
 
@@ -23,11 +23,8 @@ export type Step = "showcase" | "choose" | "email" | "code" | "name";
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const GENERIC_ERROR = "Something went wrong. Please try again.";
 
-/** Re-runs Clerk initialization after a failed load. Skipped in Expo Go, whose
-    runtime lacks window.location pieces of the native clerk bundle touch
-    unconditionally on retry (Cannot read property 'href' of undefined). */
+/** Re-runs Clerk initialization after a failed load. */
 function connectClerk(): Promise<void> | void {
-  if (IS_EXPO_GO) return;
   const clerk = getClerkInstance();
   if (clerk.status !== "error") return;
   return clerk.load().catch((error) => logDevWarning("welcome:clerkRetry", error));
@@ -173,12 +170,8 @@ export function useWelcomeAuth(navigation: Navigation, authOnly = false) {
   // for another tap once connected instead of queueing UI state behind it.
   const run = (fn: () => Promise<void>, fallback?: string) => {
     if (!isLoaded) {
-      setErrorMessage(
-        IS_EXPO_GO
-          ? "Sign-in cannot connect in Expo Go. Please run a development build."
-          : "Still connecting. Please try again in a moment."
-      );
-      if (IS_EXPO_GO || busy) return;
+      setErrorMessage("Still connecting. Please try again in a moment.");
+      if (busy) return;
       setConnecting(true);
       void Promise.resolve(connectClerk()).finally(() => setConnecting(false));
       return;

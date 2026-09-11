@@ -3,6 +3,7 @@ import { createContext, type ReactNode, useCallback, useContext, useMemo, useSta
 import { type ColorSchemeName, useColorScheme } from "react-native";
 
 import { setSettingsBatch } from "@/services/db/settings";
+import { reportError } from "@/shared/utils/devLog";
 import {
   ACCESSIBILITY_KEYS,
   type AccessibilityPreferences,
@@ -134,7 +135,12 @@ export function makeNavTheme(mode: ResolvedThemeMode, colors: ThemeColors): NavT
 
 function persist(entries: Record<string, string>): void {
   if (Object.keys(entries).length > 0) {
-    void setSettingsBatch(entries);
+    void setSettingsBatch(entries).catch((error) => {
+      reportError("settings_persist_failed", {
+        keys: Object.keys(entries).join(","),
+        detail: error instanceof Error ? error.message : String(error),
+      });
+    });
   }
 }
 

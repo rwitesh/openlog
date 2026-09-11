@@ -1,8 +1,8 @@
 import { createContext, type ReactNode, useCallback, useContext, useMemo, useState } from "react";
 
 import { setUserName as persistUserName } from "@/services/db/settings";
-
 import { useDebouncedCallback } from "@/shared/hooks/useDebouncedCallback";
+import { reportError } from "@/shared/utils/devLog";
 
 interface ProfileContextValue {
   name: string | null;
@@ -23,7 +23,11 @@ export function ProfileProvider({ children, initialName }: ProfileProviderProps)
   const [name, setNameState] = useState<string | null>(initialName);
 
   const debouncedPersist = useDebouncedCallback((next: string) => {
-    void persistUserName(next);
+    void persistUserName(next).catch((error) => {
+      reportError("profile_name_persist_failed", {
+        detail: error instanceof Error ? error.message : String(error),
+      });
+    });
   }, 400);
 
   const setName = useCallback(

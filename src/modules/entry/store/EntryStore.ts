@@ -7,11 +7,10 @@ import {
   getEntryById,
   getPagedEntries,
   type NewEntryInput,
-  seedMockEntries,
   type UpdateEntryInput,
   updateEntry,
 } from "@/services/db/entries";
-import { deleteMedia, deleteMediaList } from "@/services/media";
+import { deleteMediaList } from "@/services/media";
 import type { Entry } from "@/shared/types";
 import { addDays, addMonths, startOfDay, startOfMonth } from "@/shared/utils/dates";
 
@@ -96,18 +95,14 @@ export async function removeEntry(id: string): Promise<void> {
 export async function removeImage(entryId: string, imageIndex: number): Promise<Entry | null> {
   const existing = entryCache.get(entryId) ?? (await getEntryById(entryId));
   if (!existing || imageIndex < 0 || imageIndex >= existing.images.length) return null;
-  const removedUri = existing.images[imageIndex];
   const nextImages = existing.images.filter((_, i) => i !== imageIndex);
-  await deleteMedia(removedUri);
   return patchEntry(entryId, { images: nextImages });
 }
 
 export async function removeAudio(entryId: string, audioIndex: number): Promise<Entry | null> {
   const existing = entryCache.get(entryId) ?? (await getEntryById(entryId));
   if (!existing || audioIndex < 0 || audioIndex >= existing.audios.length) return null;
-  const removedUri = existing.audios[audioIndex];
   const nextAudios = existing.audios.filter((_, i) => i !== audioIndex);
-  await deleteMedia(removedUri);
   return patchEntry(entryId, { audios: nextAudios });
 }
 
@@ -310,8 +305,5 @@ export function useEntries() {
     removeAudio,
     clearAll,
     getEntry: fetchEntry,
-    seedMockEntries,
   };
 }
-
-export { seedMockEntries };

@@ -1,9 +1,5 @@
-import { isRunningInExpoGo } from "expo";
 import * as Application from "expo-application";
 import Constants from "expo-constants";
-
-/** True when running inside the Expo Go client (not a dev or store build). */
-export const IS_EXPO_GO = isRunningInExpoGo();
 
 /**
  * Native application version (e.g. "1.0.0"), queried directly from the
