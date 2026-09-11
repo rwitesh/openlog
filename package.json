@@ -39,7 +39,7 @@
     "lodash.debounce": "^4.0.8",
     "posthog-react-native": "^4.65.0",
     "react": "19.2.3",
-    "react-dom": "^19.2.3",
+    "react-dom": "19.2.3",
     "react-native": "0.86.3",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
@@ -63,8 +63,8 @@
     "adb:devices": "adb devices -l",
     "adb:reverse": "adb reverse tcp:8081 tcp:8081",
     "adb:logs": "adb logcat '*:S' ReactNativeJS:V ReactNative:V Expo:V",
-    "eas:dev": "npx eas-cli@latest build --platform android --profile development",
-    "eas:prod": "npx eas-cli@latest build --platform android --profile production",
+    "eas:dev": "pnpm dlx eas-cli@latest build --platform android --profile development",
+    "eas:prod": "pnpm dlx eas-cli@latest build --platform android --profile production",
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --no-warnings --test scripts/test-*.mjs",
     "lint": "biome check src App.tsx index.ts",
@@ -73,5 +73,6 @@
     "format": "biome format --write src App.tsx index.ts",
     "format:check": "biome format src App.tsx index.ts"
   },
-  "private": true
+  "private": true,
+  "packageManager": "pnpm@12.4.1"
 }

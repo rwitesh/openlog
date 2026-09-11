@@ -19,45 +19,45 @@ OpenLog uses an installed Expo development build. Expo Go is not part of the dev
 For Android, install Android Studio (or connect a USB-debuggable Android device), use JDK 17, ensure `adb` is on your `PATH`, and copy `.env.example` to `.env` with the required values.
 
 ```bash
-npm ci
-npm run android
+pnpm install
+pnpm android
 ```
 
-This builds, installs, and launches the Android development app, then starts Metro. If more than one device is connected, use `npm run android:device` to choose one.
+This builds, installs, and launches the Android development app, then starts Metro. If more than one device is connected, use `pnpm android:device` to choose one.
 
 After the development app is installed, start daily JavaScript/TypeScript work with:
 
 ```bash
-npm start
+pnpm start
 ```
 
-Rebuild with `npm run android` whenever you change a native dependency, Expo config plugin, permission, `app.json`, or Android native code. Otherwise, Fast Refresh connects the installed app to Metro on port 8081.
+Rebuild with `pnpm android` whenever you change a native dependency, Expo config plugin, permission, `app.json`, or Android native code. Otherwise, Fast Refresh connects the installed app to Metro on port 8081.
 
 ## Development commands
 
 | Command | Purpose |
 |---|---|
-| `npm start` | Start Metro for the installed development client |
-| `npm run start:clear` | Clear Metro’s cache and start the development client |
-| `npm run android` | Build, install, and launch the Android development app |
-| `npm run android:device` | Select a connected Android device, then build and launch |
-| `npm run android:clean` | Clear native build caches, then rebuild and launch |
-| `npm run android:metro` | Start Metro and launch on the connected Android device |
-| `npm run adb:devices` | List connected Android devices |
-| `npm run adb:reverse` | Forward device port 8081 to local Metro over USB |
-| `npm run adb:logs` | Show React Native and Expo Android logs |
-| `npm run eas:dev` | Build an installable Android development client with EAS |
-| `npm run eas:prod` | Build the production Android App Bundle with EAS |
+| `pnpm start` | Start Metro for the installed development client |
+| `pnpm start:clear` | Clear Metro’s cache and start the development client |
+| `pnpm android` | Build, install, and launch the Android development app |
+| `pnpm android:device` | Select a connected Android device, then build and launch |
+| `pnpm android:clean` | Clear native build caches, then rebuild and launch |
+| `pnpm android:metro` | Start Metro and launch on the connected Android device |
+| `pnpm adb:devices` | List connected Android devices |
+| `pnpm adb:reverse` | Forward device port 8081 to local Metro over USB |
+| `pnpm adb:logs` | Show React Native and Expo Android logs |
+| `pnpm eas:dev` | Build an installable Android development client with EAS |
+| `pnpm eas:prod` | Build the production Android App Bundle with EAS |
 
-For a USB-connected physical device, run `npm run adb:reverse` before `npm start`. If Metro has stale code, use `npm run start:clear`; if native Java/Kotlin changes are stale, use `npm run android:clean`.
+For a USB-connected physical device, run `pnpm adb:reverse` before `pnpm start`. If Metro has stale code, use `pnpm start:clear`; if native Java/Kotlin changes are stale, use `pnpm android:clean`.
 
 ## Verify before a build
 
 ```bash
-npm test
-npm run typecheck
-npx @biomejs/biome check src scripts
-npx expo-doctor
+pnpm test
+pnpm typecheck
+pnpm exec biome check src scripts
+pnpm dlx expo-doctor
 ```
 
 Do not run `npx expo start --go`; it bypasses the native development client and cannot represent OpenLog’s native module behavior.

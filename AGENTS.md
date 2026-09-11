@@ -38,9 +38,9 @@ Do not describe, name, or design OpenLog as only a journal, task manager, social
 Run the checks that cover the change; for ordinary source changes, run all of these:
 
 ```bash
-npm test
-npm run typecheck
-npx @biomejs/biome check src scripts
+pnpm test
+pnpm typecheck
+pnpm exec biome check src scripts
 ```
 
 Also inspect both light and dark themes for UI changes. For native filesystem, permissions, media, or interruption behavior, test on a relevant Android/iOS target when one is available and state clearly when that validation could not be run.
