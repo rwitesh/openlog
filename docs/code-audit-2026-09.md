@@ -29,6 +29,24 @@ The five findings below are already resolved in the current codebase. The three 
 
 ## Follow-up remediation and remaining risks
 
+### Implementation record
+
+The follow-up work kept the timeline model intact and focused on correctness, recoverability, and testability:
+
+| Area | Change | Outcome |
+|---|---|---|
+| Entry media removal | Entry updates commit to SQLite before unreferenced media cleanup is scheduled. | A failed database update cannot leave an entry referring to a removed file. |
+| Notifications | Permission requests are limited to the backup export and restore actions that use progress notifications. | Opening the timeline never triggers an unrelated system permission prompt. |
+| Preferences and profile | Failed persistence is reported through sanitized diagnostics without recording entry content or a profile value. | Write failures are observable without exposing private data. |
+| Restore recovery | A durable `restore-transaction` record in Documents tracks the media handoff; a matching SQLite marker is written inside the imported-entry transaction. Bootstrap resolves an unfinished transaction before normal reads. | An interruption during replace restore deterministically keeps the committed data or restores the prior media directory. |
+| Archive import | The importer caps archive, expanded, member, manifest, database, entry, and item counts; rejects duplicate or unexpected paths; stages media; and incrementally parses `db.json`. | Corrupt or hostile backups cannot silently overwrite staged files or consume unbounded storage and memory. |
+| Test suite | Node tests now cover schema migration, FTS triggers, cursor ordering, media-update ordering, backup validation and recovery decisions, preference parsing, and welcome/auth transitions. | `npm test` runs 22 focused checks instead of date initialization alone. |
+| Agent guidance | `AGENTS.md` and `GEMINI.md` define a neutral personal-timeline model, cohesive-file rule, naming guidance, privacy constraints, and verification expectations. | Future changes should not narrow the product to a journal or reintroduce micro-file sprawl. |
+
+### Release version
+
+This follow-up is staged as **1.3.1**. Because EAS uses local app versions, the next production build uses iOS build number **7** and Android version code **7**. These values must be increased again before another store submission.
+
 ### High priority — implemented and verified
 
 1. **Crash-atomic backup restore.** A durable restore transaction record is written in the documents directory before the media/database handoff. Bootstrap recovery uses that record plus a SQLite commit marker to either finalize a committed restore or restore the prior media directory after an interrupted handoff.
