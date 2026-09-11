@@ -2,18 +2,13 @@ import { File, FileMode, Paths } from "expo-file-system";
 import { strToU8, Zip, ZipDeflate, ZipPassThrough } from "fflate";
 
 import { getEntriesCount, getEntriesPage } from "@/services/db/entries";
+import { resolveMediaUri } from "@/services/media/storage";
 import { APP_SLUG } from "@/shared/constants";
-import type { Entry } from "@/shared/types";
+import type { Attachment, Entry } from "@/shared/types";
 import { APP_VERSION } from "@/shared/utils/appInfo";
 import { logDevWarning } from "@/shared/utils/devLog";
 
-import {
-  entryToPreview,
-  formatDateForFilename,
-  type MediaItem,
-  normalizeAttachments,
-  normalizeMediaUris,
-} from "./shared";
+import { formatDateForFilename } from "./shared";
 import {
   ARCHIVE_EXTENSION,
   ARCHIVE_FORMAT,
@@ -23,6 +18,62 @@ import {
   type ExportBackupOptions,
   type ExportBackupResult,
 } from "./types";
+
+interface MediaItem {
+  path: string;
+  localUri: string;
+}
+
+function normalizeMediaUris(
+  uris: (string | undefined)[],
+  mediaList: MediaItem[]
+): { paths: string[]; skipped: number } {
+  const paths: string[] = [];
+  let skipped = 0;
+  for (const uri of uris) {
+    if (!uri) continue;
+    const resolved = resolveMediaUri(uri);
+    try {
+      const file = new File(resolved);
+      if (!file.exists) {
+        skipped++;
+        continue;
+      }
+      const path = `media/${file.name}`;
+      paths.push(path);
+      if (!mediaList.some((item) => item.path === path))
+        mediaList.push({ path, localUri: resolved });
+    } catch {
+      skipped++;
+    }
+  }
+  return { paths, skipped };
+}
+
+function normalizeAttachments(
+  attachments: Attachment[] | undefined,
+  mediaList: MediaItem[]
+): { attachments: Attachment[]; skipped: number } {
+  if (!attachments?.length) return { attachments: [], skipped: 0 };
+  let skipped = 0;
+  const normalized = attachments.flatMap((attachment) => {
+    const result = normalizeMediaUris([attachment.uri], mediaList);
+    skipped += result.skipped;
+    return result.paths[0] ? [{ ...attachment, uri: result.paths[0] }] : [];
+  });
+  return { attachments: normalized, skipped };
+}
+
+function entryToPreview(entry: Entry): ArchivePreviewEntry {
+  return {
+    id: entry.id,
+    createdAt: entry.createdAt,
+    textSnippet: entry.text ? entry.text.slice(0, 100).trim() : "(No text)",
+    hasImages: Boolean(entry.images?.length),
+    hasAudios: Boolean(entry.audios?.length),
+    hasAttachments: Boolean(entry.attachments?.length),
+  };
+}
 
 /**
  * Creates a complete portable archive containing the database dump

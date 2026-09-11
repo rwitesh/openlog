@@ -2,7 +2,12 @@ import { File, FileMode } from "expo-file-system";
 import { strFromU8, Unzip, UnzipInflate, UnzipPassThrough } from "fflate";
 
 import { concatChunks, parseArchiveManifest } from "./shared";
-import { ARCHIVE_EXTENSION, type InspectBackupResult } from "./types";
+import {
+  ARCHIVE_EXTENSION,
+  ARCHIVE_FORMAT,
+  ARCHIVE_SCHEMA_VERSION,
+  type InspectBackupResult,
+} from "./types";
 
 /**
  * Inspects a backup archive without modifying disk or database.
@@ -55,7 +60,11 @@ export async function inspectBackupArchive(fileUri: string): Promise<InspectBack
     throw new Error(`Invalid file: Not a valid ${ARCHIVE_EXTENSION} archive (manifest missing).`);
   }
 
-  const manifest = parseArchiveManifest(strFromU8(concatChunks(buffers.manifest)));
+  const manifest = parseArchiveManifest(
+    strFromU8(concatChunks(buffers.manifest)),
+    ARCHIVE_FORMAT,
+    ARCHIVE_SCHEMA_VERSION
+  );
 
   return {
     format: manifest.format,
