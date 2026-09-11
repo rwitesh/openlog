@@ -20,48 +20,29 @@ export async function initializeDatabaseSchema(db: SchemaDatabase): Promise<void
     PRAGMA foreign_keys = ON;
   `);
 
-  const versionRow = await db.getFirstAsync<{ user_version: number }>("PRAGMA user_version");
-  const currentVersion = versionRow?.user_version ?? 0;
-
-  if (currentVersion < 1) {
-    await db.withTransactionAsync(async () => {
-      await db.execAsync(`
-        CREATE TABLE IF NOT EXISTS entries (
-          id            TEXT PRIMARY KEY NOT NULL,
-          created_at    INTEGER NOT NULL,
-          updated_at    INTEGER NOT NULL,
-          text          TEXT,
-          images        TEXT,
-          audios        TEXT,
-          latitude      REAL,
-          longitude     REAL,
-          location_name TEXT
-        );
-        CREATE INDEX IF NOT EXISTS idx_entries_created_at_id
-          ON entries (created_at DESC, id DESC);
-        CREATE TABLE IF NOT EXISTS settings (
-          key   TEXT PRIMARY KEY NOT NULL,
-          value TEXT NOT NULL
-        );
-        PRAGMA user_version = 1;
-      `);
-    });
-  }
-
-  if (currentVersion < 2) {
-    await db.withTransactionAsync(async () => {
-      await db.execAsync(`
-        ALTER TABLE entries ADD COLUMN attachments TEXT;
-        PRAGMA user_version = 2;
-      `);
-    });
-  }
-
-  await db.execAsync(`
-    CREATE INDEX IF NOT EXISTS idx_entries_created_at_id
-      ON entries (created_at DESC, id DESC);
-    DROP INDEX IF EXISTS idx_entries_created_at;
-  `);
+  await db.withTransactionAsync(async () => {
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS entries (
+        id            TEXT PRIMARY KEY NOT NULL,
+        created_at    INTEGER NOT NULL,
+        updated_at    INTEGER NOT NULL,
+        text          TEXT,
+        images        TEXT,
+        audios        TEXT,
+        attachments   TEXT,
+        latitude      REAL,
+        longitude     REAL,
+        location_name TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_entries_created_at_id
+        ON entries (created_at DESC, id DESC);
+      CREATE TABLE IF NOT EXISTS settings (
+        key   TEXT PRIMARY KEY NOT NULL,
+        value TEXT NOT NULL
+      );
+      PRAGMA user_version = 1;
+    `);
+  });
 
   await initializeSearchIndex(db);
 }

@@ -48,7 +48,7 @@ export function SettingsScreen({ navigation }: Props) {
               ? name?.trim() || email || "Account"
               : AUTH_REQUIRED_FOR_ONBOARDING
                 ? "Log in or create an account"
-                : "Your local profile"
+                : name?.trim() || "Your local profile"
           }
           onPress={() =>
             navigation.navigate(

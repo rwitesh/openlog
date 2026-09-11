@@ -21,44 +21,21 @@ function createAdapter(database) {
   };
 }
 
-test("database initialization migrates v1 installs and maintains the FTS mirror", async (t) => {
+test("database initialization creates the current schema and maintains the FTS mirror", async (t) => {
   const database = new DatabaseSync(":memory:");
   const db = createAdapter(database);
 
-  database.exec(`
-    CREATE TABLE entries (
-      id TEXT PRIMARY KEY NOT NULL,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      text TEXT,
-      images TEXT,
-      audios TEXT,
-      latitude REAL,
-      longitude REAL,
-      location_name TEXT
-    );
-    CREATE INDEX idx_entries_created_at ON entries (created_at DESC);
-    CREATE TABLE settings (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL);
-    PRAGMA user_version = 1;
-  `);
-
   await initializeDatabaseSchema(db);
 
-  await t.test("adds the attachment column and replaces the legacy index", () => {
+  await t.test("creates entries with attachments and schema version 1", () => {
     const columns = database.prepare("PRAGMA table_info(entries)").all();
     assert.ok(columns.some((column) => column.name === "attachments"));
-    assert.equal(
-      database
-        .prepare("SELECT name FROM sqlite_master WHERE name = 'idx_entries_created_at'")
-        .get(),
-      undefined
-    );
     assert.ok(
       database
         .prepare("SELECT name FROM sqlite_master WHERE name = 'idx_entries_created_at_id'")
         .get()
     );
-    assert.equal(database.prepare("PRAGMA user_version").get().user_version, 2);
+    assert.equal(database.prepare("PRAGMA user_version").get().user_version, 1);
   });
 
   await t.test("indexes inserts, updates, and deletes", () => {
