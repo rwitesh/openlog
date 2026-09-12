@@ -351,7 +351,7 @@ export function WelcomeShowcase({ onFinish }: WelcomeShowcaseProps) {
       >
         {SHOWCASE_SLIDES.map((slide, index) => (
           <View key={slide.key} style={[styles.slidePage, { width }]}>
-            <View style={styles.graphicSlot}>
+            <View style={styles.slideContent}>
               {index === 0 ? (
                 <CaptureGraphic colors={colors} />
               ) : index === 1 ? (
@@ -359,24 +359,24 @@ export function WelcomeShowcase({ onFinish }: WelcomeShowcaseProps) {
               ) : (
                 <PrivacyGraphic colors={colors} />
               )}
-            </View>
 
-            <View style={styles.slideTextBlock}>
-              <ThemedText
-                weight="semibold"
-                style={[typography.headerGreeting, styles.slideTitle, { color: colors.text }]}
-              >
-                {slide.title}
-              </ThemedText>
-              <ThemedText
-                style={[
-                  typography.headerSubtitle,
-                  styles.slideSubtitle,
-                  { color: colors.textSecondary },
-                ]}
-              >
-                {slide.subtitle}
-              </ThemedText>
+              <View style={styles.slideTextBlock}>
+                <ThemedText
+                  weight="semibold"
+                  style={[typography.headerGreeting, styles.slideTitle, { color: colors.text }]}
+                >
+                  {slide.title}
+                </ThemedText>
+                <ThemedText
+                  style={[
+                    typography.headerSubtitle,
+                    styles.slideSubtitle,
+                    { color: colors.textSecondary },
+                  ]}
+                >
+                  {slide.subtitle}
+                </ThemedText>
+              </View>
             </View>
           </View>
         ))}
@@ -485,11 +485,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.xxl,
     justifyContent: "center",
   },
-  graphicSlot: {
-    height: 220,
+  slideContent: {
+    flex: 0.78,
     justifyContent: "center",
-    alignItems: "center",
-    marginBottom: space.xxl,
+    gap: space.lg,
   },
   slideTextBlock: {
     gap: space.sm,
