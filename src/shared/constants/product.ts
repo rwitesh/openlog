@@ -3,6 +3,7 @@ import Constants from "expo-constants";
 export const APP_NAME: string = (Constants.expoConfig?.name as string) ?? "OpenLog";
 export const APP_SLUG = APP_NAME.toLowerCase();
 export const WEBSITE_URL = "https://rwitesh.github.io/openlog/";
+export const CHANGELOG_URL = "https://rwitesh.github.io/openlog/changelog.html";
 export const PRIVACY_POLICY_URL = "https://rwitesh.github.io/openlog/privacy-policy.html";
 export const TERMS_URL = "https://rwitesh.github.io/openlog/terms.html";
 
