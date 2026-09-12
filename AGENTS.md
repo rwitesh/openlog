@@ -33,6 +33,15 @@ Do not describe, name, or design OpenLog as only a journal, task manager, social
 - Do not add dependencies or new architecture when a clear local solution exists. For Expo packages, use `npx expo install` so versions match the SDK.
 - Do not claim a device-only behavior was verified without running it on a device or emulator.
 
+## Release versioning
+
+This project uses local EAS app versions (`eas.json` sets `appVersionSource` to `local`). Treat `app.json` as the release ledger; no store access is required to choose the next identifiers. Public versions and native upload identifiers are separate values.
+
+- For every patch release, increment `expo.version` in `app.json` and `version` in `package.json` together, add the matching release notes to `webpage/changelog.html`, increment `expo.ios.buildNumber` by 1, and increment `expo.android.versionCode` by 1. Do all four updates in the same change.
+- For every subsequent store-bound rebuild of that same public version, increment `expo.ios.buildNumber` and `expo.android.versionCode` by 1 again before building. Never decrement either value after a failed, cancelled, or rejected build.
+- Commit the new version values before triggering EAS. The committed `app.json` values are the source of truth for the next release or rebuild; do not query the stores or wait for store access.
+- Immediately before an EAS production build, run `pnpm exec expo config --type public --json` and verify the resolved `version`, `ios.buildNumber`, and `android.versionCode`. State those exact values in the handoff before triggering the build. Android `versionCode` can never be reused after an upload.
+
 ## Verification
 
 Run the checks that cover the change; for ordinary source changes, run all of these:
