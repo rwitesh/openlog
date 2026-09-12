@@ -13,7 +13,7 @@
     "ios": {
       "supportsTablet": true,
       "deploymentTarget": "17.0",
-      "buildNumber": "7",
+      "buildNumber": "8",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Record voice entries on your timeline.",
         "NSLocationWhenInUseUsageDescription": "Attach your current location to entries.",
@@ -23,7 +23,7 @@
       "bundleIdentifier": "share.openlog.mobile"
     },
     "android": {
-      "versionCode": 7,
+      "versionCode": 8,
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundColor": "#3264e6",
