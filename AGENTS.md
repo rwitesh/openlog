@@ -44,3 +44,14 @@ pnpm exec biome check src scripts
 ```
 
 Also inspect both light and dark themes for UI changes. For native filesystem, permissions, media, or interruption behavior, test on a relevant Android/iOS target when one is available and state clearly when that validation could not be run.
+
+## Commit attribution
+
+Commits with material AI-agent contributions must include a `Co-authored-by` trailer for
+the specific agent used. Use the provider's standard identity, for example:
+
+```
+Co-authored-by: Codex <codex@openai.com>
+Co-authored-by: Claude <noreply@anthropic.com>
+Co-authored-by: Cursor <cursoragent@cursor.com>
+```
