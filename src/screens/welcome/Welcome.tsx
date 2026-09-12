@@ -165,7 +165,8 @@ export function WelcomeScreen({ navigation, route }: Props) {
               placeholderTextColor={colors.textTertiary}
               autoCapitalize="words"
               autoCorrect={false}
-              returnKeyType="done"
+              autoFocus
+              returnKeyType="next"
               maxLength={40}
               onSubmitEditing={flow.submitStep}
               style={inputStyle(colors.text, colors.surfaceMuted, colors.separator)}
@@ -205,7 +206,7 @@ export function WelcomeScreen({ navigation, route }: Props) {
                 </ThemedText>
               </Pressable>
             </>
-          ) : (
+          ) : step === "name" ? null : (
             <>
               {step === "code" ? (
                 <View style={styles.linkRow}>
