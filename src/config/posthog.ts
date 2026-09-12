@@ -8,7 +8,12 @@ const env = process.env.EXPO_PUBLIC_APP_ENV === "production" ? "production" : "d
 const client = projectToken
   ? new PostHog(projectToken, {
       host: "https://us.i.posthog.com",
+      // Interaction autocapture is disabled; analytics and diagnostics are explicit.
       captureAppLifecycleEvents: true,
+      enableSessionReplay: false,
+      errorTracking: {
+        autocapture: { uncaughtExceptions: true, unhandledRejections: true, console: false },
+      },
     })
   : null;
 
