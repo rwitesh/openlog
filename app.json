@@ -71,6 +71,12 @@
       "expo-audio",
       "expo-sharing",
       [
+        "react-native-file-viewer-turbo",
+        {
+          "mimeTypes": ["*/*"]
+        }
+      ],
+      [
         "expo-location",
         {
           "locationWhenInUsePermission": "Attach your current location to entries."

@@ -1,6 +1,6 @@
 import * as DocumentPicker from "expo-document-picker";
-import * as Sharing from "expo-sharing";
 import { Alert } from "react-native";
+import { open } from "react-native-file-viewer-turbo";
 
 import type { Attachment } from "@/shared/types";
 import { logDevWarning } from "@/shared/utils/devLog";
@@ -61,23 +61,21 @@ export async function persistAttachmentList(attachments: Attachment[]): Promise<
   return Promise.all(attachments.map(persistAttachment));
 }
 
-/** Opens a kept file with the system share sheet, which offers preview and "Open in" targets. */
+/** Opens a kept file in the device's supported document viewer. */
 export async function openAttachment(file: Attachment): Promise<void> {
   try {
-    const available = await Sharing.isAvailableAsync();
-    if (!available) {
-      Alert.alert("Cannot open file", "This device cannot open this file type.");
-      return;
-    }
-
     const uri = resolveMediaUri(file.uri);
-    await Sharing.shareAsync(uri, {
-      mimeType: file.mime || "application/octet-stream",
-      ...(file.name ? { fileName: file.name } : {}),
+    await open(uri, {
+      displayName: file.name,
+      showOpenWithDialog: true,
+      showAppsSuggestions: true,
     });
   } catch (error) {
     logDevWarning("attachments:openAttachment", error);
-    Alert.alert("Could not open file", "Please try again.");
+    Alert.alert(
+      "Could not open file",
+      "Install or enable an app that supports this file type, then try again."
+    );
   }
 }
 
