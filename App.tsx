@@ -109,7 +109,7 @@ function AppContent({ showWelcome }: { showWelcome: boolean }) {
         <ClerkNameSync />
         <StatusBar style={mode === "dark" ? "light" : "dark"} />
         {posthog ? (
-          <PostHogProvider client={posthog} autocapture={{ captureScreens: false }}>
+          <PostHogProvider client={posthog} autocapture={false}>
             <PostHogErrorBoundary
               fallback={<View style={{ flex: 1, backgroundColor: theme.colors.background }} />}
             >
