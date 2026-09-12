@@ -1,7 +1,13 @@
 import { Image, Linking, StyleSheet, View } from "react-native";
 import { SettingsGroup, SettingsRow, SettingsScreenScroll } from "@/modules/settings";
 import { ThemedText } from "@/shared/components/ThemedText";
-import { APP_NAME, PRIVACY_POLICY_URL, TERMS_URL, WEBSITE_URL } from "@/shared/constants";
+import {
+  APP_NAME,
+  CHANGELOG_URL,
+  PRIVACY_POLICY_URL,
+  TERMS_URL,
+  WEBSITE_URL,
+} from "@/shared/constants";
 import { APP_VERSION } from "@/shared/utils";
 import { radius, space, typography, useTheme } from "@/theme";
 
@@ -61,6 +67,13 @@ export function AboutSettingsScreen() {
           title="Website"
           subtitle="rwitesh.github.io/openlog"
           onPress={() => openUrl(WEBSITE_URL)}
+        />
+
+        <SettingsRow
+          icon="clock"
+          title="Changelog"
+          subtitle="See what’s new in OpenLog"
+          onPress={() => openUrl(CHANGELOG_URL)}
         />
 
         <SettingsRow
