@@ -48,7 +48,7 @@ interface AttachmentChipProps {
   onRemove?: () => void;
 }
 
-/** Quiet row chip for a kept document; tapping opens it via the system share sheet. */
+/** Quiet row chip for a kept document; tapping opens it in the system viewer. */
 export function AttachmentChip({ attachment, onRemove }: AttachmentChipProps) {
   const { colors } = useTheme().theme;
   const size = formatAttachmentSize(attachment.size);
