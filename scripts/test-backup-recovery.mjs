@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import {
   applyPendingRestore,
@@ -21,6 +22,8 @@ import {
   validateArchivePath,
   waitForExportGate,
 } from "../src/services/backup/shared.ts";
+import { validateAttachedDatabase } from "../src/services/db/databaseValidation.ts";
+import { initializeDatabaseSchema } from "../src/services/db/schema.ts";
 
 const manifest = {
   format: "openlog-archive",
@@ -399,4 +402,115 @@ test("completePendingRestore purges rollback copies and fires notification and a
   // Notification and analytics fired with correct entry count
   assert.deepEqual(notifications, [99]);
   assert.deepEqual(analyticsEvents, [99]);
+});
+
+test("rollback cleans up swapped active media when original timeline had no media", async () => {
+  const fs = createMemoryRestoreFileSystem({
+    "/mock/db/app.db": "restored-db",
+    "/mock/db/openlog-restore-nomedia-previous.sqlite": "original-db-only",
+    "/mock/doc/media/unwanted-restored-photo.jpg": "unwanted-restored-media",
+  });
+  // Note: NO /mock/doc/openlog-restore-nomedia-previous-media directory was created,
+  // because the original timeline had zero media!
+  fs.dirs.add("/mock/doc/media");
+
+  await saveDurableTransaction({ id: "nomedia", phase: "media-swapped", entryCount: 5 }, fs);
+
+  await rollbackPendingRestore(fs, { id: "nomedia", phase: "media-swapped" });
+
+  // Original database restored
+  assert.equal(fs.files.get("/mock/db/app.db"), "original-db-only");
+  assert.equal(fs.files.has("/mock/db/openlog-restore-nomedia-previous.sqlite"), false);
+
+  // Swapped active media completely deleted
+  assert.equal(fs.files.has("/mock/doc/media/unwanted-restored-photo.jpg"), false);
+  assert.equal(fs.dirs.has("/mock/doc/media"), false);
+
+  // Journal deleted
+  assert.equal(fs.files.has(fs.journalPath), false);
+});
+
+function createDbTarget(database) {
+  return {
+    execAsync: async (source) => database.exec(source),
+    runAsync: async (source, ...params) => database.prepare(source).run(...params),
+    getFirstAsync: async (source, ...params) => database.prepare(source).get(...params) ?? null,
+    getAllAsync: async (source, ...params) => database.prepare(source).all(...params),
+    withTransactionAsync: async (task) => {
+      database.exec("BEGIN");
+      try {
+        await task();
+        database.exec("COMMIT");
+      } catch (e) {
+        database.exec("ROLLBACK");
+        throw e;
+      }
+    },
+  };
+}
+
+test("validateAttachedDatabase accepts current and older schema versions and rejects newer ones", async () => {
+  const memDb = new DatabaseSync(":memory:");
+  const target = createDbTarget(memDb);
+  await initializeDatabaseSchema(target);
+
+  // Default schema version is 1; should pass validation
+  const count1 = await validateAttachedDatabase(target, "main");
+  assert.equal(count1, 0);
+
+  // Future version 2; should throw unsupported backup version
+  memDb.exec("PRAGMA user_version = 2;");
+  await assert.rejects(
+    () => validateAttachedDatabase(target, "main"),
+    /Unsupported backup database version/
+  );
+
+  // Version 0 or negative; should throw missing or invalid user_version
+  memDb.exec("PRAGMA user_version = 0;");
+  await assert.rejects(
+    () => validateAttachedDatabase(target, "main"),
+    /missing or invalid user_version/
+  );
+});
+
+test("validateAttachedDatabase enforces referential integrity of entry media files", async () => {
+  const memDb = new DatabaseSync(":memory:");
+  const target = createDbTarget(memDb);
+  await initializeDatabaseSchema(target);
+
+  // Insert an entry referencing media
+  memDb
+    .prepare(
+      `INSERT INTO entries (id, created_at, updated_at, text, images, audios, attachments)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    )
+    .run(
+      "entry-1",
+      Date.now(),
+      Date.now(),
+      "Hello test",
+      JSON.stringify(["media/photo1.jpg"]),
+      JSON.stringify([]),
+      JSON.stringify([{ uri: "media/doc1.pdf", name: "Doc" }])
+    );
+
+  // Staging media dir missing photo1.jpg
+  const missingMediaDir = {
+    exists: true,
+    hasFile: (name) => name === "doc1.pdf", // photo1.jpg missing!
+  };
+
+  await assert.rejects(
+    () => validateAttachedDatabase(target, "main", missingMediaDir),
+    /referenced media file "photo1.jpg" is missing/
+  );
+
+  // Staging media dir has both files
+  const completeMediaDir = {
+    exists: true,
+    hasFile: (name) => name === "photo1.jpg" || name === "doc1.pdf",
+  };
+
+  const count = await validateAttachedDatabase(target, "main", completeMediaDir);
+  assert.equal(count, 1);
 });
