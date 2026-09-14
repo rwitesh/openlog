@@ -174,19 +174,7 @@ async function detachRestoreSource(database: SQLite.SQLiteDatabase): Promise<voi
   await database.execAsync(`DETACH DATABASE ${RESTORE_SOURCE}`);
 }
 
-import {
-  type DatabaseValidationTarget,
-  extractMediaFilename,
-  type StagingMediaDirectory,
-  validateAttachedDatabase,
-} from "./databaseValidation";
-
-export {
-  type DatabaseValidationTarget,
-  extractMediaFilename,
-  type StagingMediaDirectory,
-  validateAttachedDatabase,
-};
+import { validateAttachedDatabase } from "./validation";
 
 /** Validates a staged backup through the active connection, avoiding a temporary native handle. */
 export async function validateDatabaseSnapshot(

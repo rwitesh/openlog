@@ -24,8 +24,8 @@ import {
   validateArchivePath,
   waitForExportGate,
 } from "../src/services/backup/shared.ts";
-import { validateAttachedDatabase } from "../src/services/db/databaseValidation.ts";
 import { initializeDatabaseSchema } from "../src/services/db/schema.ts";
+import { validateAttachedDatabase } from "../src/services/db/validation.ts";
 
 const manifest = {
   format: "openlog-archive",

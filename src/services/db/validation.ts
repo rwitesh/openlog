@@ -1,7 +1,7 @@
 import { DATABASE_SCHEMA_VERSION } from "./schema.ts";
 import { parseAttachments, parseUris } from "./uris.ts";
 
-export interface DatabaseValidationTarget {
+export interface ValidationDatabase {
   execAsync(source: string): Promise<void>;
   runAsync(source: string, ...params: unknown[]): Promise<unknown>;
   getFirstAsync<T>(source: string, ...params: unknown[]): Promise<T | null>;
@@ -13,7 +13,7 @@ export interface StagingMediaDirectory {
   hasFile?: (name: string) => boolean;
 }
 
-export function extractMediaFilename(rawUri: string): string | null {
+export function extractMediaFilenameFromUri(rawUri: string): string | null {
   if (!rawUri || typeof rawUri !== "string") return null;
   if (rawUri.startsWith("http://") || rawUri.startsWith("https://")) return null;
   let path = rawUri;
@@ -29,6 +29,28 @@ export function extractMediaFilename(rawUri: string): string | null {
   return filename;
 }
 
+async function assertTableColumns(
+  database: ValidationDatabase,
+  sourceSchema: string,
+  table: string,
+  requiredCols: string[],
+  primaryKeyCol?: string
+): Promise<Map<string, { name: string; pk: number }>> {
+  const info = await database.getAllAsync<{ name: string; pk: number }>(
+    `PRAGMA ${sourceSchema}.table_info(${table})`
+  );
+  const cols = new Map(info.map((c) => [c.name, c]));
+  for (const col of requiredCols) {
+    if (!cols.has(col)) {
+      throw new Error(`Invalid backup database: ${table} table is missing column '${col}'.`);
+    }
+  }
+  if (primaryKeyCol && (cols.get(primaryKeyCol)?.pk ?? 0) < 1) {
+    throw new Error(`Invalid backup database: ${table}.${primaryKeyCol} must be a primary key.`);
+  }
+  return cols;
+}
+
 /**
  * Validates an attached staged database:
  * - Integrity check
@@ -39,7 +61,7 @@ export function extractMediaFilename(rawUri: string): string | null {
  * - Referential media integrity against extracted staging files
  */
 export async function validateAttachedDatabase(
-  database: DatabaseValidationTarget,
+  database: ValidationDatabase,
   sourceSchema: string,
   stagingMediaDir?: StagingMediaDirectory
 ): Promise<number> {
@@ -78,46 +100,33 @@ export async function validateAttachedDatabase(
     throw new Error("Invalid backup database: required tables are missing.");
   }
 
-  // Validate 'entries' schema: id (PK), created_at, updated_at, text, images, audios, attachments, latitude, longitude, location
-  const entriesInfo = await database.getAllAsync<{ name: string; pk: number }>(
-    `PRAGMA ${sourceSchema}.table_info(entries)`
+  // Validate required table schemas and constraints
+  await assertTableColumns(
+    database,
+    sourceSchema,
+    "entries",
+    [
+      "id",
+      "created_at",
+      "updated_at",
+      "text",
+      "images",
+      "audios",
+      "attachments",
+      "latitude",
+      "longitude",
+      "location",
+    ],
+    "id"
   );
-  const entriesCols = new Map(entriesInfo.map((c) => [c.name, c]));
-  const requiredEntriesCols = [
-    "id",
-    "created_at",
-    "updated_at",
-    "text",
-    "images",
-    "audios",
-    "attachments",
-    "latitude",
-    "longitude",
-    "location",
-  ];
-  for (const col of requiredEntriesCols) {
-    if (!entriesCols.has(col)) {
-      throw new Error(`Invalid backup database: entries table is missing column '${col}'.`);
-    }
-  }
-  if ((entriesCols.get("id")?.pk ?? 0) < 1) {
-    throw new Error("Invalid backup database: entries.id must be a primary key.");
-  }
 
-  // Validate 'tags' schema: id (PK), name, key (UNIQUE), color_id, created_at, updated_at
-  const tagsInfo = await database.getAllAsync<{ name: string; pk: number }>(
-    `PRAGMA ${sourceSchema}.table_info(tags)`
+  await assertTableColumns(
+    database,
+    sourceSchema,
+    "tags",
+    ["id", "name", "key", "color_id", "created_at", "updated_at"],
+    "id"
   );
-  const tagsCols = new Map(tagsInfo.map((c) => [c.name, c]));
-  const requiredTagsCols = ["id", "name", "key", "color_id", "created_at", "updated_at"];
-  for (const col of requiredTagsCols) {
-    if (!tagsCols.has(col)) {
-      throw new Error(`Invalid backup database: tags table is missing column '${col}'.`);
-    }
-  }
-  if ((tagsCols.get("id")?.pk ?? 0) < 1) {
-    throw new Error("Invalid backup database: tags.id must be a primary key.");
-  }
 
   const tagsIndexes = await database.getAllAsync<{ name: string; unique: number }>(
     `PRAGMA ${sourceSchema}.index_list(tags)`
@@ -138,14 +147,10 @@ export async function validateAttachedDatabase(
     throw new Error("Invalid backup database: tags.key must have a UNIQUE constraint.");
   }
 
-  // Validate 'entry_tags' schema: entry_id (PK, FK), tag_id (PK, FK)
-  const entryTagsInfo = await database.getAllAsync<{ name: string; pk: number }>(
-    `PRAGMA ${sourceSchema}.table_info(entry_tags)`
-  );
-  const entryTagsCols = new Map(entryTagsInfo.map((c) => [c.name, c]));
-  if (!entryTagsCols.has("entry_id") || !entryTagsCols.has("tag_id")) {
-    throw new Error("Invalid backup database: entry_tags table missing required columns.");
-  }
+  const entryTagsCols = await assertTableColumns(database, sourceSchema, "entry_tags", [
+    "entry_id",
+    "tag_id",
+  ]);
   if ((entryTagsCols.get("entry_id")?.pk ?? 0) < 1 || (entryTagsCols.get("tag_id")?.pk ?? 0) < 1) {
     throw new Error(
       "Invalid backup database: entry_tags must have a composite primary key on (entry_id, tag_id)."
@@ -167,17 +172,7 @@ export async function validateAttachedDatabase(
     );
   }
 
-  // Validate 'settings' schema: key (PK), value
-  const settingsInfo = await database.getAllAsync<{ name: string; pk: number }>(
-    `PRAGMA ${sourceSchema}.table_info(settings)`
-  );
-  const settingsCols = new Map(settingsInfo.map((c) => [c.name, c]));
-  if (!settingsCols.has("key") || !settingsCols.has("value")) {
-    throw new Error("Invalid backup database: settings table missing required columns.");
-  }
-  if ((settingsCols.get("key")?.pk ?? 0) < 1) {
-    throw new Error("Invalid backup database: settings.key must be a primary key.");
-  }
+  await assertTableColumns(database, sourceSchema, "settings", ["key", "value"], "key");
 
   // Validate required indexes: idx_entries_created_at_id, idx_entry_tags_tag_entry
   const indexes = await database.getAllAsync<{ name: string }>(
@@ -255,7 +250,7 @@ export async function validateAttachedDatabase(
         ...parseAttachments(row.attachments).map((a) => a.uri),
       ];
       for (const rawUri of uris) {
-        const filename = extractMediaFilename(rawUri);
+        const filename = extractMediaFilenameFromUri(rawUri);
         if (!filename || checkedMedia.has(filename)) continue;
         const fileExists =
           typeof stagingMediaDir.hasFile === "function" ? stagingMediaDir.hasFile(filename) : false;
@@ -268,7 +263,6 @@ export async function validateAttachedDatabase(
       }
     }
   }
-  // Unreferenced media files in staging are tolerated (e.g. remnants of deleted entries or orphan attachments).
 
   const count = await database.getFirstAsync<{ count: number }>(
     `SELECT COUNT(*) AS count FROM ${sourceSchema}.entries`
