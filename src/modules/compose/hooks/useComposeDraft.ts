@@ -1,7 +1,8 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Alert } from "react-native";
 
 import { addEntry, patchEntry } from "@/modules/entry";
+import { getTags } from "@/services/db/tags";
 import { getCachedPlace, useLocation } from "@/services/location";
 import type { Attachment, Entry, Tag } from "@/shared/types";
 import { getInitialWhen } from "@/shared/utils/dates";
@@ -32,6 +33,26 @@ export function useComposeDraft(
   const [when, setWhen] = useState(() => getInitialWhen(existing?.createdAt, initialDate));
   const [saving, setSaving] = useState(false);
   const location = useLocation(existing ? existing.location : getCachedPlace());
+
+  useEffect(() => {
+    if (!existing) return;
+    let active = true;
+    getTags()
+      .then((availableTags) => {
+        if (!active) return;
+        const byId = new Map(availableTags.map((tag) => [tag.id, tag]));
+        setTags((current) =>
+          current.flatMap((tag) => {
+            const updated = byId.get(tag.id);
+            return updated ? [updated] : [];
+          })
+        );
+      })
+      .catch((error) => logDevWarning("compose:refreshTags", error));
+    return () => {
+      active = false;
+    };
+  }, [existing]);
 
   const canSave =
     canSaveDraft({

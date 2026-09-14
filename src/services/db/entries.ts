@@ -427,6 +427,8 @@ export async function importEntriesBatched(
     signal?: AbortSignal;
     expectedCounts?: { entry: number; images: number; audio: number; attachments: number };
     restoreTransactionId?: string;
+    /** Tags from current archives. Undefined keeps compatibility with older entry-only archives. */
+    archiveTags?: readonly Tag[];
   }
 ): Promise<number> {
   return runDb(async (db) => {
@@ -438,8 +440,48 @@ export async function importEntriesBatched(
         throw new Error("Import cancelled");
       }
 
+      const restoredTags = new Map<string, Tag>();
+      if (options?.archiveTags) {
+        for (const tag of options.archiveTags) {
+          const normalizedName = tag?.name?.normalize("NFKC").trim().replace(/\s+/g, " ");
+          if (
+            !tag ||
+            typeof tag.id !== "string" ||
+            !normalizedName ||
+            [...normalizedName].length > 10 ||
+            !TAG_COLOR_IDS.includes(tag.colorId) ||
+            restoredTags.has(tag.id)
+          ) {
+            throw new Error("Invalid backup tag.");
+          }
+          restoredTags.set(tag.id, { ...tag, name: normalizedName });
+        }
+        const keys = new Set<string>();
+        for (const tag of restoredTags.values()) {
+          const key = tag.name.toLocaleLowerCase("en-US");
+          if (keys.has(key)) throw new Error("Invalid backup tag.");
+          keys.add(key);
+        }
+      }
+
       await db.runAsync(`DELETE FROM entries`);
       await db.runAsync(`DELETE FROM tags`);
+      if (options?.archiveTags) {
+        const restoredAt = Date.now();
+        for (const tag of restoredTags.values()) {
+          await db.runAsync(
+            "INSERT INTO tags (id, name, key, color_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+            [
+              tag.id,
+              tag.name,
+              tag.name.toLocaleLowerCase("en-US"),
+              tag.colorId,
+              restoredAt,
+              restoredAt,
+            ]
+          );
+        }
+      }
       const insertStmt = await db.prepareAsync(
         `INSERT INTO entries (
            id, created_at, updated_at, text, images, audios, attachments,
@@ -498,6 +540,13 @@ export async function importEntriesBatched(
               !TAG_COLOR_IDS.includes(tag.colorId)
             ) {
               throw new Error("Invalid backup tag.");
+            }
+            if (options?.archiveTags) {
+              if (!restoredTags.has(tag.id) || restoredTagIds.includes(tag.id)) {
+                throw new Error("Invalid backup tag reference.");
+              }
+              restoredTagIds.push(tag.id);
+              continue;
             }
             const key = normalizedName.toLocaleLowerCase("en-US");
             const existingTag = await db.getFirstAsync<{ id: string }>(

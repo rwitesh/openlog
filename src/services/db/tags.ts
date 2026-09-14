@@ -66,6 +66,13 @@ export async function updateTag(
   if (!TAG_COLOR_IDS.includes(input.colorId)) throw new Error("Invalid tag color.");
 
   return runDb(async (db) => {
+    const duplicate = await db.getFirstAsync<{ id: string }>(
+      "SELECT id FROM tags WHERE key = ? AND id <> ?",
+      normalized.key,
+      id
+    );
+    if (duplicate) throw new Error("A tag with this name already exists.");
+
     await db.runAsync(
       "UPDATE tags SET name = ?, key = ?, color_id = ?, updated_at = ? WHERE id = ?",
       [normalized.name, normalized.key, input.colorId, Date.now(), id]

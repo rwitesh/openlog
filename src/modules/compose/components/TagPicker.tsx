@@ -34,6 +34,11 @@ export function TagPicker({ visible, selected, onChange, onClose }: TagPickerPro
 
   useEffect(() => {
     if (!visible) return;
+    setQuery("");
+    setColorId(TAG_COLOR_IDS[0]);
+    setEditing(null);
+    setEditingName("");
+    setEditingColorId(TAG_COLOR_IDS[0]);
     getTags()
       .then(setTags)
       .catch(() => Alert.alert("Couldn't load tags", "Try again."));
@@ -50,7 +55,10 @@ export function TagPicker({ visible, selected, onChange, onClose }: TagPickerPro
     (tag) => tag.name.toLocaleLowerCase() === normalized.toLocaleLowerCase()
   );
   const canCreate =
-    Boolean(normalized) && [...normalized].length <= MAX_TAG_NAME_LENGTH && !existingMatch;
+    Boolean(normalized) &&
+    [...normalized].length <= MAX_TAG_NAME_LENGTH &&
+    !existingMatch &&
+    selected.length < MAX_TAGS_PER_ENTRY;
 
   const toggleTag = (tag: Tag) => {
     if (selectedIds.has(tag.id)) {
@@ -65,6 +73,10 @@ export function TagPicker({ visible, selected, onChange, onClose }: TagPickerPro
   };
 
   const handleCreate = async () => {
+    if (selected.length >= MAX_TAGS_PER_ENTRY) {
+      Alert.alert("Tag limit", `An entry can have up to ${MAX_TAGS_PER_ENTRY} tags.`);
+      return;
+    }
     try {
       const tag = await createTag({ name: normalized, colorId });
       setTags((current) =>
@@ -120,7 +132,11 @@ export function TagPicker({ visible, selected, onChange, onClose }: TagPickerPro
   };
 
   const close = () => {
+    setQuery("");
+    setColorId(TAG_COLOR_IDS[0]);
     setEditing(null);
+    setEditingName("");
+    setEditingColorId(TAG_COLOR_IDS[0]);
     onClose();
   };
 
@@ -153,7 +169,12 @@ export function TagPicker({ visible, selected, onChange, onClose }: TagPickerPro
             styles.input,
             { color: colors.text, fontFamily: fontFamily("regular", theme.fontFamily) },
           ]}
-          accessibilityLabel="Find or create a tag"
+          accessibilityLabel={editing ? "Tag name" : "Find or create a tag"}
+          accessibilityHint={
+            editing
+              ? `Use up to ${MAX_TAG_NAME_LENGTH} characters.`
+              : `Search existing tags or create one with up to ${MAX_TAG_NAME_LENGTH} characters.`
+          }
         />
       </View>
       {editing ? (
@@ -188,6 +209,15 @@ export function TagPicker({ visible, selected, onChange, onClose }: TagPickerPro
             })}
           </ScrollView>
           <View style={styles.editActions}>
+            <Pressable
+              onPress={() => setEditing(null)}
+              style={({ pressed }) => [styles.textAction, pressed && press]}
+              accessibilityRole="button"
+            >
+              <ThemedText weight="medium" style={{ color: colors.textSecondary }}>
+                Cancel
+              </ThemedText>
+            </Pressable>
             <Pressable
               onPress={removeTag}
               style={({ pressed }) => [styles.textAction, pressed && press]}
@@ -333,7 +363,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
   },
-  list: { paddingTop: space.sm, paddingBottom: space.md },
+  list: { flexShrink: 1, paddingTop: space.sm, paddingBottom: space.md },
   row: {
     flexDirection: "row",
     alignItems: "center",

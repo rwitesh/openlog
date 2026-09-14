@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { getRestoreRecoveryAction } from "../src/services/backup/restoreRecovery.ts";
-import { assertArchiveManifest, assertEntryCounts } from "../src/services/backup/shared.ts";
+import {
+  assertArchiveManifest,
+  assertArchiveTags,
+  assertEntryCounts,
+} from "../src/services/backup/shared.ts";
 
 const manifest = {
   format: "openlog-archive",
@@ -52,6 +56,22 @@ test("backup entry data must match every manifest media count before import comm
   assert.throws(
     () => assertEntryCounts({ ...manifest.counts, entry: 2 }, [entry]),
     /lists 2 entries but archive contains 1/
+  );
+});
+
+test("backup tag catalogues retain reusable tags and reject ambiguous identifiers", () => {
+  const tags = [
+    { id: "work", name: "Work", colorId: "clay" },
+    { id: "unused", name: "Someday", colorId: "sage" },
+  ];
+  assert.doesNotThrow(() => assertArchiveTags(tags));
+  assert.throws(
+    () => assertArchiveTags([...tags, { id: "other", name: " work ", colorId: "teal" }]),
+    /Invalid backup tag/
+  );
+  assert.throws(
+    () => assertArchiveTags([...tags, { id: "unused", name: "Later", colorId: "teal" }]),
+    /Invalid backup tag/
   );
 });
 

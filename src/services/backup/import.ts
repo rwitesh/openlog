@@ -3,7 +3,7 @@ import { strFromU8, Unzip, UnzipInflate, UnzipPassThrough } from "fflate";
 
 import { notifyStoreReload } from "@/modules/entry";
 import { importEntriesBatched } from "@/services/db/entries";
-import type { Entry } from "@/shared/types";
+import type { Entry, Tag } from "@/shared/types";
 
 import {
   clearRestoreTransaction,
@@ -13,7 +13,7 @@ import {
   RESTORE_PREVIOUS_MEDIA_DIR,
   updateRestoreTransaction,
 } from "./restoreTransaction";
-import { assertArchiveManifest } from "./shared";
+import { assertArchiveManifest, assertArchiveTags } from "./shared";
 import {
   ARCHIVE_FORMAT,
   ARCHIVE_SCHEMA_VERSION,
@@ -29,6 +29,8 @@ const LIMITS = {
   manifestBytes: 256 * 1024,
   dbBytes: 256 * 1024 * 1024,
   entryBytes: 2 * 1024 * 1024,
+  tagsBytes: 16 * 1024 * 1024,
+  tags: 100_000,
   entries: 100_000,
   media: 100_000,
 } as const;
@@ -42,6 +44,15 @@ function mediaFilename(path: string): string {
     throw new Error("Invalid media path in backup archive.");
   }
   return filename;
+}
+
+function parseArchiveTags(chunks: Uint8Array[]): Tag[] {
+  const value: unknown = JSON.parse(strFromU8(concat(chunks)));
+  if (!Array.isArray(value) || value.length > LIMITS.tags) {
+    throw new Error("Invalid backup file: tags list is invalid.");
+  }
+  assertArchiveTags(value);
+  return value as Tag[];
 }
 
 async function* readEntries(file: File): AsyncGenerator<Entry> {
@@ -143,6 +154,7 @@ export async function importBackupArchive(
   let failure: Error | null = null;
   let totalUncompressed = 0;
   let mediaCount = 0;
+  let archiveTags: Tag[] | undefined;
   const paths = new Set<string>();
 
   try {
@@ -163,6 +175,7 @@ export async function importBackupArchive(
       if (
         member.name !== "manifest.json" &&
         member.name !== "db.json" &&
+        member.name !== "tags.json" &&
         !member.name.startsWith("media/")
       ) {
         failure = new Error("Invalid backup file: unexpected archive path.");
@@ -204,8 +217,13 @@ export async function importBackupArchive(
           if (member.name === "db.json") dbHandle.writeBytes(chunk);
           else if (mediaHandle) mediaHandle.writeBytes(chunk);
           else {
-            if (memberBytes > LIMITS.manifestBytes)
-              throw new Error("Invalid backup manifest: too large.");
+            const maxBytes = member.name === "tags.json" ? LIMITS.tagsBytes : LIMITS.manifestBytes;
+            if (memberBytes > maxBytes)
+              throw new Error(
+                member.name === "tags.json"
+                  ? "Invalid backup file: tags data is too large."
+                  : "Invalid backup manifest: too large."
+              );
             chunks.push(chunk);
           }
           if (final) {
@@ -213,6 +231,8 @@ export async function importBackupArchive(
             if (member.name === "manifest.json") {
               manifest = JSON.parse(strFromU8(concat(chunks))) as ArchiveManifest;
               assertArchiveManifest(manifest, ARCHIVE_FORMAT, ARCHIVE_SCHEMA_VERSION);
+            } else if (member.name === "tags.json") {
+              archiveTags = parseArchiveTags(chunks);
             }
           }
         } catch (writeError) {
@@ -265,6 +285,7 @@ export async function importBackupArchive(
       const importedCount = await importEntriesBatched(readEntries(dbTempFile), {
         signal: options?.signal,
         expectedCounts: validatedManifest.counts,
+        archiveTags,
         restoreTransactionId: transaction.id,
       });
       await updateRestoreTransaction(transaction, "database-committed");

@@ -253,19 +253,30 @@ export function useEntry(id?: string): Entry | null | undefined {
     }
 
     let active = true;
-    fetchEntry(id)
-      .then((result) => {
-        if (active) setEntry(result);
-      })
-      .catch(() => {
-        if (active) setEntry(null);
-      });
+    let requestVersion = 0;
+    const loadEntry = () => {
+      const version = requestVersion + 1;
+      requestVersion = version;
+      void fetchEntry(id)
+        .then((result) => {
+          if (active && requestVersion === version) setEntry(result);
+        })
+        .catch(() => {
+          if (active && requestVersion === version) setEntry(null);
+        });
+    };
+
+    loadEntry();
 
     const unsubscribe = subscribeMutations((mutation) => {
       if (mutation.type === "clear" || (mutation.type === "delete" && mutation.id === id)) {
+        requestVersion += 1;
         setEntry(null);
       } else if (mutation.type === "update" && mutation.entry.id === id) {
+        requestVersion += 1;
         setEntry(mutation.entry);
+      } else if (mutation.type === "reload") {
+        loadEntry();
       }
     });
 

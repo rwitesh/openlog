@@ -66,7 +66,7 @@ function SearchResultRowBase({ result, onOpen }: SearchResultRowProps) {
       {entry.tags.length ? (
         <View style={styles.tags}>
           {entry.tags.map((tag) => (
-            <TagChip key={tag.id} tag={tag} />
+            <TagChip key={tag.id} tag={tag} size="compact" />
           ))}
         </View>
       ) : null}
