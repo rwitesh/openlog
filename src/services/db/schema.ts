@@ -5,6 +5,8 @@ export interface SchemaDatabase {
   withTransactionAsync(task: () => Promise<void>): Promise<void>;
 }
 
+export const DATABASE_SCHEMA_VERSION = 1;
+
 export async function initializeDatabaseSchema(db: SchemaDatabase): Promise<void> {
   await db.execAsync(`
     PRAGMA journal_mode = WAL;
@@ -48,7 +50,7 @@ export async function initializeDatabaseSchema(db: SchemaDatabase): Promise<void
         key   TEXT PRIMARY KEY NOT NULL,
         value TEXT NOT NULL
       );
-      PRAGMA user_version = 1;
+      PRAGMA user_version = ${DATABASE_SCHEMA_VERSION};
     `);
   });
 

@@ -1,13 +1,13 @@
-import { File, FileMode, Paths } from "expo-file-system";
+import { Directory, File, FileMode, Paths } from "expo-file-system";
 import { strToU8, Zip, ZipDeflate, ZipPassThrough } from "fflate";
 
-import { getEntriesCount, getEntriesPage } from "@/services/db/entries";
-import { getTags } from "@/services/db/tags";
-import { resolveMediaUri } from "@/services/media/storage";
+import {
+  createDatabaseSnapshot,
+  deleteDatabaseSnapshot,
+  validateDatabaseSnapshot,
+} from "@/services/db/database";
 import { APP_SLUG } from "@/shared/constants";
-import type { Attachment, Entry } from "@/shared/types";
 import { APP_VERSION } from "@/shared/utils/appInfo";
-import { logDevWarning } from "@/shared/utils/devLog";
 
 import { formatDateForFilename } from "./shared";
 import {
@@ -15,225 +15,107 @@ import {
   ARCHIVE_FORMAT,
   ARCHIVE_SCHEMA_VERSION,
   type ArchiveManifest,
-  type ArchivePreviewEntry,
   type ExportBackupOptions,
   type ExportBackupResult,
 } from "./types";
 
-interface MediaItem {
-  path: string;
-  localUri: string;
+const CHUNK_SIZE = 256 * 1024;
+
+function backupId(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-function normalizeMediaUris(
-  uris: (string | undefined)[],
-  mediaList: MediaItem[]
-): { paths: string[]; skipped: number } {
-  const paths: string[] = [];
-  let skipped = 0;
-  for (const uri of uris) {
-    if (!uri) continue;
-    const resolved = resolveMediaUri(uri);
-    try {
-      const file = new File(resolved);
-      if (!file.exists) {
-        skipped++;
-        continue;
-      }
-      const path = `media/${file.name}`;
-      paths.push(path);
-      if (!mediaList.some((item) => item.path === path))
-        mediaList.push({ path, localUri: resolved });
-    } catch {
-      skipped++;
-    }
+function listMediaFiles(): File[] {
+  const mediaDirectory = new Directory(Paths.document, "media");
+  if (!mediaDirectory.exists) return [];
+  const items = mediaDirectory.list();
+  if (items.some((item) => !(item instanceof File))) {
+    throw new Error("Cannot back up media: the media directory contains nested folders.");
   }
-  return { paths, skipped };
+  return items as File[];
 }
 
-function normalizeAttachments(
-  attachments: Attachment[] | undefined,
-  mediaList: MediaItem[]
-): { attachments: Attachment[]; skipped: number } {
-  if (!attachments?.length) return { attachments: [], skipped: 0 };
-  let skipped = 0;
-  const normalized = attachments.flatMap((attachment) => {
-    const result = normalizeMediaUris([attachment.uri], mediaList);
-    skipped += result.skipped;
-    return result.paths[0] ? [{ ...attachment, uri: result.paths[0] }] : [];
-  });
-  return { attachments: normalized, skipped };
+function addFileToArchive(zip: Zip, archivePath: string, sourceFile: File): void {
+  if (!sourceFile.exists) {
+    throw new Error(`Cannot back up media: ${sourceFile.name} is no longer available.`);
+  }
+  const archiveFile = new ZipPassThrough(archivePath);
+  zip.add(archiveFile);
+  const source = sourceFile.open(FileMode.ReadOnly);
+  try {
+    const size = source.size ?? 0;
+    let read = 0;
+    while (read < size) {
+      const chunk = source.readBytes(Math.min(CHUNK_SIZE, size - read));
+      if (chunk.length === 0) throw new Error(`Cannot read ${sourceFile.name} while backing up.`);
+      read += chunk.length;
+      archiveFile.push(chunk, read === size);
+    }
+    if (size === 0) archiveFile.push(new Uint8Array(0), true);
+  } finally {
+    source.close();
+  }
 }
 
-function entryToPreview(entry: Entry): ArchivePreviewEntry {
-  return {
-    id: entry.id,
-    createdAt: entry.createdAt,
-    textSnippet: entry.text ? entry.text.slice(0, 100).trim() : "(No text)",
-    hasImages: Boolean(entry.images?.length),
-    hasAudios: Boolean(entry.audios?.length),
-    hasAttachments: Boolean(entry.attachments?.length),
-  };
-}
-
-/**
- * Creates a complete portable archive containing the database dump
- * (`manifest.json` + `db.json`) and all attached photos and voice recordings (`media/`).
- * Uses disk streaming and paged SQLite reads to keep memory flat on large timelines.
- */
+/** Creates an opaque, complete timeline backup: a SQLite snapshot plus the durable media directory. */
 export async function exportBackupArchive(
   options?: ExportBackupOptions
 ): Promise<ExportBackupResult> {
   if (options?.signal?.aborted) throw new Error("Backup cancelled");
 
   const createdAt = Date.now();
+  const id = backupId();
   const filename = `${APP_SLUG}-backup-${formatDateForFilename(createdAt)}${ARCHIVE_EXTENSION}`;
   const exportFile = new File(Paths.cache, filename);
+  const snapshotName = `backup-snapshot-${id}.sqlite`;
+  const snapshotFile = new File(Paths.cache, snapshotName);
   exportFile.create({ overwrite: true });
-  const handle = exportFile.open(FileMode.WriteOnly);
-
-  const mediaToExport: MediaItem[] = [];
-  let processedEntries = 0;
-  const counts = { entry: 0, images: 0, audio: 0, attachments: 0 };
-  let isSuccess = false;
+  const output = exportFile.open(FileMode.WriteOnly);
+  let succeeded = false;
 
   try {
-    const zipStream = new Zip((err, chunk) => {
-      if (err) throw err;
-      handle.writeBytes(chunk);
-    });
-
-    const totalEntries = await getEntriesCount();
-    const tags = await getTags();
-    const previewEntries: ArchivePreviewEntry[] = [];
-
-    const dbEntry = new ZipDeflate("db.json", { level: 6 });
-    zipStream.add(dbEntry);
-    dbEntry.push(strToU8('{"entries":[\n'), false);
-
-    const PAGE_SIZE = 100;
-    let isFirstEntry = true;
-
-    for (let offset = 0; offset < totalEntries; offset += PAGE_SIZE) {
-      if (options?.signal?.aborted) throw new Error("Backup cancelled");
-
-      const page = await getEntriesPage(offset, PAGE_SIZE);
-      if (page.length === 0) break;
-
-      let pageChunk = "";
-
-      for (const entry of page) {
-        const images = normalizeMediaUris(entry.images ?? [], mediaToExport);
-        const audios = normalizeMediaUris(entry.audios ?? [], mediaToExport);
-        const attachments = normalizeAttachments(entry.attachments, mediaToExport);
-
-        const normalizedEntry: Entry = {
-          ...entry,
-          images: images.paths,
-          audios: audios.paths,
-          attachments: attachments.attachments,
-        };
-
-        counts.images += normalizedEntry.images.length;
-        counts.audio += normalizedEntry.audios.length;
-        counts.attachments += normalizedEntry.attachments.length;
-
-        if (previewEntries.length < 3) {
-          previewEntries.push(entryToPreview(normalizedEntry));
-        }
-
-        if (!isFirstEntry) pageChunk += ",\n";
-        isFirstEntry = false;
-        pageChunk += JSON.stringify(normalizedEntry);
-        processedEntries++;
-      }
-
-      dbEntry.push(strToU8(pageChunk), false);
-      options?.onProgress?.(processedEntries, totalEntries, "entries");
-    }
-
-    dbEntry.push(strToU8("\n]}\n"), true);
-
-    const tagsEntry = new ZipDeflate("tags.json", { level: 6 });
-    zipStream.add(tagsEntry);
-    tagsEntry.push(strToU8(JSON.stringify(tags)), true);
-
+    await createDatabaseSnapshot(snapshotName, Paths.cache.uri);
+    const entryCount = await validateDatabaseSnapshot(snapshotName, Paths.cache.uri);
+    options?.onProgress?.(1, 1, "database");
     if (options?.signal?.aborted) throw new Error("Backup cancelled");
 
-    counts.entry = processedEntries;
-
+    const mediaFiles = listMediaFiles();
     const manifest: ArchiveManifest = {
       format: ARCHIVE_FORMAT,
       version: ARCHIVE_SCHEMA_VERSION,
       createdAt,
       appVersion: APP_VERSION ?? "1.0.0",
-      counts,
-      previewEntries,
+      counts: { entry: entryCount, media: mediaFiles.length },
     };
 
-    const manifestEntry = new ZipDeflate("manifest.json", { level: 6 });
-    zipStream.add(manifestEntry);
-    manifestEntry.push(strToU8(JSON.stringify(manifest, null, 2)), true);
+    const zip = new Zip((error, chunk) => {
+      if (error) throw error;
+      output.writeBytes(chunk);
+    });
+    addFileToArchive(zip, "database.sqlite", snapshotFile);
 
-    const CHUNK_SIZE = 256 * 1024;
-    const totalMedia = mediaToExport.length;
-    let processedMedia = 0;
-
-    for (const item of mediaToExport) {
+    for (let index = 0; index < mediaFiles.length; index++) {
       if (options?.signal?.aborted) throw new Error("Backup cancelled");
-
-      try {
-        const sourceFile = new File(item.localUri);
-        if (sourceFile.exists) {
-          const mediaEntry = new ZipPassThrough(item.path);
-          zipStream.add(mediaEntry);
-          const readHandle = sourceFile.open(FileMode.ReadOnly);
-          try {
-            const fileSize = readHandle.size ?? 0;
-            let bytesRead = 0;
-            while (bytesRead < fileSize) {
-              if (options?.signal?.aborted) throw new Error("Backup cancelled");
-              const chunk = readHandle.readBytes(Math.min(CHUNK_SIZE, fileSize - bytesRead));
-              if (chunk.length === 0) break;
-              bytesRead += chunk.length;
-              mediaEntry.push(chunk, bytesRead >= fileSize);
-            }
-            if (fileSize === 0) mediaEntry.push(new Uint8Array(0), true);
-          } finally {
-            readHandle.close();
-          }
-        } else {
-          logDevWarning("exportBackupArchive:missingMedia", item.path);
-        }
-      } catch (err) {
-        if (options?.signal?.aborted) throw err;
-        logDevWarning("exportBackupArchive:streamMedia", err);
-      }
-      processedMedia++;
-      options?.onProgress?.(processedMedia, totalMedia, "media");
+      const mediaFile = mediaFiles[index];
+      addFileToArchive(zip, `media/${mediaFile.name}`, mediaFile);
+      options?.onProgress?.(index + 1, mediaFiles.length, "media");
     }
 
-    if (options?.signal?.aborted) throw new Error("Backup cancelled");
+    const manifestFile = new ZipDeflate("manifest.json", { level: 6 });
+    zip.add(manifestFile);
+    manifestFile.push(strToU8(JSON.stringify(manifest)), true);
+    zip.end();
+    succeeded = true;
 
-    zipStream.end();
-    isSuccess = true;
+    return {
+      fileUri: exportFile.uri,
+      filename,
+      counts: manifest.counts,
+      byteSize: exportFile.info().size ?? 0,
+    };
   } finally {
-    handle.close();
-    if (!isSuccess) {
-      try {
-        if (exportFile.exists) exportFile.delete();
-      } catch (cleanupErr) {
-        logDevWarning("exportBackupArchive:cleanupFailed", cleanupErr);
-      }
-    }
+    output.close();
+    if (snapshotFile.exists) await deleteDatabaseSnapshot(snapshotName, Paths.cache.uri);
+    if (!succeeded && exportFile.exists) exportFile.delete();
   }
-
-  const finalInfo = exportFile.info();
-
-  return {
-    fileUri: exportFile.uri,
-    filename,
-    counts: { ...counts, entry: processedEntries },
-    byteSize: finalInfo.size ?? 0,
-  };
 }

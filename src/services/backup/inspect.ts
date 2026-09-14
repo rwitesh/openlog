@@ -11,7 +11,7 @@ import {
 
 /**
  * Inspects a backup archive without modifying disk or database.
- * Reads manifest.json only — db.json and media are not loaded into memory.
+ * Reads manifest.json only — the database and media are not loaded into memory.
  */
 export async function inspectBackupArchive(fileUri: string): Promise<InspectBackupResult> {
   const sourceFile = new File(fileUri);
@@ -72,6 +72,5 @@ export async function inspectBackupArchive(fileUri: string): Promise<InspectBack
     createdAt: manifest.createdAt,
     appVersion: manifest.appVersion,
     counts: manifest.counts,
-    previewEntries: manifest.previewEntries,
   };
 }
