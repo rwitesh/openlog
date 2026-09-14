@@ -1,24 +1,11 @@
 import { APP_SLUG } from "@/shared/constants";
-import type { Entry, Tag } from "@/shared/types";
-
 export const ARCHIVE_FORMAT = `${APP_SLUG}-archive` as const;
 export const ARCHIVE_SCHEMA_VERSION = 1;
 export const ARCHIVE_EXTENSION = `.${APP_SLUG}`;
 
-export interface ArchivePreviewEntry {
-  id: string;
-  createdAt: number;
-  textSnippet: string;
-  hasImages: boolean;
-  hasAudios: boolean;
-  hasAttachments: boolean;
-}
-
 export interface ArchiveCounts {
   entry: number;
-  images: number;
-  audio: number;
-  attachments: number;
+  media: number;
 }
 
 export interface ArchiveManifest {
@@ -27,13 +14,6 @@ export interface ArchiveManifest {
   createdAt: number;
   appVersion: string;
   counts: ArchiveCounts;
-  previewEntries: ArchivePreviewEntry[];
-}
-
-export interface ArchiveDb {
-  entries: Entry[];
-  /** Present in current archives; omitted by archives created before tags existed. */
-  tags?: Tag[];
 }
 
 export interface InspectBackupResult {
@@ -42,7 +22,6 @@ export interface InspectBackupResult {
   createdAt: number;
   appVersion: string;
   counts: ArchiveCounts;
-  previewEntries: ArchivePreviewEntry[];
 }
 
 export interface ExportBackupResult {
@@ -56,7 +35,7 @@ export interface ImportBackupResult {
   importedCount: number;
 }
 
-export type ExportBackupPhase = "entries" | "media";
+export type ExportBackupPhase = "database" | "media";
 
 export interface ExportBackupOptions {
   signal?: AbortSignal;

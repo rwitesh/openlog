@@ -120,11 +120,11 @@ export function PrivacySettingsScreen() {
         signal: controller.signal,
         onProgress: (processed, total, phase) => {
           if (total === 0) return;
-          const step = phase === "entries" ? 25 : 10;
+          const step = phase === "database" ? 1 : 10;
           if (processed % step !== 0 && processed !== total) return;
           const body =
-            phase === "entries"
-              ? `Packaging entries (${processed.toLocaleString()}/${total.toLocaleString()})…`
+            phase === "database"
+              ? "Creating database snapshot…"
               : `Saving backup (${processed.toLocaleString()}/${total.toLocaleString()})…`;
           void notifyBackupProgress("Backing up OpenLog…", body);
         },
