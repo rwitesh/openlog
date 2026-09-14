@@ -1,5 +1,6 @@
 import { Directory, File, Paths } from "expo-file-system";
 
+import { waitForExportGate } from "@/services/backup/shared";
 import { logDevWarning } from "@/shared/utils/devLog";
 
 function mediaDirectory(): Directory {
@@ -88,6 +89,7 @@ export async function persistMedia(sourceUri: string, ext: string): Promise<stri
 
 export async function deleteMedia(uri: string | undefined | null): Promise<void> {
   if (!uri) return;
+  await waitForExportGate();
 
   try {
     const resolved = resolveMediaUri(uri);
@@ -99,5 +101,6 @@ export async function deleteMedia(uri: string | undefined | null): Promise<void>
 }
 
 export async function deleteMediaList(uris: string[]): Promise<void> {
+  await waitForExportGate();
   await Promise.all(uris.map((uri) => deleteMedia(uri)));
 }

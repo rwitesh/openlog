@@ -1,10 +1,16 @@
 import { File, FileMode } from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { strFromU8, Unzip, UnzipInflate, UnzipPassThrough } from "fflate";
 
 import { validateDatabaseSnapshot } from "@/services/db/database";
 
 import { createRestoreStaging, discardRestoreStaging, queueRestore } from "./restoreTransaction";
-import { assertArchiveManifest } from "./shared";
+import {
+  assertArchiveManifest,
+  BACKUP_LIMITS,
+  extractMediaFilename,
+  validateArchivePath,
+} from "./shared";
 import {
   ARCHIVE_FORMAT,
   ARCHIVE_SCHEMA_VERSION,
@@ -13,27 +19,8 @@ import {
   type ImportBackupResult,
 } from "./types";
 
-const LIMITS = {
-  archiveBytes: 512 * 1024 * 1024,
-  uncompressedBytes: 2 * 1024 * 1024 * 1024,
-  memberBytes: 256 * 1024 * 1024,
-  manifestBytes: 256 * 1024,
-  media: 100_000,
-} as const;
-
 function restoreId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
-function mediaFilename(path: string): string {
-  if (!path.startsWith("media/") || path.length <= "media/".length) {
-    throw new Error("Invalid media path in backup archive.");
-  }
-  const filename = path.slice("media/".length);
-  if (filename.includes("/") || filename.includes("\\") || filename === "." || filename === "..") {
-    throw new Error("Invalid media path in backup archive.");
-  }
-  return filename;
 }
 
 function concat(chunks: Uint8Array[]): Uint8Array {
@@ -55,8 +42,25 @@ export async function importBackupArchive(
   const sourceFile = new File(fileUri);
   if (!sourceFile.exists) throw new Error("Selected backup file does not exist.");
   const archiveBytes = sourceFile.info().size ?? 0;
-  if (archiveBytes > LIMITS.archiveBytes) throw new Error("Backup file is too large to restore.");
+  if (archiveBytes > BACKUP_LIMITS.archiveBytes)
+    throw new Error("Backup file is too large to restore.");
   if (options?.signal?.aborted) throw new Error("Import cancelled");
+
+  // Preflight device free storage: ensure available storage is greater than archiveBytes + 50 MiB safety buffer.
+  const SAFETY_BUFFER_BYTES = 50 * 1024 * 1024;
+  let freeBytes: number | null = null;
+  try {
+    if (typeof FileSystem.getFreeDiskStorageAsync === "function") {
+      freeBytes = await FileSystem.getFreeDiskStorageAsync();
+    }
+  } catch {
+    // Storage check is unsupported on web or test environments.
+  }
+  if (typeof freeBytes === "number" && freeBytes > 0) {
+    if (freeBytes < archiveBytes + SAFETY_BUFFER_BYTES) {
+      throw new Error("Insufficient storage to restore backup.");
+    }
+  }
 
   const id = restoreId();
   const staging = createRestoreStaging(id);
@@ -81,21 +85,29 @@ export async function importBackupArchive(
     unzipper.register(UnzipPassThrough);
     unzipper.onfile = (member) => {
       if (failure) return;
+      if (options?.signal?.aborted) {
+        failure = new Error("Import cancelled");
+        return;
+      }
+
+      try {
+        validateArchivePath(member.name);
+      } catch (err) {
+        failure = err instanceof Error ? err : new Error(String(err));
+        return;
+      }
+
+      if (member.name === "manifest.json" && paths.has("manifest.json")) {
+        failure = new Error("Invalid backup file: duplicate manifest.");
+        return;
+      }
       if (paths.has(member.name)) {
         failure = new Error("Invalid backup file: duplicate archive path.");
         return;
       }
       paths.add(member.name);
-      if (member.originalSize !== undefined && member.originalSize > LIMITS.memberBytes) {
+      if (member.originalSize !== undefined && member.originalSize > BACKUP_LIMITS.memberBytes) {
         failure = new Error("Invalid backup file: archive member is too large.");
-        return;
-      }
-      if (
-        member.name !== "manifest.json" &&
-        member.name !== "database.sqlite" &&
-        !member.name.startsWith("media/")
-      ) {
-        failure = new Error("Invalid backup file: unexpected archive path.");
         return;
       }
 
@@ -104,14 +116,14 @@ export async function importBackupArchive(
       const metadataChunks: Uint8Array[] = [];
       try {
         if (member.name.startsWith("media/")) {
-          const filename = mediaFilename(member.name);
+          const filename = extractMediaFilename(member.name);
           const filenameKey = filename.normalize("NFC").toLocaleLowerCase("en-US");
           if (mediaNames.has(filenameKey)) {
             throw new Error("Invalid backup file: duplicate media filename.");
           }
           mediaNames.add(filenameKey);
           mediaCount++;
-          if (mediaCount > LIMITS.media)
+          if (mediaCount > BACKUP_LIMITS.media)
             throw new Error("Invalid backup file: too many media files.");
           const destination = new File(staging.media, filename);
           destination.create({ overwrite: true });
@@ -128,10 +140,23 @@ export async function importBackupArchive(
           mediaHandle?.close();
           return;
         }
+        if (options?.signal?.aborted) {
+          failure = new Error("Import cancelled");
+          mediaHandle?.close();
+          return;
+        }
         memberBytes += chunk.length;
         totalUncompressed += chunk.length;
-        if (memberBytes > LIMITS.memberBytes || totalUncompressed > LIMITS.uncompressedBytes) {
+        if (
+          memberBytes > BACKUP_LIMITS.memberBytes ||
+          totalUncompressed > BACKUP_LIMITS.uncompressedBytes
+        ) {
           failure = new Error("Invalid backup file: archive expands beyond the restore limit.");
+          mediaHandle?.close();
+          return;
+        }
+        if (options?.signal?.aborted) {
+          failure = new Error("Import cancelled");
           mediaHandle?.close();
           return;
         }
@@ -139,7 +164,7 @@ export async function importBackupArchive(
           if (member.name === "database.sqlite") snapshotHandle.writeBytes(chunk);
           else if (mediaHandle) mediaHandle.writeBytes(chunk);
           else {
-            if (memberBytes > LIMITS.manifestBytes) {
+            if (memberBytes > BACKUP_LIMITS.manifestBytes) {
               throw new Error("Invalid backup manifest: too large.");
             }
             metadataChunks.push(chunk);
@@ -186,13 +211,19 @@ export async function importBackupArchive(
 
     snapshotHandle.close();
     snapshotClosed = true;
-    const importedCount = await validateDatabaseSnapshot(snapshotFile);
+    const importedCount = await validateDatabaseSnapshot(snapshotFile, staging.media);
     if (importedCount !== validatedManifest.counts.entry) {
       throw new Error("Backup data does not match the manifest entry count.");
     }
+    if (
+      options?.counts &&
+      (options.counts.entry !== importedCount || options.counts.media !== mediaCount)
+    ) {
+      throw new Error("Backup counts do not match the expected counts.");
+    }
     if (options?.signal?.aborted) throw new Error("Import cancelled");
 
-    await queueRestore(id);
+    await queueRestore(id, options?.counts ?? { entry: importedCount, media: mediaCount });
     queued = true;
     return { importedCount };
   } finally {
