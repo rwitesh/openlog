@@ -50,6 +50,37 @@ export const BACKUP_LIMITS = {
 } as const;
 
 export const LIMITS = BACKUP_LIMITS;
+export const RESTORE_SAFETY_BUFFER_BYTES = 50 * 1024 * 1024;
+
+export interface StoragePreflightParams {
+  archiveBytes: number;
+  existingTimelineBytes: number;
+  uncompressedBytes?: number;
+  expectedArchiveBytes?: number;
+  safetyBufferBytes?: number;
+}
+
+/**
+ * Calculates the required free disk storage before beginning a restore.
+ * Uses exact uncompressedBytes when the archive size matches expectedArchiveBytes;
+ * otherwise conservatively reserves the full allowed expansion capacity up to BACKUP_LIMITS.uncompressedBytes.
+ */
+export function calculateRequiredRestoreBytes({
+  archiveBytes,
+  existingTimelineBytes,
+  uncompressedBytes,
+  expectedArchiveBytes,
+  safetyBufferBytes = RESTORE_SAFETY_BUFFER_BYTES,
+}: StoragePreflightParams): number {
+  const isSizeUnchanged =
+    expectedArchiveBytes !== undefined && expectedArchiveBytes === archiveBytes;
+  const estimatedStagingBytes =
+    uncompressedBytes !== undefined && uncompressedBytes > 0 && isSizeUnchanged
+      ? Math.min(uncompressedBytes, BACKUP_LIMITS.uncompressedBytes)
+      : Math.min(Math.max(archiveBytes * 4, 10 * 1024 * 1024), BACKUP_LIMITS.uncompressedBytes);
+
+  return archiveBytes + estimatedStagingBytes + existingTimelineBytes + safetyBufferBytes;
+}
 
 /**
  * Validates that an archive path adheres to the expected format:

@@ -9,6 +9,7 @@ import { createRestoreStaging, discardRestoreStaging, queueRestore } from "./res
 import {
   assertArchiveManifest,
   BACKUP_LIMITS,
+  calculateRequiredRestoreBytes,
   extractMediaFilename,
   validateArchivePath,
 } from "./shared";
@@ -75,6 +76,7 @@ export async function importBackupArchive(
   const archiveBytes = sourceFile.info().size ?? 0;
   if (archiveBytes > BACKUP_LIMITS.archiveBytes)
     throw new Error("Backup file is too large to restore.");
+  if (options?.signal?.aborted) throw new Error("Import cancelled");
   if (
     options?.expectedArchiveBytes !== undefined &&
     options.expectedArchiveBytes !== archiveBytes
@@ -84,20 +86,13 @@ export async function importBackupArchive(
     );
   }
 
-  // Preflight device free storage: account for the archive, expanded staging
-  // (using exact uncompressed bytes from inspection when proven unchanged by expectedArchiveBytes,
-  // or reserving the full allowed expansion maximum up to BACKUP_LIMITS.uncompressedBytes),
-  // retained previous rollback copies, and a 50 MiB safety buffer.
-  const SAFETY_BUFFER_BYTES = 50 * 1024 * 1024;
-  const isProvenUnchanged =
-    options?.expectedArchiveBytes !== undefined && options.expectedArchiveBytes === archiveBytes;
-  const estimatedStagingBytes =
-    options?.uncompressedBytes !== undefined && options.uncompressedBytes > 0 && isProvenUnchanged
-      ? Math.min(options.uncompressedBytes, BACKUP_LIMITS.uncompressedBytes)
-      : Math.min(Math.max(archiveBytes * 4, 10 * 1024 * 1024), BACKUP_LIMITS.uncompressedBytes);
   const existingTimelineBytes = getExistingTimelineDiskBytes();
-  const requiredBytes =
-    archiveBytes + estimatedStagingBytes + existingTimelineBytes + SAFETY_BUFFER_BYTES;
+  const requiredBytes = calculateRequiredRestoreBytes({
+    archiveBytes,
+    existingTimelineBytes,
+    uncompressedBytes: options?.uncompressedBytes,
+    expectedArchiveBytes: options?.expectedArchiveBytes,
+  });
 
   let freeBytes: number | null = null;
   try {
