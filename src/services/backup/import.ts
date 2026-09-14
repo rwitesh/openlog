@@ -1,5 +1,6 @@
-import { File, FileMode } from "expo-file-system";
+import { Directory, File, FileMode, Paths } from "expo-file-system";
 import * as FileSystem from "expo-file-system/legacy";
+import { defaultDatabaseDirectory } from "expo-sqlite";
 import { strFromU8, Unzip, UnzipInflate, UnzipPassThrough } from "fflate";
 
 import { validateDatabaseSnapshot } from "@/services/db/database";
@@ -21,6 +22,36 @@ import {
 
 function restoreId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function getExistingTimelineDiskBytes(): number {
+  let bytes = 0;
+  try {
+    if (defaultDatabaseDirectory) {
+      const dbDirUri = defaultDatabaseDirectory.startsWith("file://")
+        ? defaultDatabaseDirectory
+        : `file://${defaultDatabaseDirectory}`;
+      for (const suffix of ["", "-wal", "-shm"] as const) {
+        const file = new File(dbDirUri, `app.db${suffix}`);
+        if (file.exists) bytes += file.info().size ?? 0;
+      }
+    }
+  } catch {
+    // ignore
+  }
+  try {
+    const mediaDir = new Directory(Paths.document, "media");
+    if (mediaDir.exists) {
+      for (const item of mediaDir.list()) {
+        if (item instanceof File && item.exists) {
+          bytes += item.info().size ?? 0;
+        }
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return bytes;
 }
 
 function concat(chunks: Uint8Array[]): Uint8Array {
@@ -53,7 +84,9 @@ export async function importBackupArchive(
     Math.max(archiveBytes * 2, 10 * 1024 * 1024),
     BACKUP_LIMITS.uncompressedBytes
   );
-  const requiredBytes = archiveBytes + estimatedStagingBytes + SAFETY_BUFFER_BYTES;
+  const existingTimelineBytes = getExistingTimelineDiskBytes();
+  const requiredBytes =
+    archiveBytes + estimatedStagingBytes + existingTimelineBytes + SAFETY_BUFFER_BYTES;
 
   let freeBytes: number | null = null;
   try {
