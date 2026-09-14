@@ -34,10 +34,10 @@ export function SearchResultsFeed({
           weight="semibold"
           style={[theme.typography.emptyTitle, { color: theme.colors.text }]}
         >
-          Search your memories
+          Search your timeline
         </ThemedText>
         <ThemedText style={[theme.typography.emptyBody, { color: theme.colors.textSecondary }]}>
-          Find moments by any word or place you&apos;ve written.
+          Find entries by text, place, or tag.
         </ThemedText>
       </View>
     );
@@ -50,10 +50,10 @@ export function SearchResultsFeed({
           weight="semibold"
           style={[theme.typography.emptyTitle, { color: theme.colors.text }]}
         >
-          No moments found
+          No entries found
         </ThemedText>
         <ThemedText style={[theme.typography.emptyBody, { color: theme.colors.textSecondary }]}>
-          {`Nothing matches \u201C${trimmed}\u201D. Try another word or place.`}
+          {`Nothing matches \u201C${trimmed}\u201D. Try another word, place, or tag.`}
         </ThemedText>
       </View>
     );

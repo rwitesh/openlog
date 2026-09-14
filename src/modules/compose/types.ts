@@ -1,4 +1,4 @@
-import type { Attachment, EntryLocation } from "@/shared/types";
+import type { Attachment, EntryLocation, Tag } from "@/shared/types";
 
 /** Cap on photos attached to a single entry. */
 export const MAX_IMAGES = 10;
@@ -11,6 +11,7 @@ export interface Draft {
   images?: string[];
   audios?: string[];
   attachments?: Attachment[];
+  tags?: Tag[];
   createdAt?: number;
   /** `null` clears an attached location when editing. */
   location?: EntryLocation | null;

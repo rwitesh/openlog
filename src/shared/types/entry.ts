@@ -15,6 +15,15 @@ export interface Attachment {
   size?: number;
 }
 
+export const TAG_COLOR_IDS = ["clay", "amber", "sage", "violet", "teal", "rose"] as const;
+export type TagColorId = (typeof TAG_COLOR_IDS)[number];
+
+export interface Tag {
+  id: string;
+  name: string;
+  colorId: TagColorId;
+}
+
 export interface Entry {
   id: string;
   createdAt: number;
@@ -23,6 +32,7 @@ export interface Entry {
   images: string[];
   audios: string[];
   attachments: Attachment[];
+  tags: Tag[];
   location?: EntryLocation;
 }
 
@@ -31,6 +41,7 @@ export interface NewEntryInput {
   images?: string[];
   audios?: string[];
   attachments?: Attachment[];
+  tagIds?: string[];
   createdAt?: number;
   location?: EntryLocation | null;
 }
@@ -40,6 +51,7 @@ export interface UpdateEntryInput {
   images?: string[];
   audios?: string[];
   attachments?: Attachment[];
+  tagIds?: string[];
   createdAt?: number;
   location?: EntryLocation | null;
 }

@@ -29,6 +29,21 @@ export async function initializeDatabaseSchema(db: SchemaDatabase): Promise<void
       );
       CREATE INDEX IF NOT EXISTS idx_entries_created_at_id
         ON entries (created_at DESC, id DESC);
+      CREATE TABLE IF NOT EXISTS tags (
+        id         TEXT PRIMARY KEY NOT NULL,
+        name       TEXT NOT NULL,
+        key        TEXT NOT NULL UNIQUE,
+        color_id   TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS entry_tags (
+        entry_id TEXT NOT NULL REFERENCES entries(id) ON DELETE CASCADE,
+        tag_id   TEXT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+        PRIMARY KEY (entry_id, tag_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_entry_tags_tag_entry
+        ON entry_tags (tag_id, entry_id);
       CREATE TABLE IF NOT EXISTS settings (
         key   TEXT PRIMARY KEY NOT NULL,
         value TEXT NOT NULL

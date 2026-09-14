@@ -22,7 +22,7 @@ export function SearchBar({ value, onChange, onCancel }: SearchBarProps) {
         <TextInput
           value={value}
           onChangeText={onChange}
-          placeholder="Search your moments"
+          placeholder="Search entries, places, or tags"
           placeholderTextColor={colors.textSecondary}
           style={[
             styles.input,
@@ -36,7 +36,7 @@ export function SearchBar({ value, onChange, onCancel }: SearchBarProps) {
           autoCorrect={false}
           returnKeyType="search"
           autoFocus
-          accessibilityLabel="Search your moments"
+          accessibilityLabel="Search entries, places, or tags"
         />
 
         {value.length > 0 ? (

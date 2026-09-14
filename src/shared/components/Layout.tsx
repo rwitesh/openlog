@@ -22,7 +22,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { space } from "@/theme";
 
-interface KeyboardState {
+export interface KeyboardInset {
   visible: boolean;
   offset: number;
 }
@@ -36,24 +36,13 @@ const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow"
 const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
 const SYNC_DELAYS_MS = [50, 150, 350] as const;
 
-const KeyboardCtx = createContext<KeyboardState | null>(null);
+const KeyboardCtx = createContext<KeyboardInset | null>(null);
 
-function keyboardOffset(frame: { height: number; screenY: number }) {
-  const overlap =
-    Platform.OS === "android"
-      ? Math.max(Math.max(0, Dimensions.get("screen").height - frame.screenY), frame.height) +
-        space.sm
-      : Math.max(frame.height, Math.max(0, Dimensions.get("window").height - frame.screenY));
-
-  if (Platform.OS === "android") {
-    const gap = Dimensions.get("window").height - frame.screenY;
-    if (gap < overlap * 0.5) return 0;
-  }
-
-  return overlap;
+function keyboardOffset(frame: { screenY: number }) {
+  return Math.max(0, Dimensions.get("window").height - frame.screenY);
 }
 
-function attachKeyboard(onChange: (state: KeyboardState) => void) {
+function attachKeyboard(onChange: (state: KeyboardInset) => void) {
   const show = (frame: { height: number; screenY: number }) =>
     onChange({ visible: true, offset: keyboardOffset(frame) });
   const hide = () => onChange({ visible: false, offset: 0 });
@@ -78,14 +67,24 @@ function attachKeyboard(onChange: (state: KeyboardState) => void) {
   };
 }
 
-function useKeyboard() {
-  const value = useContext(KeyboardCtx);
-  if (!value) throw new Error("Layout requires app root wrapper");
-  return value;
+/**
+ * The keyboard overlap relative to the visible app window. Components rendered
+ * inside a native modal subscribe locally when the app layout context is unavailable.
+ */
+export function useKeyboardInset(): KeyboardInset {
+  const inherited = useContext(KeyboardCtx);
+  const [local, setLocal] = useState<KeyboardInset>({ visible: false, offset: 0 });
+
+  useEffect(() => {
+    if (inherited) return;
+    return attachKeyboard(setLocal);
+  }, [inherited]);
+
+  return inherited ?? local;
 }
 
 function Root({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<KeyboardState>({ visible: false, offset: 0 });
+  const [state, setState] = useState<KeyboardInset>({ visible: false, offset: 0 });
 
   useEffect(() => attachKeyboard(setState), []);
 
@@ -103,7 +102,7 @@ function ScreenRoot({ children, style }: SlotProps) {
 }
 
 function Body({ children, style }: SlotProps) {
-  const { offset } = useKeyboard();
+  const { offset } = useKeyboardInset();
   return <View style={[styles.body, style, { paddingBottom: offset }]}>{children}</View>;
 }
 
@@ -113,7 +112,7 @@ function Main({ children, style }: SlotProps) {
 
 function Footer({ children, style }: SlotProps) {
   const insets = useSafeAreaInsets();
-  const { visible } = useKeyboard();
+  const { visible } = useKeyboardInset();
 
   return (
     <View style={[styles.footer, style, { paddingBottom: visible ? 0 : insets.bottom + space.md }]}>

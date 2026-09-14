@@ -1,6 +1,14 @@
+import type * as SQLite from "expo-sqlite";
 import { restoreMarkerKey } from "@/services/backup/restoreTransaction";
 import { resolveMediaUri, resolveMediaUriList } from "@/services/media/storage";
-import type { Entry, EntryLocation, NewEntryInput, UpdateEntryInput } from "@/shared/types";
+import {
+  type Entry,
+  type EntryLocation,
+  type NewEntryInput,
+  TAG_COLOR_IDS,
+  type Tag,
+  type UpdateEntryInput,
+} from "@/shared/types";
 import { addMonths, startOfDay, startOfMonth } from "@/shared/utils/dates";
 import { runDb } from "./database";
 import {
@@ -8,6 +16,7 @@ import {
   type EntryCursor,
   type PagedEntriesOptions,
 } from "./entryPagination";
+import { MAX_TAGS_PER_ENTRY } from "./tags";
 import { parseAttachments, parseUris } from "./uris";
 
 export interface EntryRecord {
@@ -36,7 +45,7 @@ function parseLocation(row: EntryRecord): EntryLocation | undefined {
 }
 
 /** Maps a database row onto the app-side {@link Entry} shape with resolved media URIs. */
-export function toEntry(row: EntryRecord): Entry {
+export function toEntry(row: EntryRecord, tags: Tag[] = []): Entry {
   return {
     id: row.id,
     createdAt: row.created_at,
@@ -50,8 +59,54 @@ export function toEntry(row: EntryRecord): Entry {
           uri: resolveMediaUri(attachment.uri),
         }))
       : [],
+    tags,
     location: parseLocation(row),
   };
+}
+
+interface EntryTagRecord {
+  entry_id: string;
+  id: string;
+  name: string;
+  color_id: Tag["colorId"];
+}
+
+export async function getTagsByEntryIds(
+  db: SQLite.SQLiteDatabase,
+  entryIds: string[]
+): Promise<Map<string, Tag[]>> {
+  const result = new Map<string, Tag[]>();
+  if (!entryIds.length) return result;
+  const placeholders = entryIds.map(() => "?").join(", ");
+  const rows = await db.getAllAsync<EntryTagRecord>(
+    `SELECT et.entry_id, t.id, t.name, t.color_id
+       FROM entry_tags et
+       JOIN tags t ON t.id = et.tag_id
+      WHERE et.entry_id IN (${placeholders})
+      ORDER BY t.name COLLATE NOCASE, t.id`,
+    ...entryIds
+  );
+  for (const row of rows) {
+    const tags = result.get(row.entry_id) ?? [];
+    tags.push({ id: row.id, name: row.name, colorId: row.color_id });
+    result.set(row.entry_id, tags);
+  }
+  return result;
+}
+
+function tagIds(input?: string[]): string[] {
+  const ids = [...new Set(input ?? [])];
+  if (ids.length > MAX_TAGS_PER_ENTRY) {
+    throw new Error(`An entry can have at most ${MAX_TAGS_PER_ENTRY} tags.`);
+  }
+  return ids;
+}
+
+async function replaceEntryTags(db: SQLite.SQLiteDatabase, entryId: string, ids: string[]) {
+  await db.runAsync("DELETE FROM entry_tags WHERE entry_id = ?", [entryId]);
+  for (const tagId of ids) {
+    await db.runAsync("INSERT INTO entry_tags (entry_id, tag_id) VALUES (?, ?)", [entryId, tagId]);
+  }
 }
 
 function locationParams(location?: EntryLocation | null) {
@@ -76,7 +131,11 @@ export async function getPagedEntries(
     const rows = await db.getAllAsync<EntryRecord>(page.query, ...page.params, limit + 1);
     const hasMore = rows.length > limit;
     const resultRows = hasMore ? rows.slice(0, limit) : rows;
-    const entries = resultRows.map(toEntry);
+    const tagsByEntryId = await getTagsByEntryIds(
+      db,
+      resultRows.map((row) => row.id)
+    );
+    const entries = resultRows.map((row) => toEntry(row, tagsByEntryId.get(row.id)));
     const last = entries[entries.length - 1];
     const nextCursor: EntryCursor | undefined =
       hasMore && last ? { createdAt: last.createdAt, id: last.id } : undefined;
@@ -96,7 +155,9 @@ export async function getEntryById(id: string): Promise<Entry | null> {
       `SELECT ${ENTRY_COLUMNS} FROM entries WHERE id = ?`,
       id
     );
-    return row ? toEntry(row) : null;
+    if (!row) return null;
+    const tagsByEntryId = await getTagsByEntryIds(db, [id]);
+    return toEntry(row, tagsByEntryId.get(id));
   });
 }
 
@@ -127,7 +188,11 @@ export async function getEntries(limit?: number): Promise<Entry[]> {
     const rows = limit
       ? await db.getAllAsync<EntryRecord>(query, limit)
       : await db.getAllAsync<EntryRecord>(query);
-    return rows.map(toEntry);
+    const tagsByEntryId = await getTagsByEntryIds(
+      db,
+      rows.map((row) => row.id)
+    );
+    return rows.map((row) => toEntry(row, tagsByEntryId.get(row.id)));
   });
 }
 
@@ -145,23 +210,29 @@ export async function createEntry(input: NewEntryInput): Promise<Entry> {
     const [lat, lng, locationName] = locationParams(input.location);
     const images = input.images?.length ? input.images : [];
     const audios = input.audios?.length ? input.audios : [];
+    const ids = tagIds(input.tagIds);
 
-    await db.runAsync(
-      `INSERT INTO entries (
+    await db.withTransactionAsync(async () => {
+      await db.runAsync(
+        `INSERT INTO entries (
          id, created_at, updated_at, text, images, audios, attachments,
          latitude, longitude, location
        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      id,
-      createdAt,
-      updatedAt,
-      input.text ?? null,
-      images.length ? JSON.stringify(images) : null,
-      audios.length ? JSON.stringify(audios) : null,
-      input.attachments?.length ? JSON.stringify(input.attachments) : null,
-      lat,
-      lng,
-      locationName
-    );
+        id,
+        createdAt,
+        updatedAt,
+        input.text ?? null,
+        images.length ? JSON.stringify(images) : null,
+        audios.length ? JSON.stringify(audios) : null,
+        input.attachments?.length ? JSON.stringify(input.attachments) : null,
+        lat,
+        lng,
+        locationName
+      );
+      await replaceEntryTags(db, id, ids);
+    });
+
+    const tagsByEntryId = await getTagsByEntryIds(db, [id]);
 
     return {
       id,
@@ -171,6 +242,7 @@ export async function createEntry(input: NewEntryInput): Promise<Entry> {
       images,
       audios,
       attachments: input.attachments ?? [],
+      tags: tagsByEntryId.get(id) ?? [],
       location: input.location ?? undefined,
     };
   });
@@ -217,8 +289,9 @@ export async function updateEntry(id: string, input: UpdateEntryInput): Promise<
           : null
         : row.attachments;
 
-    await db.runAsync(
-      `UPDATE entries
+    await db.withTransactionAsync(async () => {
+      await db.runAsync(
+        `UPDATE entries
           SET created_at = ?,
               updated_at = ?,
               text = ?,
@@ -229,30 +302,39 @@ export async function updateEntry(id: string, input: UpdateEntryInput): Promise<
               longitude = ?,
               location = ?
         WHERE id = ?`,
-      createdAt,
-      updatedAt,
-      text,
-      imagesJson,
-      audiosJson,
-      filesJson,
-      lat,
-      lng,
-      locationName,
-      id
-    );
-
-    return toEntry({
-      id,
-      created_at: createdAt,
-      updated_at: updatedAt,
-      text,
-      images: imagesJson,
-      audios: audiosJson,
-      attachments: filesJson,
-      latitude: lat,
-      longitude: lng,
-      location: locationName,
+        createdAt,
+        updatedAt,
+        text,
+        imagesJson,
+        audiosJson,
+        filesJson,
+        lat,
+        lng,
+        locationName,
+        id
+      );
+      if (input.tagIds !== undefined) {
+        await replaceEntryTags(db, id, tagIds(input.tagIds));
+      }
     });
+
+    const tagsByEntryId = await getTagsByEntryIds(db, [id]);
+
+    return toEntry(
+      {
+        id,
+        created_at: createdAt,
+        updated_at: updatedAt,
+        text,
+        images: imagesJson,
+        audios: audiosJson,
+        attachments: filesJson,
+        latitude: lat,
+        longitude: lng,
+        location: locationName,
+      },
+      tagsByEntryId.get(id)
+    );
   });
 }
 
@@ -284,7 +366,10 @@ export async function deleteAllEntries(): Promise<string[]> {
       attachments: string | null;
     }>(`SELECT images, audios, attachments FROM entries`);
 
-    await db.runAsync(`DELETE FROM entries`);
+    await db.withTransactionAsync(async () => {
+      await db.runAsync(`DELETE FROM entries`);
+      await db.runAsync(`DELETE FROM tags`);
+    });
 
     const mediaUris: string[] = [];
     for (const row of rows) {
@@ -306,7 +391,7 @@ export async function getEntriesCount(): Promise<number> {
 }
 
 /** Maps a database row to an entry, keeping media paths as stored in SQLite (for backup). */
-function toStoredEntry(row: EntryRecord): Entry {
+function toStoredEntry(row: EntryRecord, tags: Tag[] = []): Entry {
   return {
     id: row.id,
     createdAt: row.created_at,
@@ -315,6 +400,7 @@ function toStoredEntry(row: EntryRecord): Entry {
     images: row.images ? parseUris(row.images) : [],
     audios: row.audios ? parseUris(row.audios) : [],
     attachments: row.attachments ? parseAttachments(row.attachments) : [],
+    tags,
     location: parseLocation(row),
   };
 }
@@ -326,7 +412,11 @@ export async function getEntriesPage(offset: number, limit: number): Promise<Ent
       `SELECT ${ENTRY_COLUMNS} FROM entries ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`,
       [limit, offset]
     );
-    return rows.map(toStoredEntry);
+    const tagsByEntryId = await getTagsByEntryIds(
+      db,
+      rows.map((row) => row.id)
+    );
+    return rows.map((row) => toStoredEntry(row, tagsByEntryId.get(row.id)));
   });
 }
 
@@ -349,6 +439,7 @@ export async function importEntriesBatched(
       }
 
       await db.runAsync(`DELETE FROM entries`);
+      await db.runAsync(`DELETE FROM tags`);
       const insertStmt = await db.prepareAsync(
         `INSERT INTO entries (
            id, created_at, updated_at, text, images, audios, attachments,
@@ -369,6 +460,7 @@ export async function importEntriesBatched(
           const createdAt = entry.createdAt;
           const updatedAt = entry.updatedAt ?? createdAt;
 
+          const entryTags = entry.tags ?? [];
           if (
             typeof entry.id !== "string" ||
             !Number.isFinite(createdAt) ||
@@ -376,7 +468,9 @@ export async function importEntriesBatched(
             (entry.text !== undefined && typeof entry.text !== "string") ||
             !Array.isArray(entry.images) ||
             !Array.isArray(entry.audios) ||
-            !Array.isArray(entry.attachments)
+            !Array.isArray(entry.attachments) ||
+            !Array.isArray(entryTags) ||
+            entryTags.length > MAX_TAGS_PER_ENTRY
           ) {
             throw new Error("Invalid backup entry.");
           }
@@ -393,6 +487,33 @@ export async function importEntriesBatched(
             lng,
             locationName,
           ]);
+          const restoredTagIds: string[] = [];
+          for (const tag of entryTags) {
+            const normalizedName = tag?.name?.normalize("NFKC").trim().replace(/\s+/g, " ");
+            if (
+              !tag ||
+              typeof tag.id !== "string" ||
+              !normalizedName ||
+              [...normalizedName].length > 10 ||
+              !TAG_COLOR_IDS.includes(tag.colorId)
+            ) {
+              throw new Error("Invalid backup tag.");
+            }
+            const key = normalizedName.toLocaleLowerCase("en-US");
+            const existingTag = await db.getFirstAsync<{ id: string }>(
+              "SELECT id FROM tags WHERE key = ?",
+              key
+            );
+            const tagId = existingTag?.id ?? tag.id;
+            if (!existingTag) {
+              await db.runAsync(
+                "INSERT INTO tags (id, name, key, color_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+                [tagId, normalizedName, key, tag.colorId, createdAt, updatedAt]
+              );
+            }
+            restoredTagIds.push(tagId);
+          }
+          await replaceEntryTags(db, entry.id, tagIds(restoredTagIds));
           inserted++;
           counts.images += entry.images.length;
           counts.audio += entry.audios.length;

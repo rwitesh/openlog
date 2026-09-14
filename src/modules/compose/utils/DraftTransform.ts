@@ -28,7 +28,15 @@ export async function fromDraft(draft: Draft): Promise<NewEntryInput | null> {
     : [];
 
   if (text || images.length || audios.length || attachments.length) {
-    return { text, images, audios, attachments, createdAt, location };
+    return {
+      text,
+      images,
+      audios,
+      attachments,
+      tagIds: draft.tags?.map((tag) => tag.id),
+      createdAt,
+      location,
+    };
   }
 
   return null;

@@ -27,7 +27,7 @@ test("database initialization creates the current schema and maintains the FTS m
 
   await initializeDatabaseSchema(db);
 
-  await t.test("creates entries with attachments, location, and schema version 1", () => {
+  await t.test("creates entries, tags, and their indexed links", () => {
     const columns = database.prepare("PRAGMA table_info(entries)").all();
     assert.ok(columns.some((column) => column.name === "attachments"));
     assert.ok(columns.some((column) => column.name === "location"));
@@ -38,16 +38,70 @@ test("database initialization creates the current schema and maintains the FTS m
         .get()
     );
     assert.equal(database.prepare("PRAGMA user_version").get().user_version, 1);
+    assert.ok(database.prepare("SELECT name FROM sqlite_master WHERE name = 'tags'").get());
+    assert.ok(database.prepare("SELECT name FROM sqlite_master WHERE name = 'entry_tags'").get());
+    assert.ok(
+      database
+        .prepare("SELECT name FROM sqlite_master WHERE name = 'idx_entry_tags_tag_entry'")
+        .get()
+    );
   });
 
-  await t.test("indexes inserts, updates, and deletes", () => {
+  await t.test("removes links, but not reusable tags, when an entry is deleted", () => {
     database
       .prepare(
-        "INSERT INTO entries (id, created_at, updated_at, text, attachments) VALUES (?, ?, ?, ?, ?)"
+        "INSERT INTO tags (id, name, key, color_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
       )
-      .run("entry-1", 1, 1, "morning walk", null);
+      .run("tag-1", "Work", "work", "clay", 1, 1);
+    database
+      .prepare("INSERT INTO entries (id, created_at, updated_at) VALUES (?, ?, ?)")
+      .run("tagged-entry", 1, 1);
+    database
+      .prepare("INSERT INTO entry_tags (entry_id, tag_id) VALUES (?, ?)")
+      .run("tagged-entry", "tag-1");
+
+    database.prepare("DELETE FROM entries WHERE id = ?").run("tagged-entry");
+    assert.equal(
+      database.prepare("SELECT * FROM entry_tags WHERE tag_id = ?").get("tag-1"),
+      undefined
+    );
+    assert.ok(database.prepare("SELECT * FROM tags WHERE id = ?").get("tag-1"));
+  });
+
+  await t.test("finds entries by the normalized prefix of an attached tag", () => {
+    database
+      .prepare("INSERT INTO entries (id, created_at, updated_at) VALUES (?, ?, ?)")
+      .run("searchable-tagged-entry", 2, 2);
+    database
+      .prepare("INSERT INTO entry_tags (entry_id, tag_id) VALUES (?, ?)")
+      .run("searchable-tagged-entry", "tag-1");
+
+    const matches = database
+      .prepare(
+        `SELECT e.id
+           FROM entries e
+           JOIN entry_tags et ON et.entry_id = e.id
+           JOIN tags t ON t.id = et.tag_id
+          WHERE instr(t.key, ?) = 1`
+      )
+      .all("wo");
+    assert.deepEqual(
+      matches.map((match) => match.id),
+      ["searchable-tagged-entry"]
+    );
+  });
+
+  await t.test("indexes entry text and locations across inserts, updates, and deletes", () => {
+    database
+      .prepare(
+        "INSERT INTO entries (id, created_at, updated_at, text, attachments, location) VALUES (?, ?, ?, ?, ?, ?)"
+      )
+      .run("entry-1", 1, 1, "morning walk", null, "Cubbon Park");
     assert.ok(
       database.prepare("SELECT rowid FROM entries_fts WHERE entries_fts MATCH ?").get("morning")
+    );
+    assert.ok(
+      database.prepare("SELECT rowid FROM entries_fts WHERE entries_fts MATCH ?").get("cubbon")
     );
 
     database.prepare("UPDATE entries SET text = ? WHERE id = ?").run("evening reading", "entry-1");
@@ -59,9 +113,24 @@ test("database initialization creates the current schema and maintains the FTS m
       database.prepare("SELECT rowid FROM entries_fts WHERE entries_fts MATCH ?").get("evening")
     );
 
+    database
+      .prepare("UPDATE entries SET location = ? WHERE id = ?")
+      .run("Lalbagh Garden", "entry-1");
+    assert.equal(
+      database.prepare("SELECT rowid FROM entries_fts WHERE entries_fts MATCH ?").get("cubbon"),
+      undefined
+    );
+    assert.ok(
+      database.prepare("SELECT rowid FROM entries_fts WHERE entries_fts MATCH ?").get("lalbagh")
+    );
+
     database.prepare("DELETE FROM entries WHERE id = ?").run("entry-1");
     assert.equal(
       database.prepare("SELECT rowid FROM entries_fts WHERE entries_fts MATCH ?").get("reading"),
+      undefined
+    );
+    assert.equal(
+      database.prepare("SELECT rowid FROM entries_fts WHERE entries_fts MATCH ?").get("lalbagh"),
       undefined
     );
   });
