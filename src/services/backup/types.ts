@@ -22,6 +22,7 @@ export interface InspectBackupResult {
   createdAt: number;
   appVersion: string;
   counts: ArchiveCounts;
+  uncompressedBytes?: number;
 }
 
 export interface InspectBackupOptions {
@@ -50,4 +51,5 @@ export interface ImportBackupOptions {
   signal?: AbortSignal;
   onProgress?: (processedBytes: number, totalBytes: number) => void;
   counts?: ArchiveCounts;
+  uncompressedBytes?: number;
 }

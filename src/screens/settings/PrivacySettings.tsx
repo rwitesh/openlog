@@ -204,7 +204,11 @@ export function PrivacySettingsScreen() {
     void dismissBackupProgressNotification();
   };
 
-  const executeImport = async (fileUri: string, counts?: ArchiveCounts) => {
+  const executeImport = async (
+    fileUri: string,
+    counts?: ArchiveCounts,
+    uncompressedBytes?: number
+  ) => {
     void requestNotificationPermission();
 
     const controller = new AbortController();
@@ -216,6 +220,7 @@ export function PrivacySettingsScreen() {
       await importBackupArchive(fileUri, {
         signal: controller.signal,
         counts,
+        uncompressedBytes,
       });
 
       if (controller.signal.aborted) return;
@@ -321,7 +326,7 @@ export function PrivacySettingsScreen() {
           text: "Restore",
           style: "destructive",
           onPress: () => {
-            void executeImport(fileUri, preview.counts);
+            void executeImport(fileUri, preview.counts, preview.uncompressedBytes);
           },
         },
       ]
