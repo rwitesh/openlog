@@ -1,73 +1,53 @@
-# OpenLog backup and restore
+# Backup and restore
 
-OpenLog backups are designed to save the whole local timeline in one file.
+OpenLog backups preserve the complete local timeline in one portable `.openlog` file. They are intended for recovery or moving OpenLog data to another device, not as a human-readable export.
 
-## What is inside a backup?
+## Archive contents
 
-The backup file is a ZIP archive with three parts:
+Each `.openlog` file is a ZIP archive:
 
 ```text
-backup.openlog
-├── manifest.json       small format and count information
-├── database.sqlite     SQLite database snapshot
-└── media/              saved photos, recordings, and attachments
+openlog-backup-YYYYMMDD-HHMMSS.openlog
+├── manifest.json
+├── database.sqlite
+└── media/
 ```
 
-The entries are not converted to another JSON format. The SQLite database is kept as SQLite, so entries, tags, settings, indexes, and search data stay together.
+- `manifest.json` contains the archive format, format version, creation time, app version, and entry and media counts.
+- `database.sqlite` is a SQLite snapshot of the local database. Entries, tags, settings, and search indexes stay in their native form.
+- `media/` contains the files referenced by entries.
 
-The manifest contains only backup metadata: the format version, creation time, app version, entry count, and media count. The current archive format is version 1.
+Archive filenames include the export timestamp. Temporary working files are named with a timestamp and random identifier; they are never given generic names such as `restore.sqlite`.
 
 ## Export
 
-1. Open Export in Settings.
-2. OpenLog asks SQLite for a native database snapshot. This includes committed data even though the app uses SQLite WAL mode.
-3. OpenLog reads the durable `media` directory and adds each file to the archive.
-4. OpenLog writes the manifest and finishes the archive.
-5. Only a completed archive is offered to the user. If export is cancelled or a media file cannot be read, the incomplete archive is removed.
+When someone exports a backup, OpenLog:
 
-The database snapshot and media files are temporary working files. They are deleted after the archive is finished or after export fails.
+1. Serializes the active SQLite connection, including committed WAL data, into a temporary snapshot.
+2. Counts the entries and lists the durable media files.
+3. Streams the snapshot, each media file, and the manifest into one `.openlog` archive.
+4. Copies or shares the completed archive.
+5. Removes the temporary snapshot. If export fails or is cancelled, it also removes the incomplete archive.
 
-## Import
+The archive is created incrementally, so media is not loaded all at once into JavaScript memory.
 
-Import never starts by deleting the current timeline.
+## Restore
 
-1. OpenLog reads the archive in chunks.
-2. It checks the archive format, allowed paths, duplicate names, size limits, media count, and manifest.
-3. It extracts the SQLite file and media files into temporary staging locations.
-4. It opens the staged database and checks SQLite integrity, schema version, required tables, and entry count.
-5. Only after all checks pass does OpenLog prepare the restore transaction.
-6. The staged media directory is moved into place.
-7. SQLite’s native backup API copies the staged database into the live database. A restore marker is written into the staged database immediately before this handoff.
-8. After the database handoff succeeds, the old media directory is removed and the transaction record is cleared.
+Restore is a replacement operation, not a row-by-row import. It does not insert the backup’s entries into the existing database.
 
-## What happens when something fails?
+1. OpenLog reads the selected archive in chunks and validates its format, paths, filenames, duplicate entries, declared counts, and size limits.
+2. It extracts the database and media into a uniquely named staging area in app-private storage.
+3. The staged SQLite file is checked for integrity, supported schema version, required tables, and its entry count.
+4. After validation, OpenLog writes a small restore transaction record and reloads the app automatically.
+5. Before SQLite opens on the reloaded app, OpenLog moves the current database files aside, moves the staged SQLite file into the live SQLite directory, then replaces the media directory.
+6. Once the replacement database opens and its schema is initialized, OpenLog deletes the previous database and media copies and clears the transaction record.
 
-### The archive is invalid or cannot be extracted
+The backup database replaces the existing SQLite file, including all tables and indexes. This keeps restores practical even for a very large timeline.
 
-The current database and current media remain untouched. Temporary staged files are removed.
+## Failure handling
 
-### SQLite integrity or schema validation fails
+Validation happens before any live data is moved. A bad archive, extraction failure, cancellation, or database validation failure leaves the current database and media untouched and removes staging data.
 
-The current database and media remain untouched. OpenLog does not begin the replacement step.
+After a restore has been queued, the transaction record records progress through the database and media replacement. The next app launch resumes an interrupted replacement from that point. Previous database files and media are retained until the replacement database has opened successfully, then removed.
 
-### Media staging fails
-
-The current database and media remain untouched. The restore stops before the handoff.
-
-### The app stops while media is being replaced
-
-OpenLog leaves a small restore transaction record in the Documents directory. On the next app start, OpenLog reads that record and restores the previous media directory if the database handoff did not commit.
-
-### The app stops after the SQLite handoff commits
-
-The database contains the restore marker. On the next app start, OpenLog treats the restore as committed, keeps the new media, removes leftover staging data, and clears the transaction record.
-
-### The SQLite handoff itself fails
-
-The media directory is rolled back to the previous one, and the transaction record is cleared. The native SQLite backup operation is used so the live database is not replaced by a partially copied file.
-
-## What this protects
-
-The important rule is that an import failure cannot immediately erase the existing data. Existing data is only superseded after the new archive has been fully extracted and validated. If the process is killed during the small database/media handoff window, the restore marker and transaction record let the next app start choose a consistent outcome: keep the committed restore or restore the previous media.
-
-The backup is an OpenLog backup, not a human-readable export. It is intended for moving or recovering the complete local timeline. A future human-readable export can be a separate feature without adding complexity to backup and restore.
+If a restore is queued while the app is not running, opening OpenLog applies it before the database is opened.

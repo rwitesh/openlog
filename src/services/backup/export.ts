@@ -1,15 +1,10 @@
 import { Directory, File, FileMode, Paths } from "expo-file-system";
 import { strToU8, Zip, ZipDeflate, ZipPassThrough } from "fflate";
 
-import {
-  createDatabaseSnapshot,
-  deleteDatabaseSnapshot,
-  validateDatabaseSnapshot,
-} from "@/services/db/database";
+import { createDatabaseSnapshot, deleteDatabaseSnapshot } from "@/services/db/database";
 import { APP_SLUG } from "@/shared/constants";
 import { APP_VERSION } from "@/shared/utils/appInfo";
 
-import { formatDateForFilename } from "./shared";
 import {
   ARCHIVE_EXTENSION,
   ARCHIVE_FORMAT,
@@ -23,6 +18,12 @@ const CHUNK_SIZE = 256 * 1024;
 
 function backupId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function formatDateForFilename(timestamp: number): string {
+  const date = new Date(timestamp);
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
 }
 
 function listMediaFiles(): File[] {
@@ -67,15 +68,14 @@ export async function exportBackupArchive(
   const id = backupId();
   const filename = `${APP_SLUG}-backup-${formatDateForFilename(createdAt)}${ARCHIVE_EXTENSION}`;
   const exportFile = new File(Paths.cache, filename);
-  const snapshotName = `backup-snapshot-${id}.sqlite`;
+  const snapshotName = `openlog-export-${id}.sqlite`;
   const snapshotFile = new File(Paths.cache, snapshotName);
   exportFile.create({ overwrite: true });
   const output = exportFile.open(FileMode.WriteOnly);
   let succeeded = false;
 
   try {
-    await createDatabaseSnapshot(snapshotName, Paths.cache.uri);
-    const entryCount = await validateDatabaseSnapshot(snapshotName, Paths.cache.uri);
+    const entryCount = await createDatabaseSnapshot(snapshotFile);
     options?.onProgress?.(1, 1, "database");
     if (options?.signal?.aborted) throw new Error("Backup cancelled");
 
@@ -115,7 +115,7 @@ export async function exportBackupArchive(
     };
   } finally {
     output.close();
-    if (snapshotFile.exists) await deleteDatabaseSnapshot(snapshotName, Paths.cache.uri);
+    if (snapshotFile.exists) await deleteDatabaseSnapshot(snapshotFile);
     if (!succeeded && exportFile.exists) exportFile.delete();
   }
 }

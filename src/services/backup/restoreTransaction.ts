@@ -1,106 +1,150 @@
 import { Directory, File, Paths } from "expo-file-system";
-import type { SQLiteDatabase } from "expo-sqlite";
+import { defaultDatabaseDirectory } from "expo-sqlite";
 
-import { getRestoreRecoveryAction, type RestorePhase } from "./restoreRecovery";
+const DATABASE_NAME = "app.db";
+const TRANSACTION_FILE = new File(Paths.document, "openlog-restore-transaction.json");
 
-const TRANSACTION_FILE = new File(Paths.document, "restore-transaction.json");
-const TRANSACTION_TEMP_FILE = new File(Paths.document, "restore-transaction.next.json");
-export const RESTORE_NEXT_MEDIA_DIR = new Directory(Paths.document, "restore-media-next");
-export const RESTORE_PREVIOUS_MEDIA_DIR = new Directory(Paths.document, "restore-media-previous");
-export const RESTORE_MEDIA_DIR = new Directory(Paths.document, "media");
-const RESTORE_MARKER_KEY = "restore_transaction_id";
+type RestorePhase = "prepared" | "database-swapped" | "media-swapped";
 
 interface RestoreTransaction {
   id: string;
   phase: RestorePhase;
-  hadPreviousMedia: boolean;
 }
 
-function removeDirectory(directory: Directory): void {
-  if (directory.exists) directory.delete();
+function databaseFile(name: string): File {
+  if (!defaultDatabaseDirectory) throw new Error("SQLite storage is unavailable.");
+  const directoryUri = defaultDatabaseDirectory.startsWith("file://")
+    ? defaultDatabaseDirectory
+    : `file://${defaultDatabaseDirectory}`;
+  return new File(directoryUri, name);
+}
+
+function stagedDatabase(transaction: RestoreTransaction): File {
+  return new File(Paths.document, `openlog-restore-${transaction.id}.sqlite`);
+}
+
+function previousDatabase(transaction: RestoreTransaction): File {
+  return databaseFile(`openlog-restore-${transaction.id}-previous.sqlite`);
+}
+
+function stagedMedia(transaction: RestoreTransaction): Directory {
+  return new Directory(Paths.document, `openlog-restore-${transaction.id}-media`);
+}
+
+function previousMedia(transaction: RestoreTransaction): Directory {
+  return new Directory(Paths.document, `openlog-restore-${transaction.id}-previous-media`);
+}
+
+function activeMedia(): Directory {
+  return new Directory(Paths.document, "media");
 }
 
 function readTransaction(): RestoreTransaction | null {
   if (!TRANSACTION_FILE.exists) return null;
   try {
-    const parsed = JSON.parse(TRANSACTION_FILE.textSync()) as RestoreTransaction;
+    const value = JSON.parse(TRANSACTION_FILE.textSync()) as Partial<RestoreTransaction>;
     if (
-      typeof parsed.id !== "string" ||
-      !["prepared", "swapping-media", "media-swapped", "database-committed"].includes(
-        parsed.phase
-      ) ||
-      typeof parsed.hadPreviousMedia !== "boolean"
+      typeof value.id !== "string" ||
+      !["prepared", "database-swapped", "media-swapped"].includes(value.phase ?? "")
     ) {
       return null;
     }
-    return parsed;
+    return value as RestoreTransaction;
   } catch {
     return null;
   }
 }
 
-async function persistTransaction(transaction: RestoreTransaction): Promise<void> {
-  if (TRANSACTION_TEMP_FILE.exists) TRANSACTION_TEMP_FILE.delete();
-  TRANSACTION_TEMP_FILE.write(JSON.stringify(transaction));
-  await TRANSACTION_TEMP_FILE.move(TRANSACTION_FILE, { overwrite: true });
+async function saveTransaction(transaction: RestoreTransaction): Promise<void> {
+  TRANSACTION_FILE.write(JSON.stringify(transaction));
 }
 
-export async function createRestoreTransaction(): Promise<RestoreTransaction> {
-  const transaction: RestoreTransaction = {
-    id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-    phase: "prepared",
-    hadPreviousMedia: RESTORE_MEDIA_DIR.exists,
-  };
-  await persistTransaction(transaction);
-  return transaction;
+async function moveFile(source: File, destination: File): Promise<void> {
+  if (source.exists) await source.move(destination, { overwrite: true });
 }
 
-export async function updateRestoreTransaction(
-  transaction: RestoreTransaction,
-  phase: RestoreTransaction["phase"]
-): Promise<void> {
-  transaction.phase = phase;
-  await persistTransaction(transaction);
+async function moveDatabase(sourceName: string, destinationName: string): Promise<void> {
+  for (const suffix of ["", "-wal", "-shm"] as const) {
+    await moveFile(
+      databaseFile(`${sourceName}${suffix}`),
+      databaseFile(`${destinationName}${suffix}`)
+    );
+  }
 }
 
-export function clearRestoreTransaction(): void {
+function removeDatabase(name: string): void {
+  for (const suffix of ["", "-wal", "-shm"] as const) {
+    const file = databaseFile(`${name}${suffix}`);
+    if (file.exists) file.delete();
+  }
+}
+
+function clearTransaction(): void {
   if (TRANSACTION_FILE.exists) TRANSACTION_FILE.delete();
-  if (TRANSACTION_TEMP_FILE.exists) TRANSACTION_TEMP_FILE.delete();
 }
 
-/** Recovers a restore interrupted after the media swap but before the SQLite commit was observed. */
-export async function recoverIncompleteRestore(db: SQLiteDatabase): Promise<void> {
+export function createRestoreStaging(id: string): { database: File; media: Directory } {
+  const transaction: RestoreTransaction = { id, phase: "prepared" };
+  return { database: stagedDatabase(transaction), media: stagedMedia(transaction) };
+}
+
+export async function queueRestore(id: string): Promise<void> {
+  if (TRANSACTION_FILE.exists) {
+    throw new Error("A restore is pending. Restart OpenLog before restoring again.");
+  }
+  const transaction: RestoreTransaction = { id, phase: "prepared" };
+  const staging = createRestoreStaging(id);
+  if (!staging.database.exists || !staging.media.exists) {
+    throw new Error("Restore staging is incomplete.");
+  }
+  await saveTransaction(transaction);
+}
+
+export function discardRestoreStaging(id: string): void {
+  const staging = createRestoreStaging(id);
+  if (staging.database.exists) staging.database.delete();
+  if (staging.media.exists) staging.media.delete();
+}
+
+/** Applies a validated, staged file replacement before the app opens SQLite. */
+export async function applyPendingRestore(): Promise<void> {
   const transaction = readTransaction();
   if (!transaction) return;
 
-  const marker = await db.getFirstAsync<{ value: string }>(
-    "SELECT value FROM settings WHERE key = ?",
-    RESTORE_MARKER_KEY
-  );
-  const databaseCommitted = marker?.value === transaction.id;
-
-  const action = getRestoreRecoveryAction(transaction.phase, databaseCommitted);
-  if (action === "complete") {
-    removeDirectory(RESTORE_PREVIOUS_MEDIA_DIR);
-    removeDirectory(RESTORE_NEXT_MEDIA_DIR);
-    clearRestoreTransaction();
-    return;
+  const nextDatabase = stagedDatabase(transaction);
+  const currentDatabase = databaseFile(DATABASE_NAME);
+  const previousDb = previousDatabase(transaction);
+  if (nextDatabase.exists) {
+    await moveDatabase(DATABASE_NAME, previousDb.name);
+    await nextDatabase.move(currentDatabase, { overwrite: true });
+  }
+  if (!currentDatabase.exists) throw new Error("Restore database replacement is incomplete.");
+  if (transaction.phase === "prepared") {
+    transaction.phase = "database-swapped";
+    await saveTransaction(transaction);
   }
 
-  if (action === "discard-staged-media") {
-    removeDirectory(RESTORE_NEXT_MEDIA_DIR);
-    clearRestoreTransaction();
-    return;
+  const nextMedia = stagedMedia(transaction);
+  const currentMedia = activeMedia();
+  const previousMediaDirectory = previousMedia(transaction);
+  if (nextMedia.exists) {
+    if (currentMedia.exists) await currentMedia.move(previousMediaDirectory, { overwrite: true });
+    await nextMedia.move(currentMedia, { overwrite: true });
   }
-
-  if (RESTORE_PREVIOUS_MEDIA_DIR.exists) {
-    removeDirectory(RESTORE_MEDIA_DIR);
-    RESTORE_PREVIOUS_MEDIA_DIR.move(RESTORE_MEDIA_DIR);
-  } else if (!RESTORE_MEDIA_DIR.exists) {
-    RESTORE_MEDIA_DIR.create({ idempotent: true, intermediates: true });
+  if (!currentMedia.exists) throw new Error("Restore media replacement is incomplete.");
+  if (transaction.phase === "database-swapped") {
+    transaction.phase = "media-swapped";
+    await saveTransaction(transaction);
   }
-  removeDirectory(RESTORE_NEXT_MEDIA_DIR);
-  clearRestoreTransaction();
 }
 
-export const restoreMarkerKey = RESTORE_MARKER_KEY;
+/** Discards rollback artifacts only after the replacement database opened successfully. */
+export async function completePendingRestore(): Promise<void> {
+  const transaction = readTransaction();
+  if (transaction?.phase !== "media-swapped") return;
+
+  removeDatabase(previousDatabase(transaction).name);
+  const previousMediaDirectory = previousMedia(transaction);
+  if (previousMediaDirectory.exists) previousMediaDirectory.delete();
+  clearTransaction();
+}

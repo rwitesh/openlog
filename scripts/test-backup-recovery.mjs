@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { getRestoreRecoveryAction } from "../src/services/backup/restoreRecovery.ts";
 import { assertArchiveManifest } from "../src/services/backup/shared.ts";
 
 const manifest = {
@@ -35,12 +34,4 @@ test("backup manifests require a supported format and non-negative integer count
     () => assertArchiveManifest({ ...manifest, appVersion: "" }, "openlog-archive", 1),
     /appVersion is missing/
   );
-});
-
-test("interrupted restores roll media back unless the SQLite transaction committed", () => {
-  assert.equal(getRestoreRecoveryAction("prepared", false), "discard-staged-media");
-  assert.equal(getRestoreRecoveryAction("swapping-media", false), "rollback-media");
-  assert.equal(getRestoreRecoveryAction("media-swapped", false), "rollback-media");
-  assert.equal(getRestoreRecoveryAction("database-committed", false), "rollback-media");
-  assert.equal(getRestoreRecoveryAction("media-swapped", true), "complete");
 });

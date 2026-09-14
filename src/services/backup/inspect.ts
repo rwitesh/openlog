@@ -1,13 +1,25 @@
 import { File, FileMode } from "expo-file-system";
 import { strFromU8, Unzip, UnzipInflate, UnzipPassThrough } from "fflate";
 
-import { concatChunks, parseArchiveManifest } from "./shared";
+import { assertArchiveManifest } from "./shared";
 import {
   ARCHIVE_EXTENSION,
   ARCHIVE_FORMAT,
   ARCHIVE_SCHEMA_VERSION,
+  type ArchiveManifest,
   type InspectBackupResult,
 } from "./types";
+
+function concatChunks(chunks: Uint8Array[]): Uint8Array {
+  const length = chunks.reduce((total, chunk) => total + chunk.length, 0);
+  const result = new Uint8Array(length);
+  let offset = 0;
+  for (const chunk of chunks) {
+    result.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return result;
+}
 
 /**
  * Inspects a backup archive without modifying disk or database.
@@ -60,11 +72,8 @@ export async function inspectBackupArchive(fileUri: string): Promise<InspectBack
     throw new Error(`Invalid file: Not a valid ${ARCHIVE_EXTENSION} archive (manifest missing).`);
   }
 
-  const manifest = parseArchiveManifest(
-    strFromU8(concatChunks(buffers.manifest)),
-    ARCHIVE_FORMAT,
-    ARCHIVE_SCHEMA_VERSION
-  );
+  const manifest = JSON.parse(strFromU8(concatChunks(buffers.manifest))) as ArchiveManifest;
+  assertArchiveManifest(manifest, ARCHIVE_FORMAT, ARCHIVE_SCHEMA_VERSION);
 
   return {
     format: manifest.format,
