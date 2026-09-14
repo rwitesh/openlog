@@ -86,9 +86,9 @@ Because SQLite native drivers cache open database handles for fast refresh, hot 
 1. The user selects a backup file. The archive manifest, member sizes, paths, and free storage are validated.
 2. The database and media files are extracted into unique staging directories (`openlog-restore-<id>.sqlite`, `openlog-restore-<id>-media`).
 3. Schema compatibility, database integrity, and media references are strictly validated against staging.
-4. OpenLog writes an initial transaction record with phase `"prepared"` using an atomic write protocol (writing to `.tmp`, preserving `.bak`, and renaming to `.json`).
+4. OpenLog writes an initial transaction record with phase `"prepared"` using a durable write protocol (preserving the previous record in `.bak` first, then directly writing the new transaction to `.json`, avoiding in-place file move exceptions on Android).
 5. OpenLog displays a "Restore Prepared" modal:
-   - On Android: Prompts the user and closes the application via `BackHandler.exitApp()`.
+   - On Android: Prompts the user to close OpenLog completely from Recent Apps and reopen it (with a "Close OpenLog" option).
    - On iOS: Prompts the user to close OpenLog from the app switcher and reopen it.
 
 ### 2. Native cold launch swap

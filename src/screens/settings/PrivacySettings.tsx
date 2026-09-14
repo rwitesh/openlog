@@ -36,7 +36,6 @@ import {
   setImportController,
   useBackupStatus,
 } from "@/services/backup";
-import { closeActiveDatabase } from "@/services/db/database";
 import { deleteMediaList } from "@/services/media";
 import {
   dismissBackupProgressNotification,
@@ -223,14 +222,10 @@ export function PrivacySettingsScreen() {
 
       void dismissBackupProgressNotification();
 
-      // Explicitly close the active SQLite database and native connection handle
-      // so cached connection handles in Expo SQLite are destroyed before the app restarts.
-      await closeActiveDatabase();
-
       if (Platform.OS === "android") {
         Alert.alert(
           "Restore Prepared",
-          "Your backup has been verified. To finish restoring your timeline, OpenLog will close. Please reopen OpenLog to view your restored entries.",
+          "Your backup has been verified. To complete restoring your timeline, please close OpenLog completely (swipe it away from Recent Apps) and reopen it.",
           [
             {
               text: "Close OpenLog",
@@ -238,12 +233,13 @@ export function PrivacySettingsScreen() {
                 BackHandler.exitApp();
               },
             },
+            { text: "Later", style: "cancel" },
           ]
         );
       } else {
         Alert.alert(
           "Restore Prepared",
-          "Your backup has been verified. To finish restoring your timeline, please close OpenLog from the app switcher and reopen it to view your restored entries.",
+          "Your backup has been verified. To complete restoring your timeline, please close OpenLog from the app switcher and reopen it.",
           [{ text: "OK" }]
         );
       }

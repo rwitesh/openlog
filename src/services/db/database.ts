@@ -95,24 +95,6 @@ export async function runDb<T>(fn: (db: SQLite.SQLiteDatabase) => Promise<T>): P
 }
 
 /**
- * Explicitly closes the active SQLite connection and clears cached references.
- * Ensures native connection handles are released prior to restore file replacement.
- */
-export async function closeActiveDatabase(): Promise<void> {
-  await withLock(async () => {
-    if (dbInstance) {
-      try {
-        await dbInstance.closeAsync();
-      } catch (error) {
-        logDevWarning("db:closeActiveDatabase", error);
-      }
-      dbInstance = null;
-    }
-    openPromise = null;
-  });
-}
-
-/**
  * Serializes a database connection into a snapshot file, enforcing the size ceiling.
  */
 export async function createDatabaseSnapshotFromDb(
