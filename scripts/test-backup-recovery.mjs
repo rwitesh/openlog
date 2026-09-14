@@ -14,10 +14,12 @@ import {
   acquireExportGate,
   assertArchiveManifest,
   BACKUP_LIMITS,
+  calculateRequiredRestoreBytes,
   DATABASE_SIZE_CEILING,
   extractMediaFilename,
   isExportGateActive,
   LIMITS,
+  RESTORE_SAFETY_BUFFER_BYTES,
   releaseExportGate,
   validateArchivePath,
   waitForExportGate,
@@ -515,20 +517,46 @@ test("validateAttachedDatabase enforces referential integrity of entry media fil
   assert.equal(count, 1);
 });
 
-test("storage preflight falls back to conservative full expansion when archive size is unproven", () => {
-  const BACKUP_LIMITS = { uncompressedBytes: 2 * 1024 * 1024 * 1024 };
+test("calculateRequiredRestoreBytes uses exact uncompressed bytes when size is unchanged and falls back to full expansion", () => {
   const archiveBytes = 512 * 1024 * 1024;
-  const options = { uncompressedBytes: 600 * 1024 * 1024, expectedArchiveBytes: 400 * 1024 * 1024 }; // mismatch!
+  const existingTimelineBytes = 10 * 1024 * 1024;
+  const safetyBufferBytes = RESTORE_SAFETY_BUFFER_BYTES;
 
-  const isProvenUnchanged =
-    options.expectedArchiveBytes !== undefined && options.expectedArchiveBytes === archiveBytes;
-  assert.equal(isProvenUnchanged, false);
+  // Case 1: size matches expectedArchiveBytes -> uses exact uncompressedBytes
+  const matchedRequired = calculateRequiredRestoreBytes({
+    archiveBytes,
+    existingTimelineBytes,
+    uncompressedBytes: 600 * 1024 * 1024,
+    expectedArchiveBytes: archiveBytes,
+    safetyBufferBytes,
+  });
+  assert.equal(
+    matchedRequired,
+    archiveBytes + 600 * 1024 * 1024 + existingTimelineBytes + safetyBufferBytes
+  );
 
-  const estimatedStagingBytes =
-    options.uncompressedBytes !== undefined && options.uncompressedBytes > 0 && isProvenUnchanged
-      ? Math.min(options.uncompressedBytes, BACKUP_LIMITS.uncompressedBytes)
-      : Math.min(Math.max(archiveBytes * 4, 10 * 1024 * 1024), BACKUP_LIMITS.uncompressedBytes);
+  // Case 2: size mismatched (archive modified after inspection) -> falls back to full 2 GiB expansion cap
+  const mismatchedRequired = calculateRequiredRestoreBytes({
+    archiveBytes,
+    existingTimelineBytes,
+    uncompressedBytes: 600 * 1024 * 1024,
+    expectedArchiveBytes: 400 * 1024 * 1024,
+    safetyBufferBytes,
+  });
+  assert.equal(
+    mismatchedRequired,
+    archiveBytes + BACKUP_LIMITS.uncompressedBytes + existingTimelineBytes + safetyBufferBytes
+  );
 
-  // Mismatched file falls back to full 2 GiB expansion cap rather than 600 MiB
-  assert.equal(estimatedStagingBytes, BACKUP_LIMITS.uncompressedBytes);
+  // Case 3: expectedArchiveBytes omitted (unproven) -> also falls back to conservative full expansion
+  const unprovenRequired = calculateRequiredRestoreBytes({
+    archiveBytes,
+    existingTimelineBytes,
+    uncompressedBytes: 600 * 1024 * 1024,
+    safetyBufferBytes,
+  });
+  assert.equal(
+    unprovenRequired,
+    archiveBytes + BACKUP_LIMITS.uncompressedBytes + existingTimelineBytes + safetyBufferBytes
+  );
 });
