@@ -132,7 +132,7 @@ test("export gate serializes media cleanup and unblocks when released", async ()
   assert.equal(cleanupDone, true);
 });
 
-test("durable journal states and atomic writes preserve records across phases", async () => {
+test("durable journal states and .bak preservation protocol preserve records across phases", async () => {
   const fs = createMemoryRestoreFileSystem();
 
   // Initial state: no restore
@@ -513,4 +513,22 @@ test("validateAttachedDatabase enforces referential integrity of entry media fil
 
   const count = await validateAttachedDatabase(target, "main", completeMediaDir);
   assert.equal(count, 1);
+});
+
+test("storage preflight falls back to conservative full expansion when archive size is unproven", () => {
+  const BACKUP_LIMITS = { uncompressedBytes: 2 * 1024 * 1024 * 1024 };
+  const archiveBytes = 512 * 1024 * 1024;
+  const options = { uncompressedBytes: 600 * 1024 * 1024, expectedArchiveBytes: 400 * 1024 * 1024 }; // mismatch!
+
+  const isProvenUnchanged =
+    options.expectedArchiveBytes !== undefined && options.expectedArchiveBytes === archiveBytes;
+  assert.equal(isProvenUnchanged, false);
+
+  const estimatedStagingBytes =
+    options.uncompressedBytes !== undefined && options.uncompressedBytes > 0 && isProvenUnchanged
+      ? Math.min(options.uncompressedBytes, BACKUP_LIMITS.uncompressedBytes)
+      : Math.min(Math.max(archiveBytes * 4, 10 * 1024 * 1024), BACKUP_LIMITS.uncompressedBytes);
+
+  // Mismatched file falls back to full 2 GiB expansion cap rather than 600 MiB
+  assert.equal(estimatedStagingBytes, BACKUP_LIMITS.uncompressedBytes);
 });

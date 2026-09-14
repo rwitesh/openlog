@@ -171,5 +171,6 @@ export async function inspectBackupArchive(
     appVersion: manifest.appVersion,
     counts: manifest.counts,
     uncompressedBytes: totalUncompressed,
+    archiveBytes,
   };
 }
