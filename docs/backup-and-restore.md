@@ -99,13 +99,13 @@ When OpenLog boots freshly, `openFreshDatabase()` runs before the SQLite connect
    - If phase is `"prepared"`:
      - Moves `app.db` (and `-wal`, `-shm` sidecars) to `openlog-restore-<id>-previous.sqlite`.
      - Moves staged database into `app.db`.
-     - Atomically updates journal phase to `"database-swapped"`.
+     - Updates journal phase to `"database-swapped"` via the durable write protocol (`.bak` preservation followed by direct write).
      - Moves current `media/` to `openlog-restore-<id>-previous-media`.
      - Moves staged media to `media/`.
-     - Atomically updates journal phase to `"media-swapped"`.
+     - Updates journal phase to `"media-swapped"` via the durable write protocol.
    - If phase is `"database-swapped"` (interrupted mid-media swap):
      - Continues moving media to complete the swap. If staged media is missing, rolls back to original files.
-     - Atomically updates journal phase to `"media-swapped"`.
+     - Updates journal phase to `"media-swapped"` via the durable write protocol.
    - If phase is `"media-swapped"`:
      - Files are already in their live locations; proceeds directly to database verification.
 
