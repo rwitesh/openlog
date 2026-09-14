@@ -1,8 +1,16 @@
-import { reloadAppAsync } from "expo";
 import { File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Switch, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  BackHandler,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Switch,
+  View,
+} from "react-native";
 
 import { analytics } from "@/config/analytics";
 import { useEntries } from "@/modules/entry";
@@ -14,6 +22,7 @@ import {
 } from "@/modules/settings";
 import { authenticate, type BiometricSupport, getBiometricSupport } from "@/services/auth";
 import {
+  type ArchiveCounts,
   cancelActiveBackup,
   cancelActiveRestore,
   copyBackupToDirectory,
@@ -32,7 +41,6 @@ import {
   dismissBackupProgressNotification,
   notifyBackupError,
   notifyBackupExportComplete,
-  notifyBackupImportComplete,
   notifyBackupProgress,
   requestNotificationPermission,
 } from "@/services/notifications";
@@ -196,7 +204,7 @@ export function PrivacySettingsScreen() {
     void dismissBackupProgressNotification();
   };
 
-  const executeImport = async (fileUri: string) => {
+  const executeImport = async (fileUri: string, counts?: ArchiveCounts) => {
     void requestNotificationPermission();
 
     const controller = new AbortController();
@@ -205,21 +213,34 @@ export function PrivacySettingsScreen() {
     void notifyBackupProgress("Restoring OpenLog…", "Restoring your entries…");
 
     try {
-      const result = await importBackupArchive(fileUri, {
+      await importBackupArchive(fileUri, {
         signal: controller.signal,
+        counts,
       });
 
       if (controller.signal.aborted) return;
 
-      analytics.capture("backup_imported", {
-        entry_count: result.importedCount,
-      });
+      void dismissBackupProgressNotification();
 
-      void notifyBackupImportComplete(result.importedCount);
-      try {
-        await reloadAppAsync("Restore completed");
-      } catch (error) {
-        logDevWarning("settings:restartAfterRestore", error);
+      if (Platform.OS === "android") {
+        Alert.alert(
+          "Restore Prepared",
+          "Your backup has been verified. To finish restoring your timeline, OpenLog will close. Please reopen OpenLog to view your restored entries.",
+          [
+            {
+              text: "Close OpenLog",
+              onPress: () => {
+                BackHandler.exitApp();
+              },
+            },
+          ]
+        );
+      } else {
+        Alert.alert(
+          "Restore Prepared",
+          "Your backup has been verified. To finish restoring your timeline, please close OpenLog from the app switcher and reopen it to view your restored entries.",
+          [{ text: "OK" }]
+        );
       }
     } catch (error) {
       if (controller.signal.aborted) {
@@ -299,7 +320,7 @@ export function PrivacySettingsScreen() {
           text: "Restore",
           style: "destructive",
           onPress: () => {
-            void executeImport(fileUri);
+            void executeImport(fileUri, preview.counts);
           },
         },
       ]

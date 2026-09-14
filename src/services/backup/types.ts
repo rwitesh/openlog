@@ -24,6 +24,10 @@ export interface InspectBackupResult {
   counts: ArchiveCounts;
 }
 
+export interface InspectBackupOptions {
+  signal?: AbortSignal;
+}
+
 export interface ExportBackupResult {
   fileUri: string;
   filename: string;
@@ -45,4 +49,5 @@ export interface ExportBackupOptions {
 export interface ImportBackupOptions {
   signal?: AbortSignal;
   onProgress?: (processedBytes: number, totalBytes: number) => void;
+  counts?: ArchiveCounts;
 }

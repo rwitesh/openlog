@@ -1,10 +1,17 @@
 import { Directory, File, FileMode, Paths } from "expo-file-system";
 import { strToU8, Zip, ZipDeflate, ZipPassThrough } from "fflate";
 
-import { createDatabaseSnapshot, deleteDatabaseSnapshot } from "@/services/db/database";
+import {
+  createDatabaseSnapshot,
+  DATABASE_SIZE_CEILING,
+  deleteDatabaseSnapshot,
+  withDatabaseLock,
+} from "@/services/db/database";
 import { APP_SLUG } from "@/shared/constants";
 import { APP_VERSION } from "@/shared/utils/appInfo";
+import { logDevWarning } from "@/shared/utils/devLog";
 
+import { acquireExportGate, releaseExportGate } from "./shared";
 import {
   ARCHIVE_EXTENSION,
   ARCHIVE_FORMAT,
@@ -13,6 +20,12 @@ import {
   type ExportBackupOptions,
   type ExportBackupResult,
 } from "./types";
+
+/**
+ * Backups are constrained by {@link DATABASE_SIZE_CEILING} (256 MiB) because
+ * SQLite serialization loads the entire database into JavaScript memory.
+ */
+export { DATABASE_SIZE_CEILING };
 
 const CHUNK_SIZE = 256 * 1024;
 
@@ -36,9 +49,18 @@ function listMediaFiles(): File[] {
   return items as File[];
 }
 
-function addFileToArchive(zip: Zip, archivePath: string, sourceFile: File): void {
+function addFileToArchive(
+  zip: Zip,
+  archivePath: string,
+  sourceFile: File,
+  signal?: AbortSignal
+): boolean {
   if (!sourceFile.exists) {
-    throw new Error(`Cannot back up media: ${sourceFile.name} is no longer available.`);
+    logDevWarning(
+      "backup:export",
+      `Cannot back up file: ${sourceFile.name} is no longer available.`
+    );
+    return false;
   }
   const archiveFile = new ZipPassThrough(archivePath);
   zip.add(archiveFile);
@@ -47,12 +69,19 @@ function addFileToArchive(zip: Zip, archivePath: string, sourceFile: File): void
     const size = source.size ?? 0;
     let read = 0;
     while (read < size) {
+      if (signal?.aborted) throw new Error("Backup cancelled");
       const chunk = source.readBytes(Math.min(CHUNK_SIZE, size - read));
-      if (chunk.length === 0) throw new Error(`Cannot read ${sourceFile.name} while backing up.`);
+      if (chunk.length === 0) {
+        if (read < size) {
+          throw new Error(`Cannot read ${sourceFile.name} while backing up.`);
+        }
+        break;
+      }
       read += chunk.length;
       archiveFile.push(chunk, read === size);
     }
     if (size === 0) archiveFile.push(new Uint8Array(0), true);
+    return true;
   } finally {
     source.close();
   }
@@ -64,6 +93,7 @@ export async function exportBackupArchive(
 ): Promise<ExportBackupResult> {
   if (options?.signal?.aborted) throw new Error("Backup cancelled");
 
+  acquireExportGate();
   const createdAt = Date.now();
   const id = backupId();
   const filename = `${APP_SLUG}-backup-${formatDateForFilename(createdAt)}${ARCHIVE_EXTENSION}`;
@@ -75,31 +105,43 @@ export async function exportBackupArchive(
   let succeeded = false;
 
   try {
-    const entryCount = await createDatabaseSnapshot(snapshotFile);
+    // Atomically snapshot SQLite and capture media file list under the DB lock
+    // so no database mutations or destructive media cleanup can interleave.
+    const { entryCount, mediaFiles } = await withDatabaseLock(async () => {
+      const count = await createDatabaseSnapshot(snapshotFile);
+      const files = listMediaFiles();
+      return { entryCount: count, mediaFiles: files };
+    });
+
     options?.onProgress?.(1, 1, "database");
     if (options?.signal?.aborted) throw new Error("Backup cancelled");
-
-    const mediaFiles = listMediaFiles();
-    const manifest: ArchiveManifest = {
-      format: ARCHIVE_FORMAT,
-      version: ARCHIVE_SCHEMA_VERSION,
-      createdAt,
-      appVersion: APP_VERSION ?? "1.0.0",
-      counts: { entry: entryCount, media: mediaFiles.length },
-    };
 
     const zip = new Zip((error, chunk) => {
       if (error) throw error;
       output.writeBytes(chunk);
     });
-    addFileToArchive(zip, "database.sqlite", snapshotFile);
 
+    const addedDb = addFileToArchive(zip, "database.sqlite", snapshotFile, options?.signal);
+    if (!addedDb) {
+      throw new Error("Database snapshot file is no longer available.");
+    }
+
+    let exportedMediaCount = 0;
     for (let index = 0; index < mediaFiles.length; index++) {
       if (options?.signal?.aborted) throw new Error("Backup cancelled");
       const mediaFile = mediaFiles[index];
-      addFileToArchive(zip, `media/${mediaFile.name}`, mediaFile);
+      const added = addFileToArchive(zip, `media/${mediaFile.name}`, mediaFile, options?.signal);
+      if (added) exportedMediaCount++;
       options?.onProgress?.(index + 1, mediaFiles.length, "media");
     }
+
+    const manifest: ArchiveManifest = {
+      format: ARCHIVE_FORMAT,
+      version: ARCHIVE_SCHEMA_VERSION,
+      createdAt,
+      appVersion: APP_VERSION ?? "1.0.0",
+      counts: { entry: entryCount, media: exportedMediaCount },
+    };
 
     const manifestFile = new ZipDeflate("manifest.json", { level: 6 });
     zip.add(manifestFile);
@@ -115,6 +157,7 @@ export async function exportBackupArchive(
     };
   } finally {
     output.close();
+    releaseExportGate();
     if (snapshotFile.exists) await deleteDatabaseSnapshot(snapshotFile);
     if (!succeeded && exportFile.exists) exportFile.delete();
   }
