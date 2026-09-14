@@ -2,10 +2,9 @@ import { Directory, File, FileMode, Paths } from "expo-file-system";
 import { strToU8, Zip, ZipDeflate, ZipPassThrough } from "fflate";
 
 import {
-  createDatabaseSnapshot,
   DATABASE_SIZE_CEILING,
   deleteDatabaseSnapshot,
-  withDatabaseLock,
+  snapshotDatabaseAndMedia,
 } from "@/services/db/database";
 import { APP_SLUG } from "@/shared/constants";
 import { APP_VERSION } from "@/shared/utils/appInfo";
@@ -106,12 +105,8 @@ export async function exportBackupArchive(
 
   try {
     // Atomically snapshot SQLite and capture media file list under the DB lock
-    // so no database mutations or destructive media cleanup can interleave.
-    const { entryCount, mediaFiles } = await withDatabaseLock(async () => {
-      const count = await createDatabaseSnapshot(snapshotFile);
-      const files = listMediaFiles();
-      return { entryCount: count, mediaFiles: files };
-    });
+    // in a single lock invocation so no database mutations or destructive media cleanup can interleave.
+    const { entryCount, mediaFiles } = await snapshotDatabaseAndMedia(snapshotFile, listMediaFiles);
 
     options?.onProgress?.(1, 1, "database");
     if (options?.signal?.aborted) throw new Error("Backup cancelled");

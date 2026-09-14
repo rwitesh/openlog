@@ -120,12 +120,18 @@ function createExpoFileSystem(): RestoreFileSystem {
     copyFile: async (src, dst) => {
       const s = toFile(src);
       const d = toFile(dst);
-      if (s.exists) await s.copy(d, { overwrite: true });
+      if (s.exists) {
+        if (d.exists) d.delete();
+        await s.copy(d, { overwrite: true });
+      }
     },
     moveFile: async (src, dst) => {
       const s = toFile(src);
       const d = toFile(dst);
-      if (s.exists) await s.move(d, { overwrite: true });
+      if (s.exists) {
+        if (d.exists) d.delete();
+        await s.move(d, { overwrite: true });
+      }
     },
     directoryExists: async (p) => toDir(p).exists,
     deleteDirectory: async (p) => {
@@ -135,7 +141,10 @@ function createExpoFileSystem(): RestoreFileSystem {
     moveDirectory: async (src, dst) => {
       const s = toDir(src);
       const d = toDir(dst);
-      if (s.exists) await s.move(d, { overwrite: true });
+      if (s.exists) {
+        if (d.exists) d.delete();
+        await s.move(d, { overwrite: true });
+      }
     },
     listFiles: async (dirUri) => {
       const d = toDir(dirUri);
@@ -307,16 +316,24 @@ export async function saveDurableTransaction(
   fs: RestoreFileSystem
 ): Promise<void> {
   const content = JSON.stringify(transaction);
-  // 1. Write to .tmp
-  await fs.writeText(fs.journalTmpPath, content);
-
-  // 2. If .json exists, back it up to .bak
+  // 1. If .json exists, back it up to .bak first to preserve the last-known-valid record
   if (await fs.exists(fs.journalPath)) {
-    await fs.copyFile(fs.journalPath, fs.journalBakPath);
+    try {
+      const current = await fs.readText(fs.journalPath);
+      await fs.writeText(fs.journalBakPath, current);
+    } catch {
+      // ignore
+    }
   }
 
-  // 3. Atomically move .tmp to .json
-  await fs.moveFile(fs.journalTmpPath, fs.journalPath);
+  // 2. Write directly to .json using file write rather than move,
+  // avoiding Android NoSuchFileException on in-place file replacement.
+  await fs.writeText(fs.journalPath, content);
+
+  // 3. Remove .tmp if it lingered
+  if (await fs.exists(fs.journalTmpPath)) {
+    await fs.deleteFile(fs.journalTmpPath);
+  }
 }
 
 async function clearAllJournalFiles(fs: RestoreFileSystem): Promise<void> {
@@ -462,7 +479,7 @@ export async function queueRestore(
 
 export async function rollbackPendingRestore(
   fsOrCustom?: RestoreFileSystem,
-  target?: { id?: string }
+  target?: { id?: string; phase?: RestorePhase }
 ): Promise<void> {
   const fs = resolveFileSystem(fsOrCustom);
   const targetId = target?.id;
@@ -488,13 +505,18 @@ export async function rollbackPendingRestore(
     }
   }
 
-  // 2. Move previousMedia back to live media directory
+  // 2. Move previousMedia back to live media directory, or clean up active media
+  // only if media was actually swapped and the original timeline had no media
+  const activeMedia = getActiveMediaPath(fs);
   if (prevMediaPath && (await fs.directoryExists(prevMediaPath))) {
-    const activeMedia = getActiveMediaPath(fs);
     if (await fs.directoryExists(activeMedia)) {
       await fs.deleteDirectory(activeMedia);
     }
     await fs.moveDirectory(prevMediaPath, activeMedia);
+  } else if (target?.phase === "media-swapped" && (await fs.directoryExists(activeMedia))) {
+    // Media was swapped and the original timeline had no media directory;
+    // remove the swapped-in active media to cleanly restore the original state.
+    await fs.deleteDirectory(activeMedia);
   }
 
   // 3. Remove staging

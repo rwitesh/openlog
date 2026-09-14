@@ -36,6 +36,7 @@ import {
   setImportController,
   useBackupStatus,
 } from "@/services/backup";
+import { closeActiveDatabase } from "@/services/db/database";
 import { deleteMediaList } from "@/services/media";
 import {
   dismissBackupProgressNotification,
@@ -221,6 +222,10 @@ export function PrivacySettingsScreen() {
       if (controller.signal.aborted) return;
 
       void dismissBackupProgressNotification();
+
+      // Explicitly close the active SQLite database and native connection handle
+      // so cached connection handles in Expo SQLite are destroyed before the app restarts.
+      await closeActiveDatabase();
 
       if (Platform.OS === "android") {
         Alert.alert(
