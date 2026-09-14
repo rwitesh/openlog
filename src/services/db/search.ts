@@ -44,7 +44,7 @@ export async function searchEntries(
     try {
       const rows = await db.getAllAsync<SearchRecord>(
         `SELECT e.id, e.created_at, e.updated_at, e.text, e.images, e.audios, e.attachments,
-                e.latitude, e.longitude, e.location_name,
+                e.latitude, e.longitude, e.location,
                 snippet(entries_fts, 0, char(1), char(2), '…', ${SNIPPET_WORDS}) AS text_snippet,
                 snippet(entries_fts, 1, char(1), char(2), '…', ${SNIPPET_WORDS}) AS location_snippet
            FROM entries_fts
@@ -59,7 +59,7 @@ export async function searchEntries(
       return rows.map((row) => ({
         entry: toEntry(row),
         snippet: row.text ? (row.text_snippet ?? "") : "",
-        locationSnippet: row.location_name ? (row.location_snippet ?? "") : "",
+        locationSnippet: row.location ? (row.location_snippet ?? "") : "",
       }));
     } catch (error) {
       // Defensive: a malformed MATCH expression must never crash the timeline.

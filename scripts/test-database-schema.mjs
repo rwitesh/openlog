@@ -27,9 +27,11 @@ test("database initialization creates the current schema and maintains the FTS m
 
   await initializeDatabaseSchema(db);
 
-  await t.test("creates entries with attachments and schema version 1", () => {
+  await t.test("creates entries with attachments, location, and schema version 1", () => {
     const columns = database.prepare("PRAGMA table_info(entries)").all();
     assert.ok(columns.some((column) => column.name === "attachments"));
+    assert.ok(columns.some((column) => column.name === "location"));
+    assert.ok(!columns.some((column) => column.name === "location_name"));
     assert.ok(
       database
         .prepare("SELECT name FROM sqlite_master WHERE name = 'idx_entries_created_at_id'")

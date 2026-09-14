@@ -5,13 +5,6 @@ export interface SchemaDatabase {
   withTransactionAsync(task: () => Promise<void>): Promise<void>;
 }
 
-const SEARCH_INDEX_OBJECTS = [
-  "entries_fts",
-  "entries_fts_ai",
-  "entries_fts_ad",
-  "entries_fts_au",
-] as const;
-
 export async function initializeDatabaseSchema(db: SchemaDatabase): Promise<void> {
   await db.execAsync(`
     PRAGMA journal_mode = WAL;
@@ -23,16 +16,16 @@ export async function initializeDatabaseSchema(db: SchemaDatabase): Promise<void
   await db.withTransactionAsync(async () => {
     await db.execAsync(`
       CREATE TABLE IF NOT EXISTS entries (
-        id            TEXT PRIMARY KEY NOT NULL,
-        created_at    INTEGER NOT NULL,
-        updated_at    INTEGER NOT NULL,
-        text          TEXT,
-        images        TEXT,
-        audios        TEXT,
-        attachments   TEXT,
-        latitude      REAL,
-        longitude     REAL,
-        location_name TEXT
+        id          TEXT PRIMARY KEY NOT NULL,
+        created_at  INTEGER NOT NULL,
+        updated_at  INTEGER NOT NULL,
+        text        TEXT,
+        images      TEXT,
+        audios      TEXT,
+        attachments TEXT,
+        latitude    REAL,
+        longitude   REAL,
+        location    TEXT
       );
       CREATE INDEX IF NOT EXISTS idx_entries_created_at_id
         ON entries (created_at DESC, id DESC);
@@ -48,43 +41,51 @@ export async function initializeDatabaseSchema(db: SchemaDatabase): Promise<void
 }
 
 async function initializeSearchIndex(db: SchemaDatabase): Promise<void> {
-  const placeholders = SEARCH_INDEX_OBJECTS.map(() => "?").join(", ");
+  const searchIndexObjects = [
+    "entries_fts",
+    "entries_fts_ai",
+    "entries_fts_ad",
+    "entries_fts_au",
+  ] as const;
+  const placeholders = searchIndexObjects.map(() => "?").join(", ");
   const existing = await db.getAllAsync<{ name: string }>(
     `SELECT name FROM sqlite_master WHERE name IN (${placeholders})`,
-    ...SEARCH_INDEX_OBJECTS
+    ...searchIndexObjects
   );
-  const hadCompleteIndex = existing.length === SEARCH_INDEX_OBJECTS.length;
+  const hadCompleteIndex = existing.length === searchIndexObjects.length;
 
+  // The external-content FTS table mirrors entries through these triggers.
   await db.execAsync(`
     CREATE VIRTUAL TABLE IF NOT EXISTS entries_fts USING fts5(
       text,
-      location_name,
+      location,
       content='entries',
       content_rowid='rowid'
     )
   `);
   await db.execAsync(`
     CREATE TRIGGER IF NOT EXISTS entries_fts_ai AFTER INSERT ON entries BEGIN
-      INSERT INTO entries_fts (rowid, text, location_name)
-      VALUES (new.rowid, new.text, new.location_name);
+      INSERT INTO entries_fts (rowid, text, location)
+      VALUES (new.rowid, new.text, new.location);
     END
   `);
   await db.execAsync(`
     CREATE TRIGGER IF NOT EXISTS entries_fts_ad AFTER DELETE ON entries BEGIN
-      INSERT INTO entries_fts (entries_fts, rowid, text, location_name)
-      VALUES ('delete', old.rowid, old.text, old.location_name);
+      INSERT INTO entries_fts (entries_fts, rowid, text, location)
+      VALUES ('delete', old.rowid, old.text, old.location);
     END
   `);
   await db.execAsync(`
     CREATE TRIGGER IF NOT EXISTS entries_fts_au AFTER UPDATE ON entries BEGIN
-      INSERT INTO entries_fts (entries_fts, rowid, text, location_name)
-      VALUES ('delete', old.rowid, old.text, old.location_name);
-      INSERT INTO entries_fts (rowid, text, location_name)
-      VALUES (new.rowid, new.text, new.location_name);
+      INSERT INTO entries_fts (entries_fts, rowid, text, location)
+      VALUES ('delete', old.rowid, old.text, old.location);
+      INSERT INTO entries_fts (rowid, text, location)
+      VALUES (new.rowid, new.text, new.location);
     END
   `);
 
   if (!hadCompleteIndex) {
+    // Populate an index created after entries already exist.
     await db.execAsync(`INSERT INTO entries_fts (entries_fts) VALUES ('rebuild')`);
   }
 }
