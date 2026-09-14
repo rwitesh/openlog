@@ -43,7 +43,7 @@ export function buildPagedEntryQuery(
   } else if (monthTs !== undefined) {
     const start = startOfMonth(monthTs);
     conditions.push("created_at >= ? AND created_at < ?");
-    params.push(start, addMonths(monthTs, 1));
+    params.push(start, addMonths(start, 1));
   }
 
   const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";

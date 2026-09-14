@@ -3,11 +3,7 @@ import { resolveMediaUri, resolveMediaUriList } from "@/services/media/storage";
 import type { Entry, EntryLocation, NewEntryInput, Tag, UpdateEntryInput } from "@/shared/types";
 import { addMonths, startOfDay, startOfMonth } from "@/shared/utils/dates";
 import { runDb } from "./database";
-import {
-  buildPagedEntryQuery,
-  type EntryCursor,
-  type PagedEntriesOptions,
-} from "./entryPagination";
+import { buildPagedEntryQuery, type EntryCursor, type PagedEntriesOptions } from "./pagination";
 import { MAX_TAGS_PER_ENTRY } from "./tags";
 import { parseAttachments, parseUris } from "./uris";
 
@@ -105,7 +101,7 @@ function locationParams(location?: EntryLocation | null) {
   return [location?.latitude ?? null, location?.longitude ?? null, location?.name ?? null] as const;
 }
 
-export type { EntryCursor, PagedEntriesOptions } from "./entryPagination";
+export type { EntryCursor, PagedEntriesOptions } from "./pagination";
 
 export interface PagedEntriesResult {
   entries: Entry[];
@@ -330,33 +326,38 @@ export async function updateEntry(id: string, input: UpdateEntryInput): Promise<
   });
 }
 
+interface MediaRow {
+  images: string | null;
+  audios: string | null;
+  attachments: string | null;
+}
+
+function extractMediaUrisFromRow(row?: MediaRow | null): string[] {
+  if (!row) return [];
+  const mediaUris: string[] = [];
+  if (row.images) mediaUris.push(...parseUris(row.images));
+  if (row.audios) mediaUris.push(...parseUris(row.audios));
+  if (row.attachments) {
+    mediaUris.push(...parseAttachments(row.attachments).map((attachment) => attachment.uri));
+  }
+  return mediaUris;
+}
+
 export async function deleteEntry(id: string): Promise<string[]> {
   return runDb(async (db) => {
-    const row = await db.getFirstAsync<{
-      images: string | null;
-      audios: string | null;
-      attachments: string | null;
-    }>(`SELECT images, audios, attachments FROM entries WHERE id = ?`, id);
+    const row = await db.getFirstAsync<MediaRow>(
+      `SELECT images, audios, attachments FROM entries WHERE id = ?`,
+      id
+    );
     await db.runAsync(`DELETE FROM entries WHERE id = ?`, id);
-
-    if (!row) return [];
-    const mediaUris: string[] = [];
-    if (row.images) mediaUris.push(...parseUris(row.images));
-    if (row.audios) mediaUris.push(...parseUris(row.audios));
-    if (row.attachments)
-      mediaUris.push(...parseAttachments(row.attachments).map((attachment) => attachment.uri));
-    return mediaUris;
+    return extractMediaUrisFromRow(row);
   });
 }
 
 /** Removes every entry and returns the file URIs that should be deleted on disk. */
 export async function deleteAllEntries(): Promise<string[]> {
   return runDb(async (db) => {
-    const rows = await db.getAllAsync<{
-      images: string | null;
-      audios: string | null;
-      attachments: string | null;
-    }>(`SELECT images, audios, attachments FROM entries`);
+    const rows = await db.getAllAsync<MediaRow>(`SELECT images, audios, attachments FROM entries`);
 
     await db.withTransactionAsync(async () => {
       await db.runAsync(`DELETE FROM entries`);
@@ -365,10 +366,7 @@ export async function deleteAllEntries(): Promise<string[]> {
 
     const mediaUris: string[] = [];
     for (const row of rows) {
-      if (row.images) mediaUris.push(...parseUris(row.images));
-      if (row.audios) mediaUris.push(...parseUris(row.audios));
-      if (row.attachments)
-        mediaUris.push(...parseAttachments(row.attachments).map((attachment) => attachment.uri));
+      mediaUris.push(...extractMediaUrisFromRow(row));
     }
     return mediaUris;
   });

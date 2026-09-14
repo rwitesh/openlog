@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
-import { buildPagedEntryQuery } from "../src/services/db/entryPagination.ts";
+import { buildPagedEntryQuery } from "../src/services/db/pagination.ts";
 
 const COLUMNS = "id, created_at";
 

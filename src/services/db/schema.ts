@@ -1,7 +1,7 @@
 export interface SchemaDatabase {
   execAsync(source: string): Promise<void>;
-  getFirstAsync<T>(source: string): Promise<T | null>;
-  getAllAsync<T>(source: string, ...params: string[]): Promise<T[]>;
+  getFirstAsync<T>(source: string, ...params: unknown[]): Promise<T | null>;
+  getAllAsync<T>(source: string, ...params: unknown[]): Promise<T[]>;
   withTransactionAsync(task: () => Promise<void>): Promise<void>;
 }
 
