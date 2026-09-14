@@ -207,7 +207,8 @@ export function PrivacySettingsScreen() {
   const executeImport = async (
     fileUri: string,
     counts?: ArchiveCounts,
-    uncompressedBytes?: number
+    uncompressedBytes?: number,
+    expectedArchiveBytes?: number
   ) => {
     void requestNotificationPermission();
 
@@ -221,6 +222,7 @@ export function PrivacySettingsScreen() {
         signal: controller.signal,
         counts,
         uncompressedBytes,
+        expectedArchiveBytes,
       });
 
       if (controller.signal.aborted) return;
@@ -326,7 +328,12 @@ export function PrivacySettingsScreen() {
           text: "Restore",
           style: "destructive",
           onPress: () => {
-            void executeImport(fileUri, preview.counts, preview.uncompressedBytes);
+            void executeImport(
+              fileUri,
+              preview.counts,
+              preview.uncompressedBytes,
+              preview.archiveBytes
+            );
           },
         },
       ]
