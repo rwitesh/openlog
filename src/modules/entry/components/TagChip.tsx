@@ -8,16 +8,36 @@ import { tagColors } from "../utils/TagColors";
 interface TagChipProps {
   tag: Tag;
   onRemove?: () => void;
+  size?: "regular" | "compact";
 }
 
-export function TagChip({ tag, onRemove }: TagChipProps) {
+export function TagChip({ tag, onRemove, size = "regular" }: TagChipProps) {
   const { isDark } = useTheme();
   const colors = tagColors(tag.colorId, isDark);
 
   return (
-    <View style={[styles.chip, { backgroundColor: colors.background }]}>
-      <View style={[styles.dot, { backgroundColor: colors.foreground }]} />
-      <ThemedText weight="medium" style={[styles.name, { color: colors.foreground }]}>
+    <View
+      style={[
+        styles.chip,
+        size === "compact" && styles.chipCompact,
+        { backgroundColor: colors.background },
+      ]}
+    >
+      <View
+        style={[
+          styles.dot,
+          size === "compact" && styles.dotCompact,
+          { backgroundColor: colors.foreground },
+        ]}
+      />
+      <ThemedText
+        weight="medium"
+        style={[
+          styles.name,
+          size === "compact" && styles.nameCompact,
+          { color: colors.foreground },
+        ]}
+      >
         {tag.name}
       </ThemedText>
       {onRemove ? (
@@ -44,7 +64,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.sm,
     paddingVertical: space.xs + 1,
   },
+  chipCompact: { gap: space.xs, paddingHorizontal: space.xs + 2, paddingVertical: 2 },
   dot: { width: 6, height: 6, borderRadius: 3 },
+  dotCompact: { width: 4, height: 4, borderRadius: 2 },
   name: { fontSize: 13, lineHeight: 18 },
+  nameCompact: { fontSize: 12, lineHeight: 16 },
   remove: { marginRight: -space.xs, padding: space.xs },
 });

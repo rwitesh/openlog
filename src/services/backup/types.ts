@@ -1,5 +1,5 @@
 import { APP_SLUG } from "@/shared/constants";
-import type { Entry } from "@/shared/types";
+import type { Entry, Tag } from "@/shared/types";
 
 export const ARCHIVE_FORMAT = `${APP_SLUG}-archive` as const;
 export const ARCHIVE_SCHEMA_VERSION = 1;
@@ -32,6 +32,8 @@ export interface ArchiveManifest {
 
 export interface ArchiveDb {
   entries: Entry[];
+  /** Present in current archives; omitted by archives created before tags existed. */
+  tags?: Tag[];
 }
 
 export interface InspectBackupResult {

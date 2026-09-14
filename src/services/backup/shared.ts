@@ -1,4 +1,4 @@
-import type { Entry } from "@/shared/types";
+import type { Entry, Tag } from "@/shared/types";
 
 import type { ArchiveManifest } from "./types.ts";
 
@@ -7,6 +7,8 @@ interface BackupEntryData {
   audios?: unknown[];
   attachments?: unknown[];
 }
+
+const ARCHIVE_TAG_COLOR_IDS = new Set(["clay", "amber", "sage", "violet", "teal", "rose"]);
 
 function isNonNegativeInteger(value: unknown): boolean {
   return typeof value === "number" && Number.isInteger(value) && value >= 0;
@@ -76,6 +78,32 @@ export function parseArchiveManifest(
   const manifest = JSON.parse(json) as ArchiveManifest;
   assertArchiveManifest(manifest, archiveFormat, schemaVersion);
   return manifest;
+}
+
+/** Validates the standalone tag catalogue included by current archives. */
+export function assertArchiveTags(tags: unknown): asserts tags is Tag[] {
+  if (!Array.isArray(tags)) throw new Error("Invalid backup file: tags list is invalid.");
+  const ids = new Set<string>();
+  const keys = new Set<string>();
+  for (const tag of tags) {
+    if (!tag || typeof tag !== "object") throw new Error("Invalid backup tag.");
+    const { id, name, colorId } = tag as Partial<Tag>;
+    const normalizedName = name?.normalize("NFKC").trim().replace(/\s+/g, " ");
+    if (
+      typeof id !== "string" ||
+      !id ||
+      !normalizedName ||
+      [...normalizedName].length > 10 ||
+      !ARCHIVE_TAG_COLOR_IDS.has(colorId as Tag["colorId"]) ||
+      ids.has(id)
+    ) {
+      throw new Error("Invalid backup tag.");
+    }
+    const key = normalizedName.toLocaleLowerCase("en-US");
+    if (keys.has(key)) throw new Error("Invalid backup tag.");
+    ids.add(id);
+    keys.add(key);
+  }
 }
 
 /** Ensures db.json entry rows match manifest counts before restore commits. */

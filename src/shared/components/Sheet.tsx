@@ -1,4 +1,12 @@
-import { Modal, Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from "react-native";
+import {
+  Modal,
+  Pressable,
+  type StyleProp,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+  type ViewStyle,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { radius, space, useTheme } from "@/theme";
@@ -31,12 +39,16 @@ export function Sheet({
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const { colors } = theme;
+  const window = useWindowDimensions();
   const isBottom = placement === "bottom";
   const keyboard = useKeyboardInset();
 
   const resolvedAnimation = animationType ?? (isBottom ? "slide" : "fade");
   const docksToKeyboard = isBottom && keyboardBehavior === "dock" && keyboard.visible;
   const bottomPad = paddingBottom ?? (docksToKeyboard ? 0 : insets.bottom + space.lg);
+  // A docked card must fit in the viewport above the keyboard, rather than retain a
+  // height calculated for the full screen and shift its header out of view.
+  const dockedMaxHeight = Math.max(0, window.height - keyboard.offset - insets.top);
 
   return (
     <Modal
@@ -61,8 +73,8 @@ export function Sheet({
           style={[
             isBottom ? styles.bottomCard : placement === "top" ? styles.topCard : styles.centerCard,
             { backgroundColor: colors.surface },
-            docksToKeyboard && { marginBottom: keyboard.offset },
             sheetStyle,
+            docksToKeyboard && { marginBottom: keyboard.offset, maxHeight: dockedMaxHeight },
           ]}
         >
           {isBottom ? <View style={[styles.handle, { backgroundColor: colors.line }]} /> : null}

@@ -2,6 +2,7 @@ import { File, FileMode, Paths } from "expo-file-system";
 import { strToU8, Zip, ZipDeflate, ZipPassThrough } from "fflate";
 
 import { getEntriesCount, getEntriesPage } from "@/services/db/entries";
+import { getTags } from "@/services/db/tags";
 import { resolveMediaUri } from "@/services/media/storage";
 import { APP_SLUG } from "@/shared/constants";
 import type { Attachment, Entry } from "@/shared/types";
@@ -103,6 +104,7 @@ export async function exportBackupArchive(
     });
 
     const totalEntries = await getEntriesCount();
+    const tags = await getTags();
     const previewEntries: ArchivePreviewEntry[] = [];
 
     const dbEntry = new ZipDeflate("db.json", { level: 6 });
@@ -151,6 +153,10 @@ export async function exportBackupArchive(
     }
 
     dbEntry.push(strToU8("\n]}\n"), true);
+
+    const tagsEntry = new ZipDeflate("tags.json", { level: 6 });
+    zipStream.add(tagsEntry);
+    tagsEntry.push(strToU8(JSON.stringify(tags)), true);
 
     if (options?.signal?.aborted) throw new Error("Backup cancelled");
 

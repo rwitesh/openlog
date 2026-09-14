@@ -32,7 +32,7 @@ export function toFtsMatchQuery(input: string): string | null {
   return tokens.length ? tokens.join(" ") : null;
 }
 
-/** Full-text search across entry text and location names, best matches first. */
+/** Searches entry text, locations, and attached tags. */
 export async function searchEntries(
   query: string,
   limit: number = DEFAULT_LIMIT
@@ -42,8 +42,9 @@ export async function searchEntries(
   const tagQuery = query.normalize("NFKC").trim().replace(/\s+/g, " ").toLocaleLowerCase("en-US");
 
   return runDb(async (db) => {
+    let textMatches: SearchRecord[] = [];
     try {
-      const textMatches = await db.getAllAsync<SearchRecord>(
+      textMatches = await db.getAllAsync<SearchRecord>(
         `SELECT e.id, e.created_at, e.updated_at, e.text, e.images, e.audios, e.attachments,
                 e.latitude, e.longitude, e.location,
                 snippet(entries_fts, 0, char(1), char(2), '…', ${SNIPPET_WORDS}) AS text_snippet,
@@ -56,7 +57,14 @@ export async function searchEntries(
         match,
         limit
       );
-      const tagMatches = await db.getAllAsync<SearchRecord>(
+    } catch (error) {
+      // A failed FTS query must not hide otherwise valid tag matches.
+      logDevWarning("db:searchEntries:fts", error);
+    }
+
+    let tagMatches: SearchRecord[] = [];
+    try {
+      tagMatches = await db.getAllAsync<SearchRecord>(
         `SELECT e.id, e.created_at, e.updated_at, e.text, e.images, e.audios, e.attachments,
                 e.latitude, e.longitude, e.location, NULL AS text_snippet, NULL AS location_snippet
            FROM entries e
@@ -68,10 +76,23 @@ export async function searchEntries(
         tagQuery,
         limit
       );
+    } catch (error) {
+      logDevWarning("db:searchEntries:tags", error);
+    }
 
+    try {
       const rows: SearchRecord[] = [];
+      const textMatchesById = new Map(textMatches.map((row) => [row.id, row]));
       const seen = new Set<string>();
-      for (const row of [...textMatches, ...tagMatches]) {
+      // Tag matches take precedence so a full text result page cannot crowd out
+      // entries found solely through a tag. Keep FTS snippets for overlaps.
+      for (const tagMatch of tagMatches) {
+        if (seen.has(tagMatch.id)) continue;
+        seen.add(tagMatch.id);
+        rows.push(textMatchesById.get(tagMatch.id) ?? tagMatch);
+        if (rows.length === limit) break;
+      }
+      for (const row of textMatches) {
         if (seen.has(row.id)) continue;
         seen.add(row.id);
         rows.push(row);
@@ -88,7 +109,6 @@ export async function searchEntries(
         locationSnippet: row.location ? (row.location_snippet ?? "") : "",
       }));
     } catch (error) {
-      // Defensive: a malformed MATCH expression must never crash the timeline.
       logDevWarning("db:searchEntries", error);
       return [];
     }
