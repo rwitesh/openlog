@@ -20,18 +20,18 @@ export interface EntryRecord {
   attachments: string | null;
   latitude: number | null;
   longitude: number | null;
-  location_name: string | null;
+  location: string | null;
 }
 
 const ENTRY_COLUMNS =
-  "id, created_at, updated_at, text, images, audios, attachments, latitude, longitude, location_name";
+  "id, created_at, updated_at, text, images, audios, attachments, latitude, longitude, location";
 
 function parseLocation(row: EntryRecord): EntryLocation | undefined {
   if (row.latitude == null || row.longitude == null) return undefined;
   return {
     latitude: row.latitude,
     longitude: row.longitude,
-    name: row.location_name ?? undefined,
+    name: row.location ?? undefined,
   };
 }
 
@@ -149,7 +149,7 @@ export async function createEntry(input: NewEntryInput): Promise<Entry> {
     await db.runAsync(
       `INSERT INTO entries (
          id, created_at, updated_at, text, images, audios, attachments,
-         latitude, longitude, location_name
+         latitude, longitude, location
        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       id,
       createdAt,
@@ -194,7 +194,7 @@ export async function updateEntry(id: string, input: UpdateEntryInput): Promise<
     const [lat, lng, locationName] =
       input.location !== undefined
         ? locationParams(input.location)
-        : ([row.latitude, row.longitude, row.location_name] as const);
+        : ([row.latitude, row.longitude, row.location] as const);
 
     const imagesJson =
       input.images !== undefined
@@ -227,7 +227,7 @@ export async function updateEntry(id: string, input: UpdateEntryInput): Promise<
               attachments = ?,
               latitude = ?,
               longitude = ?,
-              location_name = ?
+              location = ?
         WHERE id = ?`,
       createdAt,
       updatedAt,
@@ -251,7 +251,7 @@ export async function updateEntry(id: string, input: UpdateEntryInput): Promise<
       attachments: filesJson,
       latitude: lat,
       longitude: lng,
-      location_name: locationName,
+      location: locationName,
     });
   });
 }
@@ -352,7 +352,7 @@ export async function importEntriesBatched(
       const insertStmt = await db.prepareAsync(
         `INSERT INTO entries (
            id, created_at, updated_at, text, images, audios, attachments,
-           latitude, longitude, location_name
+           latitude, longitude, location
          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       );
 
