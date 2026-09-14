@@ -5,5 +5,6 @@ export * from "./components/EntryMenuButton";
 export * from "./components/EntryRow";
 export * from "./components/ImageViewerModal";
 export * from "./components/LocationDetail";
+export * from "./components/TagChip";
 export * from "./store/EntryStore";
 export * from "./utils/EntryLabels";

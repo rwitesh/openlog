@@ -25,6 +25,7 @@ import { AudioPlayer } from "./AudioPlayer";
 import { EntryDetailsModal } from "./EntryDetailsModal";
 import { EntryMenuButton } from "./EntryMenuButton";
 import { ImageViewerModal } from "./ImageViewerModal";
+import { TagChip } from "./TagChip";
 
 interface EntryRowProps {
   entry: Entry;
@@ -88,6 +89,7 @@ function EntryRowBase({ entry, animate }: EntryRowProps) {
   const hasAudio = audios.length > 0;
   const hasAttachments = attachments.length > 0;
   const hasText = Boolean(bodyText);
+  const hasTags = entry.tags.length > 0;
   const locationName = entry.location ? locationPlaceTitle(entry.location) : undefined;
 
   const [isTruncated, setIsTruncated] = useState(() => {
@@ -182,6 +184,14 @@ function EntryRowBase({ entry, animate }: EntryRowProps) {
               </ThemedText>
             ) : null}
           </Pressable>
+        ) : null}
+
+        {hasTags ? (
+          <View style={[styles.tags, { marginTop: hasText ? space.sm : 0 }]}>
+            {entry.tags.map((tag) => (
+              <TagChip key={tag.id} tag={tag} />
+            ))}
+          </View>
         ) : null}
 
         {hasImages ? (
@@ -356,6 +366,11 @@ const styles = StyleSheet.create({
   },
   audioList: {
     gap: space.xs,
+  },
+  tags: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: space.xs + 2,
   },
   attachmentAfterContent: {
     marginTop: space.md,

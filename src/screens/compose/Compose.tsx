@@ -8,12 +8,13 @@ import {
   ComposeEditor,
   ComposeFooterBar,
   DateTimeBadges,
+  TagPicker,
   useComposeDraft,
   useMediaAttachments,
 } from "@/modules/compose";
-import { EntryDetailsModal, useEntries, useEntry } from "@/modules/entry";
+import { EntryDetailsModal, TagChip, useEntries, useEntry } from "@/modules/entry";
 import type { RootStackParamList } from "@/navigation/types";
-import { ScreenHeader } from "@/shared/components";
+import { ScreenHeader, ThemedText } from "@/shared/components";
 import { Layout, useKeepFocus } from "@/shared/components/Layout";
 import { CalendarPicker, TimePicker } from "@/shared/pickers";
 import type { Entry } from "@/shared/types";
@@ -85,6 +86,7 @@ function ComposeContent({ navigation, route, existing }: ComposeContentProps) {
   const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [timePickerOpen, setTimePickerOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [tagsOpen, setTagsOpen] = useState(false);
 
   const { removeEntry } = useEntries();
 
@@ -196,6 +198,41 @@ function ComposeContent({ navigation, route, existing }: ComposeContentProps) {
         readOnly={isReadOnly}
       />
 
+      <View style={styles.tags}>
+        {draft.tags.map((tag) => (
+          <TagChip
+            key={tag.id}
+            tag={tag}
+            onRemove={
+              isReadOnly
+                ? undefined
+                : () => draft.setTags((tags) => tags.filter((item) => item.id !== tag.id))
+            }
+          />
+        ))}
+        {!isReadOnly ? (
+          <Pressable
+            onPress={() => setTagsOpen(true)}
+            hitSlop={space.xs}
+            style={({ pressed }) => [
+              styles.addTag,
+              { borderColor: colors.separator },
+              pressed && press,
+            ]}
+            accessibilityLabel="Add tags"
+            accessibilityRole="button"
+          >
+            <Feather name="tag" size={metrics.iconXs} color={colors.textSecondary} />
+            <ThemedText
+              weight="medium"
+              style={[styles.addTagText, { color: colors.textSecondary }]}
+            >
+              Tags
+            </ThemedText>
+          </Pressable>
+        ) : null}
+      </View>
+
       <Layout.Screen.Body>
         <Layout.Screen.Main>
           <ComposeEditor
@@ -268,6 +305,13 @@ function ComposeContent({ navigation, route, existing }: ComposeContentProps) {
         onClose={() => setTimePickerOpen(false)}
       />
 
+      <TagPicker
+        visible={tagsOpen}
+        selected={draft.tags}
+        onChange={draft.setTags}
+        onClose={() => setTagsOpen(false)}
+      />
+
       {existing ? (
         <EntryDetailsModal
           entry={existing}
@@ -300,4 +344,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: space.md,
   },
+  tags: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: space.xs + 2,
+    marginHorizontal: space.xxl,
+    marginBottom: space.sm,
+  },
+  addTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.xs,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 6,
+    paddingHorizontal: space.sm,
+    paddingVertical: space.xs + 1,
+  },
+  addTagText: { fontSize: 13, lineHeight: 18 },
 });

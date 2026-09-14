@@ -3,7 +3,7 @@ import { Alert } from "react-native";
 
 import { addEntry, patchEntry } from "@/modules/entry";
 import { getCachedPlace, useLocation } from "@/services/location";
-import type { Attachment, Entry } from "@/shared/types";
+import type { Attachment, Entry, Tag } from "@/shared/types";
 import { getInitialWhen } from "@/shared/utils/dates";
 import { logDevWarning } from "@/shared/utils/devLog";
 import { canSaveDraft, fromDraft } from "../utils/DraftTransform";
@@ -28,6 +28,7 @@ export function useComposeDraft(
   initialDate?: number
 ) {
   const [text, setText] = useState(() => existing?.text ?? "");
+  const [tags, setTags] = useState<Tag[]>(() => existing?.tags ?? []);
   const [when, setWhen] = useState(() => getInitialWhen(existing?.createdAt, initialDate));
   const [saving, setSaving] = useState(false);
   const location = useLocation(existing ? existing.location : getCachedPlace());
@@ -52,6 +53,7 @@ export function useComposeDraft(
         images: media.images,
         audios: media.audios,
         attachments: media.attachments,
+        tags,
         createdAt: when,
         location: location.on && location.place ? location.place : null,
       });
@@ -77,6 +79,7 @@ export function useComposeDraft(
     media.images,
     media.audios,
     media.attachments,
+    tags,
     when,
     location.on,
     location.place,
@@ -86,9 +89,10 @@ export function useComposeDraft(
   /** Discard edits and restore the entry's stored draft fields. */
   const reset = useCallback(() => {
     setText(existing?.text ?? "");
+    setTags(existing?.tags ?? []);
     setWhen(getInitialWhen(existing?.createdAt, initialDate));
     location.reset();
   }, [existing, initialDate, location.reset]);
 
-  return { text, setText, when, setWhen, location, canSave, save, reset };
+  return { text, setText, tags, setTags, when, setWhen, location, canSave, save, reset };
 }

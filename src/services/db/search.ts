@@ -1,7 +1,7 @@
 import type { EntrySearchResult } from "@/shared/types";
 import { logDevWarning } from "@/shared/utils/devLog";
 import { runDb } from "./database";
-import { type EntryRecord, toEntry } from "./entries";
+import { type EntryRecord, getTagsByEntryIds, toEntry } from "./entries";
 
 /** Match markers embedded in snippets by the SQL below; the UI splits on them to highlight. */
 export const SNIPPET_MARK_START = "\u0001";
@@ -39,10 +39,11 @@ export async function searchEntries(
 ): Promise<EntrySearchResult[]> {
   const match = toFtsMatchQuery(query);
   if (!match || query.trim().length < MIN_QUERY_LENGTH) return [];
+  const tagQuery = query.normalize("NFKC").trim().replace(/\s+/g, " ").toLocaleLowerCase("en-US");
 
   return runDb(async (db) => {
     try {
-      const rows = await db.getAllAsync<SearchRecord>(
+      const textMatches = await db.getAllAsync<SearchRecord>(
         `SELECT e.id, e.created_at, e.updated_at, e.text, e.images, e.audios, e.attachments,
                 e.latitude, e.longitude, e.location,
                 snippet(entries_fts, 0, char(1), char(2), '…', ${SNIPPET_WORDS}) AS text_snippet,
@@ -55,9 +56,34 @@ export async function searchEntries(
         match,
         limit
       );
+      const tagMatches = await db.getAllAsync<SearchRecord>(
+        `SELECT e.id, e.created_at, e.updated_at, e.text, e.images, e.audios, e.attachments,
+                e.latitude, e.longitude, e.location, NULL AS text_snippet, NULL AS location_snippet
+           FROM entries e
+           JOIN entry_tags et ON et.entry_id = e.id
+           JOIN tags t ON t.id = et.tag_id
+          WHERE instr(t.key, ?) = 1
+          ORDER BY e.created_at DESC, e.id DESC
+          LIMIT ?`,
+        tagQuery,
+        limit
+      );
 
+      const rows: SearchRecord[] = [];
+      const seen = new Set<string>();
+      for (const row of [...textMatches, ...tagMatches]) {
+        if (seen.has(row.id)) continue;
+        seen.add(row.id);
+        rows.push(row);
+        if (rows.length === limit) break;
+      }
+
+      const tagsByEntryId = await getTagsByEntryIds(
+        db,
+        rows.map((row) => row.id)
+      );
       return rows.map((row) => ({
-        entry: toEntry(row),
+        entry: toEntry(row, tagsByEntryId.get(row.id)),
         snippet: row.text ? (row.text_snippet ?? "") : "",
         locationSnippet: row.location ? (row.location_snippet ?? "") : "",
       }));

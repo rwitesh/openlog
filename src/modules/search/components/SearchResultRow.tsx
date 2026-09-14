@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { entryContentTypeLabel } from "@/modules/entry";
+import { entryContentTypeLabel, TagChip } from "@/modules/entry";
 import { locationPlaceTitle } from "@/services/location/location";
 import { ThemedText } from "@/shared/components/ThemedText";
 import type { EntrySearchResult } from "@/shared/types";
@@ -21,6 +21,7 @@ function SearchResultRowBase({ result, onOpen }: SearchResultRowProps) {
   const { entry, snippet, locationSnippet } = result;
 
   const hasText = Boolean(entry.text?.trim());
+  const textMatched = hasSnippetMatch(snippet);
   const locationMatched = hasSnippetMatch(locationSnippet);
   const showLocation = locationPref && Boolean(entry.location);
 
@@ -28,7 +29,7 @@ function SearchResultRowBase({ result, onOpen }: SearchResultRowProps) {
     <Pressable
       onPress={() => onOpen(entry.id)}
       style={({ pressed }) => [styles.row, pressed && press]}
-      accessibilityLabel="Open moment"
+      accessibilityLabel="Open entry"
       accessibilityRole="button"
     >
       <View style={styles.metaRow}>
@@ -50,13 +51,25 @@ function SearchResultRowBase({ result, onOpen }: SearchResultRowProps) {
         ) : null}
       </View>
 
-      {hasText ? (
+      {hasText && textMatched ? (
         <SearchHighlight snippet={snippet} numberOfLines={3} />
+      ) : hasText ? (
+        <ThemedText style={[styles.preview, { color: colors.text }]} numberOfLines={3}>
+          {entry.text}
+        </ThemedText>
       ) : (
         <ThemedText style={[styles.fallback, { color: colors.textSecondary }]} numberOfLines={1}>
           {entryContentTypeLabel(entry)}
         </ThemedText>
       )}
+
+      {entry.tags.length ? (
+        <View style={styles.tags}>
+          {entry.tags.map((tag) => (
+            <TagChip key={tag.id} tag={tag} />
+          ))}
+        </View>
+      ) : null}
     </Pressable>
   );
 }
@@ -87,5 +100,16 @@ const styles = StyleSheet.create({
     fontSize: typography.entryText.fontSize,
     lineHeight: typography.entryText.lineHeight,
     letterSpacing: typography.entryText.letterSpacing,
+  },
+  preview: {
+    fontSize: typography.entryText.fontSize,
+    lineHeight: typography.entryText.lineHeight,
+    letterSpacing: typography.entryText.letterSpacing,
+  },
+  tags: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: space.xs + 2,
+    marginTop: space.sm,
   },
 });

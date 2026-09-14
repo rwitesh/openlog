@@ -5,6 +5,7 @@ export * from "./components/ComposeFooterBar";
 export * from "./components/DateTimeBadges";
 export * from "./components/LiveRecordingBar";
 export * from "./components/LocationBadge";
+export * from "./components/TagPicker";
 export * from "./hooks/useComposeDraft";
 export * from "./hooks/useMediaAttachments";
 export * from "./styles/ChipStyles";
