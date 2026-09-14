@@ -172,7 +172,7 @@ export async function notifyBackupExportComplete(
 }
 
 /**
- * Notifies the user when an archive restore completes.
+ * Notifies the user when an archive restore has completed.
  */
 export async function notifyBackupImportComplete(importedCount: number): Promise<void> {
   const Notifications = getNotifications();
@@ -182,8 +182,8 @@ export async function notifyBackupImportComplete(importedCount: number): Promise
     await Notifications.scheduleNotificationAsync({
       identifier: BACKUP_NOTIFICATION_ID,
       content: {
-        title: "Import complete",
-        body: `Successfully restored ${importedCount.toLocaleString()} ${importedCount === 1 ? "entry" : "entries"}.`,
+        title: "Restore completed",
+        body: `${importedCount.toLocaleString()} ${importedCount === 1 ? "entry" : "entries"} restored.`,
         sound: true,
         sticky: false,
         autoDismiss: true,

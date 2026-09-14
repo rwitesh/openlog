@@ -1,5 +1,6 @@
+import { File } from "expo-file-system";
 import * as SQLite from "expo-sqlite";
-import { recoverIncompleteRestore } from "@/services/backup/restoreTransaction";
+import { applyPendingRestore, completePendingRestore } from "@/services/backup/restoreTransaction";
 import { DATABASE_SCHEMA_VERSION, initializeDatabaseSchema } from "./schema";
 
 const DB_NAME = "app.db";
@@ -18,9 +19,10 @@ function withLock<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 async function openFreshDatabase(): Promise<SQLite.SQLiteDatabase> {
+  await applyPendingRestore();
   const db = await SQLite.openDatabaseAsync(DB_NAME);
   await initializeDatabaseSchema(db);
-  await recoverIncompleteRestore(db);
+  await completePendingRestore();
   return db;
 }
 
@@ -60,92 +62,72 @@ export async function runDb<T>(fn: (db: SQLite.SQLiteDatabase) => Promise<T>): P
   });
 }
 
-/** Creates a coherent SQLite file using SQLite's native backup API, including committed WAL data. */
-export async function createDatabaseSnapshot(filename: string, directory: string): Promise<void> {
-  await withLock(async () => {
+/** Serializes the active connection so committed WAL data is included without a second native handle. */
+export async function createDatabaseSnapshot(snapshotFile: File): Promise<number> {
+  return await withLock(async () => {
     const sourceDatabase = await ensureDatabase();
-    const snapshotDatabase = await SQLite.openDatabaseAsync(
-      filename,
-      { useNewConnection: true },
-      directory
-    );
-    try {
-      await SQLite.backupDatabaseAsync({ sourceDatabase, destDatabase: snapshotDatabase });
-    } finally {
-      await snapshotDatabase.closeAsync();
-    }
-  });
-}
-
-/** Removes a closed temporary SQLite snapshot and any native sidecar files. */
-export async function deleteDatabaseSnapshot(filename: string, directory: string): Promise<void> {
-  await SQLite.deleteDatabaseAsync(filename, directory);
-}
-
-/** Validates a staged raw backup database before it can replace the active timeline. */
-export async function validateDatabaseSnapshot(
-  filename: string,
-  directory: string
-): Promise<number> {
-  const snapshotDatabase = await SQLite.openDatabaseAsync(
-    filename,
-    { useNewConnection: true },
-    directory
-  );
-  try {
-    const integrity = await snapshotDatabase.getFirstAsync<{ integrity_check: string }>(
-      "PRAGMA integrity_check"
-    );
-    if (integrity?.integrity_check !== "ok") {
-      throw new Error("Invalid backup database: integrity check failed.");
-    }
-    const version = await snapshotDatabase.getFirstAsync<{ user_version: number }>(
-      "PRAGMA user_version"
-    );
-    if (version?.user_version !== DATABASE_SCHEMA_VERSION) {
-      throw new Error("Unsupported backup database version.");
-    }
-    const requiredTables = await snapshotDatabase.getAllAsync<{ name: string }>(
-      "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('entries', 'tags', 'entry_tags', 'settings')"
-    );
-    if (requiredTables.length !== 4) {
-      throw new Error("Invalid backup database: required tables are missing.");
-    }
-    const count = await snapshotDatabase.getFirstAsync<{ count: number }>(
+    if (snapshotFile.exists) snapshotFile.delete();
+    snapshotFile.create({ overwrite: true });
+    snapshotFile.write(await sourceDatabase.serializeAsync());
+    const count = await sourceDatabase.getFirstAsync<{ count: number }>(
       "SELECT COUNT(*) AS count FROM entries"
     );
     return count?.count ?? 0;
-  } finally {
-    await snapshotDatabase.closeAsync();
+  });
+}
+
+/** Removes a temporary SQLite snapshot without opening a native SQLite connection. */
+export async function deleteDatabaseSnapshot(snapshotFile: File): Promise<void> {
+  for (const suffix of ["", "-shm", "-wal"] as const) {
+    const file = new File(snapshotFile.parentDirectory, `${snapshotFile.name}${suffix}`);
+    if (file.exists) file.delete();
   }
 }
 
-/** Replaces the active SQLite contents from a validated staged database under the database lock. */
-export async function restoreDatabaseSnapshot(
-  filename: string,
-  directory: string,
-  restoreTransactionId: string
+const RESTORE_SOURCE = "restore_source";
+
+async function attachRestoreSource(
+  database: SQLite.SQLiteDatabase,
+  snapshotFile: File
 ): Promise<void> {
-  const snapshotDatabase = await SQLite.openDatabaseAsync(
-    filename,
-    { useNewConnection: true },
-    directory
-  );
-  try {
-    await snapshotDatabase.runAsync(
-      `INSERT INTO settings (key, value) VALUES (?, ?)
-       ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-      ["restore_transaction_id", restoreTransactionId]
-    );
-    await withLock(async () => {
-      const destinationDatabase = await ensureDatabase();
-      await SQLite.backupDatabaseAsync({
-        sourceDatabase: snapshotDatabase,
-        destDatabase: destinationDatabase,
-      });
-      await initializeDatabaseSchema(destinationDatabase);
-    });
-  } finally {
-    await snapshotDatabase.closeAsync();
-  }
+  const databasePath = snapshotFile.uri.replace(/^file:\/\//, "");
+  await database.runAsync(`ATTACH DATABASE ? AS ${RESTORE_SOURCE}`, [databasePath]);
+}
+
+async function detachRestoreSource(database: SQLite.SQLiteDatabase): Promise<void> {
+  await database.execAsync(`DETACH DATABASE ${RESTORE_SOURCE}`);
+}
+
+/** Validates a staged backup through the active connection, avoiding a temporary native handle. */
+export async function validateDatabaseSnapshot(snapshotFile: File): Promise<number> {
+  return await runDb(async (database) => {
+    await attachRestoreSource(database, snapshotFile);
+    try {
+      const integrity = await database.getFirstAsync<{ integrity_check: string }>(
+        `PRAGMA ${RESTORE_SOURCE}.integrity_check`
+      );
+      if (integrity?.integrity_check !== "ok") {
+        throw new Error("Invalid backup database: integrity check failed.");
+      }
+      const version = await database.getFirstAsync<{ user_version: number }>(
+        `PRAGMA ${RESTORE_SOURCE}.user_version`
+      );
+      if (version?.user_version !== DATABASE_SCHEMA_VERSION) {
+        throw new Error("Unsupported backup database version.");
+      }
+      const requiredTables = await database.getAllAsync<{ name: string }>(
+        `SELECT name FROM ${RESTORE_SOURCE}.sqlite_master
+         WHERE type = 'table' AND name IN ('entries', 'tags', 'entry_tags', 'settings')`
+      );
+      if (requiredTables.length !== 4) {
+        throw new Error("Invalid backup database: required tables are missing.");
+      }
+      const count = await database.getFirstAsync<{ count: number }>(
+        `SELECT COUNT(*) AS count FROM ${RESTORE_SOURCE}.entries`
+      );
+      return count?.count ?? 0;
+    } finally {
+      await detachRestoreSource(database);
+    }
+  });
 }

@@ -1,3 +1,4 @@
+import { reloadAppAsync } from "expo";
 import { File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import { useEffect, useState } from "react";
@@ -215,6 +216,11 @@ export function PrivacySettingsScreen() {
       });
 
       void notifyBackupImportComplete(result.importedCount);
+      try {
+        await reloadAppAsync("Restore completed");
+      } catch (error) {
+        logDevWarning("settings:restartAfterRestore", error);
+      }
     } catch (error) {
       if (controller.signal.aborted) {
         void dismissBackupProgressNotification();

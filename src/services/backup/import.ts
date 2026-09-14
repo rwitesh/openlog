@@ -1,21 +1,9 @@
-import { File, FileMode, Paths } from "expo-file-system";
+import { File, FileMode } from "expo-file-system";
 import { strFromU8, Unzip, UnzipInflate, UnzipPassThrough } from "fflate";
 
-import { notifyStoreReload } from "@/modules/entry";
-import {
-  deleteDatabaseSnapshot,
-  restoreDatabaseSnapshot,
-  validateDatabaseSnapshot,
-} from "@/services/db/database";
+import { validateDatabaseSnapshot } from "@/services/db/database";
 
-import {
-  clearRestoreTransaction,
-  createRestoreTransaction,
-  RESTORE_MEDIA_DIR,
-  RESTORE_NEXT_MEDIA_DIR,
-  RESTORE_PREVIOUS_MEDIA_DIR,
-  updateRestoreTransaction,
-} from "./restoreTransaction";
+import { createRestoreStaging, discardRestoreStaging, queueRestore } from "./restoreTransaction";
 import { assertArchiveManifest } from "./shared";
 import {
   ARCHIVE_FORMAT,
@@ -70,15 +58,17 @@ export async function importBackupArchive(
   if (archiveBytes > LIMITS.archiveBytes) throw new Error("Backup file is too large to restore.");
   if (options?.signal?.aborted) throw new Error("Import cancelled");
 
-  const snapshotName = `restore-snapshot-${restoreId()}.sqlite`;
-  const snapshotFile = new File(Paths.cache, snapshotName);
-  if (RESTORE_NEXT_MEDIA_DIR.exists) RESTORE_NEXT_MEDIA_DIR.delete();
-  RESTORE_NEXT_MEDIA_DIR.create({ idempotent: true, intermediates: true });
+  const id = restoreId();
+  const staging = createRestoreStaging(id);
+  const snapshotFile = staging.database;
+  if (staging.media.exists) staging.media.delete();
+  staging.media.create({ idempotent: true, intermediates: true });
   if (snapshotFile.exists) snapshotFile.delete();
   snapshotFile.create({ overwrite: true });
   const snapshotHandle = snapshotFile.open(FileMode.WriteOnly);
   let snapshotClosed = false;
   let manifest: ArchiveManifest | null = null;
+  let queued = false;
   let failure: Error | null = null;
   let totalUncompressed = 0;
   let mediaCount = 0;
@@ -123,7 +113,7 @@ export async function importBackupArchive(
           mediaCount++;
           if (mediaCount > LIMITS.media)
             throw new Error("Invalid backup file: too many media files.");
-          const destination = new File(RESTORE_NEXT_MEDIA_DIR, filename);
+          const destination = new File(staging.media, filename);
           destination.create({ overwrite: true });
           mediaHandle = destination.open(FileMode.WriteOnly);
         }
@@ -196,39 +186,17 @@ export async function importBackupArchive(
 
     snapshotHandle.close();
     snapshotClosed = true;
-    const importedCount = await validateDatabaseSnapshot(snapshotName, Paths.cache.uri);
+    const importedCount = await validateDatabaseSnapshot(snapshotFile);
     if (importedCount !== validatedManifest.counts.entry) {
       throw new Error("Backup data does not match the manifest entry count.");
     }
     if (options?.signal?.aborted) throw new Error("Import cancelled");
 
-    const transaction = await createRestoreTransaction();
-    if (RESTORE_PREVIOUS_MEDIA_DIR.exists) RESTORE_PREVIOUS_MEDIA_DIR.delete();
-    await updateRestoreTransaction(transaction, "swapping-media");
-    if (RESTORE_MEDIA_DIR.exists) RESTORE_MEDIA_DIR.move(RESTORE_PREVIOUS_MEDIA_DIR);
-    RESTORE_NEXT_MEDIA_DIR.move(RESTORE_MEDIA_DIR);
-    await updateRestoreTransaction(transaction, "media-swapped");
-
-    try {
-      await restoreDatabaseSnapshot(snapshotName, Paths.cache.uri, transaction.id);
-      await updateRestoreTransaction(transaction, "database-committed");
-      if (RESTORE_PREVIOUS_MEDIA_DIR.exists) RESTORE_PREVIOUS_MEDIA_DIR.delete();
-      clearRestoreTransaction();
-      notifyStoreReload();
-      return { importedCount };
-    } catch (error) {
-      if (RESTORE_MEDIA_DIR.exists) RESTORE_MEDIA_DIR.delete();
-      if (transaction.hadPreviousMedia && RESTORE_PREVIOUS_MEDIA_DIR.exists) {
-        RESTORE_PREVIOUS_MEDIA_DIR.move(RESTORE_MEDIA_DIR);
-      } else {
-        RESTORE_MEDIA_DIR.create({ idempotent: true, intermediates: true });
-      }
-      clearRestoreTransaction();
-      throw error;
-    }
+    await queueRestore(id);
+    queued = true;
+    return { importedCount };
   } finally {
     if (!snapshotClosed) snapshotHandle.close();
-    if (snapshotFile.exists) await deleteDatabaseSnapshot(snapshotName, Paths.cache.uri);
-    if (RESTORE_NEXT_MEDIA_DIR.exists) RESTORE_NEXT_MEDIA_DIR.delete();
+    if (!queued) discardRestoreStaging(id);
   }
 }
