@@ -42,10 +42,15 @@ function listMediaFiles(): File[] {
   const mediaDirectory = new Directory(Paths.document, "media");
   if (!mediaDirectory.exists) return [];
   const items = mediaDirectory.list();
-  if (items.some((item) => !(item instanceof File))) {
-    throw new Error("Cannot back up media: the media directory contains nested folders.");
+  const files: File[] = [];
+  for (const item of items) {
+    if (item instanceof File && item.exists) {
+      files.push(item);
+    } else {
+      logDevWarning("backup:export", `Skipping non-file media item: ${item.name}`);
+    }
   }
-  return items as File[];
+  return files;
 }
 
 function addFileToArchive(
