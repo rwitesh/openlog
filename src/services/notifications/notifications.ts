@@ -158,8 +158,8 @@ export async function notifyBackupExportComplete(
     await Notifications.scheduleNotificationAsync({
       identifier: BACKUP_NOTIFICATION_ID,
       content: {
-        title: "Backup archive saved",
-        body: `Backup stored: ${entryCount.toLocaleString()} ${entryCount === 1 ? "entry" : "entries"} packaged${sizeText}.`,
+        title: "Backup saved",
+        body: `${entryCount.toLocaleString()} ${entryCount === 1 ? "entry" : "entries"}${sizeText}.`,
         sound: true,
         sticky: false,
         autoDismiss: true,
@@ -182,7 +182,7 @@ export async function notifyBackupImportComplete(importedCount: number): Promise
     await Notifications.scheduleNotificationAsync({
       identifier: BACKUP_NOTIFICATION_ID,
       content: {
-        title: "Restore completed",
+        title: "Backup restored",
         body: `${importedCount.toLocaleString()} ${importedCount === 1 ? "entry" : "entries"} restored.`,
         sound: true,
         sticky: false,

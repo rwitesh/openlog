@@ -69,14 +69,14 @@
 
       <div class="rule"></div>
       <div class="tag">The version train</div>
-      <div class="train" aria-label="Database migration versions">
+      <div class="train">
         <article class="stop"><span class="version">V1 · today</span><strong>Fresh baseline</strong><p><code>v1.ts</code> creates the complete current schema. Do not change it after release.</p></article>
         <article class="stop future"><span class="version">V2 · next change</span><strong>One forward move</strong><p>Create <code>v2.ts</code> only for the database change from v1 to v2.</p></article>
         <article class="stop future"><span class="version">V3 · later</span><strong>Keep moving forward</strong><p>Register each new file once. The current version is derived automatically.</p></article>
       </div>
 
       <div class="tag">What happens on app start or restore</div>
-      <div class="flow" aria-label="Migration process">
+      <div class="flow">
         <div><b>01 · READ</b><span>OpenLog reads SQLite’s <code>user_version</code>.</span></div>
         <div><b>02 · APPLY</b><span>It runs only the missing migration files, in order.</span></div>
         <div><b>03 · COMMIT</b><span>The new version is written only if that step succeeds.</span></div>
