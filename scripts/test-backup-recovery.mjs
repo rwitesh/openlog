@@ -24,7 +24,7 @@ import {
   validateArchivePath,
   waitForExportGate,
 } from "../src/services/backup/shared.ts";
-import { initializeDatabaseSchema } from "../src/services/db/schema.ts";
+import { initializeDatabaseSchema, migrateRestoreSchema } from "../src/services/db/schema.ts";
 import { validateAttachedDatabase } from "../src/services/db/validation.ts";
 
 const manifest = {
@@ -451,27 +451,28 @@ function createDbTarget(database) {
   };
 }
 
-test("validateAttachedDatabase accepts current and older schema versions and rejects newer ones", async () => {
+test("restore schema gate accepts the current baseline and rejects unknown versions", async () => {
   const memDb = new DatabaseSync(":memory:");
   const target = createDbTarget(memDb);
   await initializeDatabaseSchema(target);
 
-  // Default schema version is 1; should pass validation
+  // The v1 baseline is accepted before structural validation.
+  await migrateRestoreSchema(target, "main");
   const count1 = await validateAttachedDatabase(target, "main");
   assert.equal(count1, 0);
 
-  // Future version 2; should throw unsupported backup version
+  // A future schema is rejected rather than guessed at or downgraded.
   memDb.exec("PRAGMA user_version = 2;");
   await assert.rejects(
-    () => validateAttachedDatabase(target, "main"),
-    /Unsupported backup database version/
+    () => migrateRestoreSchema(target, "main"),
+    /Unsupported database version \(2\)/
   );
 
-  // Version 0 or negative; should throw missing or invalid user_version
+  // Restore archives must have a declared baseline version.
   memDb.exec("PRAGMA user_version = 0;");
   await assert.rejects(
-    () => validateAttachedDatabase(target, "main"),
-    /missing or invalid user_version/
+    () => migrateRestoreSchema(target, "main"),
+    /Unsupported database version \(0\)/
   );
 });
 

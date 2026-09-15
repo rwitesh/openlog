@@ -9,7 +9,7 @@ import {
 import { DATABASE_SIZE_CEILING } from "@/services/backup/shared";
 import { notifyBackupImportComplete } from "@/services/notifications";
 import { logDevWarning } from "@/shared/utils/devLog";
-import { initializeDatabaseSchema } from "./schema";
+import { initializeDatabaseSchema, migrateRestoreSchema } from "./schema";
 
 export { DATABASE_SIZE_CEILING };
 
@@ -184,6 +184,7 @@ export async function validateDatabaseSnapshot(
   return await runDb(async (database) => {
     await attachRestoreSource(database, snapshotFile);
     try {
+      await migrateRestoreSchema(database, RESTORE_SOURCE);
       return await validateAttachedDatabase(database, RESTORE_SOURCE, stagingMediaDir);
     } finally {
       await detachRestoreSource(database);
