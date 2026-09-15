@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  BackHandler,
   Platform,
   Pressable,
   StyleSheet,
@@ -122,7 +121,7 @@ export function PrivacySettingsScreen() {
     const controller = new AbortController();
     setExportController(controller);
 
-    void notifyBackupProgress("Backing up OpenLog…", "Packaging your entries…");
+    void notifyBackupProgress("Saving backup…", "Preparing your backup…");
 
     try {
       const result = await exportBackupArchive({
@@ -133,9 +132,9 @@ export function PrivacySettingsScreen() {
           if (processed % step !== 0 && processed !== total) return;
           const body =
             phase === "database"
-              ? "Creating database snapshot…"
-              : `Saving backup (${processed.toLocaleString()}/${total.toLocaleString()})…`;
-          void notifyBackupProgress("Backing up OpenLog…", body);
+              ? "Saving your entries…"
+              : `Saving files (${processed.toLocaleString()} of ${total.toLocaleString()})…`;
+          void notifyBackupProgress("Saving backup…", body);
         },
       });
 
@@ -192,7 +191,7 @@ export function PrivacySettingsScreen() {
       logDevWarning("settings:exportBackup", error);
       void notifyBackupError(
         "Backup failed",
-        "Could not store backup. Please check available device storage and try again."
+        "Couldn’t save your backup. Check your storage and try again."
       );
     } finally {
       setExportController(null);
@@ -215,7 +214,7 @@ export function PrivacySettingsScreen() {
     const controller = new AbortController();
     setImportController(controller);
 
-    void notifyBackupProgress("Restoring OpenLog…", "Restoring your entries…");
+    void notifyBackupProgress("Restoring backup…", "Checking your backup…");
 
     try {
       await importBackupArchive(fileUri, {
@@ -231,23 +230,15 @@ export function PrivacySettingsScreen() {
 
       if (Platform.OS === "android") {
         Alert.alert(
-          "Restore Prepared",
-          "Your backup has been verified. To complete restoring your timeline, please close OpenLog completely (swipe it away from Recent Apps) and reopen it.",
-          [
-            {
-              text: "Close OpenLog",
-              onPress: () => {
-                BackHandler.exitApp();
-              },
-            },
-            { text: "Later", style: "cancel" },
-          ]
+          "One last step",
+          "Your backup is ready. Swipe OpenLog away from Recent Apps, then open it again.",
+          [{ text: "Done" }]
         );
       } else {
         Alert.alert(
-          "Restore Prepared",
-          "Your backup has been verified. To complete restoring your timeline, please close OpenLog from the app switcher and reopen it.",
-          [{ text: "OK" }]
+          "One last step",
+          "Your backup is ready. Close OpenLog from the app switcher, then open it again.",
+          [{ text: "Done" }]
         );
       }
     } catch (error) {
@@ -258,7 +249,7 @@ export function PrivacySettingsScreen() {
       logDevWarning("settings:importBackup", error);
       void notifyBackupError(
         "Restore failed",
-        "Could not restore backup. Please verify the selected file is valid."
+        "Couldn’t restore this backup. Try another OpenLog backup file."
       );
     } finally {
       setImportController(null);
@@ -279,9 +270,8 @@ export function PrivacySettingsScreen() {
     let fileUri: string | null = null;
     try {
       fileUri = await pickBackupArchiveFile();
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : "Failed to select backup file.";
-      Alert.alert("Invalid File", msg);
+    } catch (_error) {
+      Alert.alert("Couldn’t open file", "Choose an OpenLog backup file and try again.");
       return;
     }
 
@@ -292,11 +282,7 @@ export function PrivacySettingsScreen() {
       preview = await inspectBackupArchive(fileUri);
     } catch (error) {
       logDevWarning("settings:inspectBackup", error);
-      const msg =
-        error instanceof Error
-          ? error.message
-          : "This backup file could not be read or is corrupted.";
-      Alert.alert("Cannot Restore Backup", msg);
+      Alert.alert("Can’t restore this backup", "The file is damaged or isn’t an OpenLog backup.");
       try {
         new File(fileUri).delete();
       } catch {
@@ -311,7 +297,7 @@ export function PrivacySettingsScreen() {
     const entryLabel = `${preview.counts.entry.toLocaleString()} ${preview.counts.entry === 1 ? "entry" : "entries"}`;
     Alert.alert(
       "Restore Backup?",
-      `This backup from ${dateStr} contains ${entryLabel}.\n\nRestoring will replace all current entries on this device. This cannot be undone.`,
+      `${entryLabel} from ${dateStr}.\n\nThis replaces your current timeline and attached files. You can’t undo this.`,
       [
         {
           text: "Cancel",
@@ -382,11 +368,7 @@ export function PrivacySettingsScreen() {
         <SettingsRow
           icon="upload"
           title="Export"
-          subtitle={
-            isExporting
-              ? "Packaging & saving to selected folder…"
-              : "Save all your data to a backup file"
-          }
+          subtitle={isExporting ? "Saving your backup…" : "Save your timeline to a backup file"}
           badge={
             isExporting ? (
               <View style={styles.inFlightRow}>
@@ -417,9 +399,7 @@ export function PrivacySettingsScreen() {
           icon="download"
           title="Import"
           subtitle={
-            isImporting
-              ? "Restoring entries…"
-              : "Restore from a backup file, replacing current data"
+            isImporting ? "Checking your backup…" : "Replace your current timeline with a backup"
           }
           badge={
             isImporting ? (
