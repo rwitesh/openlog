@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OpenLog database migrations</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Serif+Display:ital@0;1&family=Source+Sans+3:wght@400;600;700&display=swap");
+
+      :root {
+        --paper: #f6f0e6;
+        --ink: #29221e;
+        --soft: #746b63;
+        --line: #ded1c0;
+        --accent: #ad5941;
+        --safe: #356e58;
+        --card: #fffaf2;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 85% 9%, #ecd8c5 0, transparent 25rem),
+          var(--paper);
+        font: 18px/1.5 "Source Sans 3", sans-serif;
+      }
+      main { width: min(960px, calc(100% - 40px)); margin: 0 auto; padding: 72px 0 84px; }
+      .eyebrow, .tag { font: 500 12px/1 "DM Mono", monospace; letter-spacing: .11em; text-transform: uppercase; }
+      .eyebrow { color: var(--accent); }
+      h1, h2 { margin: 0; font-family: "DM Serif Display", Georgia, serif; line-height: 1.04; font-weight: 400; }
+      h1 { max-width: 720px; margin-top: 15px; font-size: clamp(46px, 7vw, 78px); letter-spacing: -.04em; }
+      .lead { max-width: 650px; margin: 22px 0 0; color: var(--soft); font-size: 22px; }
+      .rule { height: 1px; margin: 53px 0 30px; background: var(--line); }
+      h2 { font-size: 34px; letter-spacing: -.025em; }
+      .train { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; margin: 30px 0 40px; }
+      .stop { position: relative; min-height: 158px; padding: 22px; background: var(--card); border: 1px solid var(--line); }
+      .stop + .stop { border-left: 0; }
+      .stop::before { content: ""; position: absolute; top: -8px; left: 22px; width: 15px; height: 15px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 5px var(--paper); }
+      .stop.future::before { background: var(--safe); }
+      .version { font: 500 14px "DM Mono", monospace; color: var(--accent); }
+      .future .version { color: var(--safe); }
+      .stop strong { display: block; margin-top: 9px; font-size: 21px; }
+      .stop p { margin: 7px 0 0; color: var(--soft); font-size: 16px; }
+      .flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 25px 0 42px; }
+      .flow div { min-height: 105px; padding: 16px; background: var(--ink); color: #fff8ec; }
+      .flow b { display: block; margin-bottom: 8px; color: #f1b090; font: 500 12px "DM Mono", monospace; }
+      .flow span { font-size: 16px; line-height: 1.25; }
+      .note { border-left: 4px solid var(--safe); padding: 14px 18px; background: #e7efe8; color: #315544; }
+      .checklist { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 24px; }
+      .check { padding: 18px; border: 1px solid var(--line); background: rgb(255 250 242 / .7); }
+      .check b { color: var(--safe); font: 500 13px "DM Mono", monospace; }
+      .check p { margin: 7px 0 0; font-size: 16px; }
+      code { padding: 2px 4px; background: #ede3d6; font: 13px "DM Mono", monospace; }
+      footer { margin-top: 46px; color: var(--soft); font-size: 15px; }
+      @media (max-width: 680px) {
+        main { width: min(100% - 28px, 960px); padding-top: 44px; }
+        .train, .flow, .checklist { grid-template-columns: 1fr; }
+        .stop + .stop { border-left: 1px solid var(--line); border-top: 0; }
+      }
+      @media print { body { background: white; } main { width: auto; padding: 0; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="eyebrow">OpenLog · database migration map</div>
+      <h1>One small step forward at a time.</h1>
+      <p class="lead">Today’s complete database is v1. When its stored shape changes, add exactly one new migration file. The app does the rest in order.</p>
+
+      <div class="rule"></div>
+      <div class="tag">The version train</div>
+      <div class="train" aria-label="Database migration versions">
+        <article class="stop"><span class="version">V1 · today</span><strong>Fresh baseline</strong><p><code>v1.ts</code> creates the complete current schema. Do not change it after release.</p></article>
+        <article class="stop future"><span class="version">V2 · next change</span><strong>One forward move</strong><p>Create <code>v2.ts</code> only for the database change from v1 to v2.</p></article>
+        <article class="stop future"><span class="version">V3 · later</span><strong>Keep moving forward</strong><p>Register each new file once. The current version is derived automatically.</p></article>
+      </div>
+
+      <div class="tag">What happens on app start or restore</div>
+      <div class="flow" aria-label="Migration process">
+        <div><b>01 · READ</b><span>OpenLog reads SQLite’s <code>user_version</code>.</span></div>
+        <div><b>02 · APPLY</b><span>It runs only the missing migration files, in order.</span></div>
+        <div><b>03 · COMMIT</b><span>The new version is written only if that step succeeds.</span></div>
+        <div><b>04 · PROTECT</b><span>Backup restores migrate in staging before the safe swap.</span></div>
+      </div>
+      <p class="note"><strong>Safe by design:</strong> a failed migration leaves the live timeline alone. A backup from a newer schema is rejected; it is never downgraded or guessed at.</p>
+
+      <div class="rule"></div>
+      <div class="tag">When you next change stored data</div>
+      <h2>Your four-point checklist</h2>
+      <div class="checklist">
+        <article class="check"><b>1. ADD</b><p>Create <code>v2.ts</code> with only the SQL/data conversion needed for v1 → v2.</p></article>
+        <article class="check"><b>2. REGISTER</b><p>Add <code>{ version: 2, up: migrateToV2 }</code> after v1 in <code>schema.ts</code>.</p></article>
+        <article class="check"><b>3. ALIGN</b><p>Update types, reads, writes, and final-schema validation for the new shape.</p></article>
+        <article class="check"><b>4. PROVE</b><p>Test a fresh database, v1 → v2, and a restored backup → v2.</p></article>
+      </div>
+      <footer>For the full examples and safety rules, read <code>README.md</code> in this same folder.</footer>
+    </main>
+  </body>
+</html>

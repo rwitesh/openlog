@@ -1,3 +1,5 @@
+import { migrateToV1 } from "./migrations/v1.ts";
+
 export interface SchemaDatabase {
   execAsync(source: string): Promise<void>;
   getFirstAsync<T>(source: string, ...params: unknown[]): Promise<T | null>;
@@ -5,7 +7,55 @@ export interface SchemaDatabase {
   withTransactionAsync(task: () => Promise<void>): Promise<void>;
 }
 
-export const DATABASE_SCHEMA_VERSION = 1;
+interface DatabaseMigration {
+  version: number;
+  up: (db: SchemaDatabase, schema: string) => Promise<void>;
+}
+
+/**
+ * Add one immutable file per forward schema change, then register it here.
+ * Never edit a migration that has shipped or renumber an existing version.
+ */
+const MIGRATIONS: readonly DatabaseMigration[] = [{ version: 1, up: migrateToV1 }];
+
+export const DATABASE_SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;
+
+async function readSchemaVersion(db: SchemaDatabase, schema: string): Promise<number> {
+  const result = await db.getFirstAsync<{ user_version: number }>(`PRAGMA ${schema}.user_version`);
+  return result?.user_version ?? 0;
+}
+
+async function applyMigrations(
+  db: SchemaDatabase,
+  currentVersion: number,
+  minimumVersion: number,
+  schema: string
+): Promise<void> {
+  if (currentVersion < minimumVersion) {
+    throw new Error(`Unsupported database version (${currentVersion}).`);
+  }
+  if (currentVersion > DATABASE_SCHEMA_VERSION) {
+    throw new Error(`Unsupported database version (${currentVersion}). Please update OpenLog.`);
+  }
+
+  const pending = MIGRATIONS.filter((migration) => migration.version > currentVersion);
+  for (const migration of pending) {
+    await db.withTransactionAsync(async () => {
+      await migration.up(db, schema);
+      await db.execAsync(`PRAGMA ${schema}.user_version = ${migration.version}`);
+    });
+  }
+}
+
+/** Opens a fresh database at v1, or moves an existing supported database forward. */
+export async function migrateDatabaseSchema(db: SchemaDatabase): Promise<void> {
+  await applyMigrations(db, await readSchemaVersion(db, "main"), 0, "main");
+}
+
+/** Migrates a staged restore snapshot before it is validated or swapped into place. */
+export async function migrateRestoreSchema(db: SchemaDatabase, schema: string): Promise<void> {
+  await applyMigrations(db, await readSchemaVersion(db, schema), 1, schema);
+}
 
 export async function initializeDatabaseSchema(db: SchemaDatabase): Promise<void> {
   await db.execAsync(`
@@ -15,45 +65,7 @@ export async function initializeDatabaseSchema(db: SchemaDatabase): Promise<void
     PRAGMA foreign_keys = ON;
   `);
 
-  await db.withTransactionAsync(async () => {
-    await db.execAsync(`
-      CREATE TABLE IF NOT EXISTS entries (
-        id          TEXT PRIMARY KEY NOT NULL,
-        created_at  INTEGER NOT NULL,
-        updated_at  INTEGER NOT NULL,
-        text        TEXT,
-        images      TEXT,
-        audios      TEXT,
-        attachments TEXT,
-        latitude    REAL,
-        longitude   REAL,
-        location    TEXT
-      );
-      CREATE INDEX IF NOT EXISTS idx_entries_created_at_id
-        ON entries (created_at DESC, id DESC);
-      CREATE TABLE IF NOT EXISTS tags (
-        id         TEXT PRIMARY KEY NOT NULL,
-        name       TEXT NOT NULL,
-        key        TEXT NOT NULL UNIQUE,
-        color_id   TEXT NOT NULL,
-        created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL
-      );
-      CREATE TABLE IF NOT EXISTS entry_tags (
-        entry_id TEXT NOT NULL REFERENCES entries(id) ON DELETE CASCADE,
-        tag_id   TEXT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
-        PRIMARY KEY (entry_id, tag_id)
-      );
-      CREATE INDEX IF NOT EXISTS idx_entry_tags_tag_entry
-        ON entry_tags (tag_id, entry_id);
-      CREATE TABLE IF NOT EXISTS settings (
-        key   TEXT PRIMARY KEY NOT NULL,
-        value TEXT NOT NULL
-      );
-      PRAGMA user_version = ${DATABASE_SCHEMA_VERSION};
-    `);
-  });
-
+  await migrateDatabaseSchema(db);
   await initializeSearchIndex(db);
 }
 
@@ -71,7 +83,6 @@ async function initializeSearchIndex(db: SchemaDatabase): Promise<void> {
   );
   const hadCompleteIndex = existing.length === searchIndexObjects.length;
 
-  // The external-content FTS table mirrors entries through these triggers.
   await db.execAsync(`
     CREATE VIRTUAL TABLE IF NOT EXISTS entries_fts USING fts5(
       text,
@@ -102,7 +113,6 @@ async function initializeSearchIndex(db: SchemaDatabase): Promise<void> {
   `);
 
   if (!hadCompleteIndex) {
-    // Populate an index created after entries already exist.
     await db.execAsync(`INSERT INTO entries_fts (entries_fts) VALUES ('rebuild')`);
   }
 }

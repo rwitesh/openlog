@@ -6,6 +6,7 @@ export interface ValidationDatabase {
   runAsync(source: string, ...params: unknown[]): Promise<unknown>;
   getFirstAsync<T>(source: string, ...params: unknown[]): Promise<T | null>;
   getAllAsync<T>(source: string, ...params: unknown[]): Promise<T[]>;
+  withTransactionAsync(task: () => Promise<void>): Promise<void>;
 }
 
 export interface StagingMediaDirectory {
