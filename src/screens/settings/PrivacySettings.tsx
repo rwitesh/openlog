@@ -76,7 +76,7 @@ export function PrivacySettingsScreen() {
   }, []);
 
   const caption = (() => {
-    if (!support) return "Checking device support…";
+    if (!support) return "Checking device support";
     if (!support.hasHardware) return "Not supported on this device.";
     if (!support.isEnrolled) return "Set up biometrics in device settings.";
     return "Require Face ID or fingerprint to open the app.";
@@ -121,7 +121,7 @@ export function PrivacySettingsScreen() {
     const controller = new AbortController();
     setExportController(controller);
 
-    void notifyBackupProgress("Saving backup…", "Preparing your backup…");
+    void notifyBackupProgress("Saving backup", "Preparing your backup");
 
     try {
       const result = await exportBackupArchive({
@@ -132,9 +132,9 @@ export function PrivacySettingsScreen() {
           if (processed % step !== 0 && processed !== total) return;
           const body =
             phase === "database"
-              ? "Saving your entries…"
-              : `Saving files (${processed.toLocaleString()} of ${total.toLocaleString()})…`;
-          void notifyBackupProgress("Saving backup…", body);
+              ? "Saving your entries"
+              : `Saving files (${processed.toLocaleString()} of ${total.toLocaleString()})`;
+          void notifyBackupProgress("Saving backup", body);
         },
       });
 
@@ -214,7 +214,7 @@ export function PrivacySettingsScreen() {
     const controller = new AbortController();
     setImportController(controller);
 
-    void notifyBackupProgress("Restoring backup…", "Checking your backup…");
+    void notifyBackupProgress("Restoring backup", "Checking your backup");
 
     try {
       await importBackupArchive(fileUri, {
@@ -368,7 +368,7 @@ export function PrivacySettingsScreen() {
         <SettingsRow
           icon="upload"
           title="Export"
-          subtitle={isExporting ? "Saving your backup…" : "Save your timeline to a backup file"}
+          subtitle={isExporting ? "Saving your backup" : "Save your timeline to a backup file"}
           badge={
             isExporting ? (
               <View style={styles.inFlightRow}>
@@ -399,7 +399,7 @@ export function PrivacySettingsScreen() {
           icon="download"
           title="Import"
           subtitle={
-            isImporting ? "Checking your backup…" : "Replace your current timeline with a backup"
+            isImporting ? "Checking your backup" : "Replace your current timeline with a backup"
           }
           badge={
             isImporting ? (
