@@ -69,6 +69,36 @@ export async function initializeDatabaseSchema(db: SchemaDatabase): Promise<void
   await initializeSearchIndex(db);
 }
 
+export async function recreateSearchIndex(db: SchemaDatabase, schema: string): Promise<void> {
+  await db.execAsync(`
+    DROP TRIGGER IF EXISTS ${schema}.entries_fts_ai;
+    DROP TRIGGER IF EXISTS ${schema}.entries_fts_ad;
+    DROP TRIGGER IF EXISTS ${schema}.entries_fts_au;
+    DROP TABLE IF EXISTS ${schema}.entries_fts;
+    CREATE VIRTUAL TABLE ${schema}.entries_fts USING fts5(
+      text,
+      location,
+      content='entries',
+      content_rowid='rowid'
+    );
+    CREATE TRIGGER ${schema}.entries_fts_ai AFTER INSERT ON entries BEGIN
+      INSERT INTO entries_fts (rowid, text, location)
+      VALUES (new.rowid, new.text, new.location);
+    END;
+    CREATE TRIGGER ${schema}.entries_fts_ad AFTER DELETE ON entries BEGIN
+      INSERT INTO entries_fts (entries_fts, rowid, text, location)
+      VALUES ('delete', old.rowid, old.text, old.location);
+    END;
+    CREATE TRIGGER ${schema}.entries_fts_au AFTER UPDATE ON entries BEGIN
+      INSERT INTO entries_fts (entries_fts, rowid, text, location)
+      VALUES ('delete', old.rowid, old.text, old.location);
+      INSERT INTO entries_fts (rowid, text, location)
+      VALUES (new.rowid, new.text, new.location);
+    END;
+    INSERT INTO ${schema}.entries_fts(entries_fts) VALUES ('rebuild');
+  `);
+}
+
 async function initializeSearchIndex(db: SchemaDatabase): Promise<void> {
   const searchIndexObjects = [
     "entries_fts",
@@ -83,36 +113,7 @@ async function initializeSearchIndex(db: SchemaDatabase): Promise<void> {
   );
   const hadCompleteIndex = existing.length === searchIndexObjects.length;
 
-  await db.execAsync(`
-    CREATE VIRTUAL TABLE IF NOT EXISTS entries_fts USING fts5(
-      text,
-      location,
-      content='entries',
-      content_rowid='rowid'
-    )
-  `);
-  await db.execAsync(`
-    CREATE TRIGGER IF NOT EXISTS entries_fts_ai AFTER INSERT ON entries BEGIN
-      INSERT INTO entries_fts (rowid, text, location)
-      VALUES (new.rowid, new.text, new.location);
-    END
-  `);
-  await db.execAsync(`
-    CREATE TRIGGER IF NOT EXISTS entries_fts_ad AFTER DELETE ON entries BEGIN
-      INSERT INTO entries_fts (entries_fts, rowid, text, location)
-      VALUES ('delete', old.rowid, old.text, old.location);
-    END
-  `);
-  await db.execAsync(`
-    CREATE TRIGGER IF NOT EXISTS entries_fts_au AFTER UPDATE ON entries BEGIN
-      INSERT INTO entries_fts (entries_fts, rowid, text, location)
-      VALUES ('delete', old.rowid, old.text, old.location);
-      INSERT INTO entries_fts (rowid, text, location)
-      VALUES (new.rowid, new.text, new.location);
-    END
-  `);
-
   if (!hadCompleteIndex) {
-    await db.execAsync(`INSERT INTO entries_fts (entries_fts) VALUES ('rebuild')`);
+    await recreateSearchIndex(db, "main");
   }
 }

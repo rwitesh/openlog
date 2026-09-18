@@ -643,6 +643,48 @@ function createDbTarget(database) {
   };
 }
 
+async function createAttachedRestoreSource(target, options = {}) {
+  const schema = "restore_source";
+  await target.execAsync(`ATTACH DATABASE ':memory:' AS ${schema}`);
+  await target.execAsync(`
+    CREATE TABLE ${schema}.entries (
+      id          ${options.entryIdDefinition ?? "TEXT PRIMARY KEY NOT NULL"},
+      created_at  INTEGER NOT NULL,
+      updated_at  INTEGER NOT NULL,
+      text        TEXT,
+      images      TEXT,
+      audios      TEXT,
+      attachments TEXT,
+      latitude    REAL,
+      longitude   REAL,
+      location    TEXT
+    );
+    CREATE INDEX ${schema}.idx_entries_created_at_id
+      ON entries (${options.entriesIndex ?? "created_at DESC, id DESC"});
+    CREATE TABLE ${schema}.tags (
+      id         TEXT PRIMARY KEY NOT NULL,
+      name       TEXT NOT NULL,
+      key        TEXT NOT NULL UNIQUE,
+      color_id   TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE TABLE ${schema}.entry_tags (
+      entry_id TEXT NOT NULL REFERENCES entries(id) ON DELETE ${options.entryDelete ?? "CASCADE"},
+      tag_id   TEXT NOT NULL REFERENCES tags(id) ON DELETE ${options.tagDelete ?? "CASCADE"},
+      PRIMARY KEY (${options.entryTagsPrimaryKey ?? "entry_id, tag_id"})
+    );
+    CREATE INDEX ${schema}.idx_entry_tags_tag_entry
+      ON entry_tags (${options.entryTagsIndex ?? "tag_id, entry_id"});
+    CREATE TABLE ${schema}.settings (
+      key   TEXT PRIMARY KEY NOT NULL,
+      value TEXT NOT NULL
+    );
+    PRAGMA ${schema}.user_version = 1;
+  `);
+  return schema;
+}
+
 test("restore schema gate accepts the current baseline and rejects unknown versions", async () => {
   const memDb = new DatabaseSync(":memory:");
   const target = createDbTarget(memDb);
@@ -665,6 +707,108 @@ test("restore schema gate accepts the current baseline and rejects unknown versi
   await assert.rejects(
     () => migrateRestoreSchema(target, "main"),
     /Unsupported database version \(0\)/
+  );
+});
+
+test("restore schema validation compares staged base-table semantics with the canonical schema", async (t) => {
+  const cases = [
+    {
+      name: "rejects a required column made nullable",
+      options: { entryIdDefinition: "TEXT PRIMARY KEY" },
+      message: /entries columns do not match/,
+    },
+    {
+      name: "rejects a composite primary key in the wrong order",
+      options: { entryTagsPrimaryKey: "tag_id, entry_id" },
+      message: /entry_tags columns do not match/,
+    },
+    {
+      name: "rejects a foreign key with the wrong delete action",
+      options: { entryDelete: "NO ACTION" },
+      message: /entry_tags foreign keys do not match/,
+    },
+    {
+      name: "rejects a named index with the wrong column order",
+      options: { entriesIndex: "id DESC, created_at DESC" },
+      message: /entries\.idx_entries_created_at_id does not match/,
+    },
+  ];
+
+  for (const testCase of cases) {
+    await t.test(testCase.name, async () => {
+      const database = new DatabaseSync(":memory:");
+      const target = createDbTarget(database);
+      await initializeDatabaseSchema(target);
+      const source = await createAttachedRestoreSource(target, testCase.options);
+      await assert.rejects(() => validateAttachedDatabase(target, source), testCase.message);
+    });
+  }
+});
+
+test("restore recreates FTS from canonical schema and rebuilds search for valid backups", async (t) => {
+  const database = new DatabaseSync(":memory:");
+  const target = createDbTarget(database);
+  await initializeDatabaseSchema(target);
+  const source = await createAttachedRestoreSource(target);
+  database
+    .prepare(
+      `INSERT INTO ${source}.entries (id, created_at, updated_at, text, location)
+       VALUES (?, ?, ?, ?, ?)`
+    )
+    .run("entry-1", 1, 1, "sunrise reading", "Cubbon Park");
+
+  await t.test("rebuilds a stale FTS mirror even when every derived object exists", async () => {
+    await target.execAsync(`
+      CREATE VIRTUAL TABLE ${source}.entries_fts USING fts5(
+        text,
+        location,
+        content='entries',
+        content_rowid='rowid'
+      );
+      CREATE TRIGGER ${source}.entries_fts_ai AFTER INSERT ON entries BEGIN SELECT 1; END;
+      CREATE TRIGGER ${source}.entries_fts_ad AFTER DELETE ON entries BEGIN SELECT 1; END;
+      CREATE TRIGGER ${source}.entries_fts_au AFTER UPDATE ON entries BEGIN SELECT 1; END;
+    `);
+    assert.equal(
+      database
+        .prepare(`SELECT rowid FROM ${source}.entries_fts WHERE entries_fts MATCH ?`)
+        .get("sunrise"),
+      undefined
+    );
+
+    assert.equal(await validateAttachedDatabase(target, source), 1);
+    assert.ok(
+      database
+        .prepare(`SELECT rowid FROM ${source}.entries_fts WHERE entries_fts MATCH ?`)
+        .get("sunrise")
+    );
+    assert.ok(
+      database
+        .prepare(`SELECT rowid FROM ${source}.entries_fts WHERE entries_fts MATCH ?`)
+        .get("cubbon")
+    );
+  });
+
+  await t.test(
+    "uses canonical triggers after replacing altered but present trigger SQL",
+    async () => {
+      await target.execAsync(`DROP TRIGGER ${source}.entries_fts_ai`);
+      await target.execAsync(
+        `CREATE TRIGGER ${source}.entries_fts_ai AFTER INSERT ON entries BEGIN SELECT 1; END`
+      );
+
+      await validateAttachedDatabase(target, source);
+      database
+        .prepare(
+          `INSERT INTO ${source}.entries (id, created_at, updated_at, text) VALUES (?, ?, ?, ?)`
+        )
+        .run("entry-2", 2, 2, "restored trigger works");
+      assert.ok(
+        database
+          .prepare(`SELECT rowid FROM ${source}.entries_fts WHERE entries_fts MATCH ?`)
+          .get("trigger")
+      );
+    }
   );
 });
 
