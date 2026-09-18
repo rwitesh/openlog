@@ -231,10 +231,7 @@ test("durable journal preserves the single next operation across writes", async 
   assert.equal(prepared.transaction?.operation, "preserve-db-main");
   assert.equal(prepared.transaction?.entryCount, 42);
 
-  await saveDurableTransaction(
-    { ...prepared.transaction, operation: "activate-db" },
-    fs
-  );
+  await saveDurableTransaction({ ...prepared.transaction, operation: "activate-db" }, fs);
   assert.equal(fs.files.has(fs.journalTmpPath), false);
   assert.ok(fs.files.has(fs.journalBakPath));
   assert.equal(JSON.parse(fs.files.get(fs.journalBakPath)).operation, "preserve-db-main");
@@ -385,7 +382,11 @@ test("write-ahead rollback survives a crash after every move and journal write",
   await rollbackPendingRestore(baseline);
   assert.ok(operationCount > 0);
 
-  for (let interruptedOperation = 1; interruptedOperation <= operationCount; interruptedOperation += 1) {
+  for (
+    let interruptedOperation = 1;
+    interruptedOperation <= operationCount;
+    interruptedOperation += 1
+  ) {
     const fs = createRestoreCrashFixture("rollback-crash");
     await queueRestore({ id: "rollback-crash", entryCount: 1, mediaCount: 1 }, fs);
     await applyPendingRestore(fs);
