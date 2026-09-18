@@ -2,11 +2,39 @@ import type { Directory, File } from "expo-file-system";
 
 export const DATABASE_NAME = "app.db";
 
-export type RestorePhase = "prepared" | "database-swapped" | "media-swapped";
+const RESTORE_OPERATIONS = [
+  "preserve-db-main",
+  "preserve-db-wal",
+  "preserve-db-shm",
+  "activate-db",
+  "preserve-media",
+  "activate-media",
+  "ready-for-verification",
+  "rollback-remove-db-main",
+  "rollback-restore-db-main",
+  "rollback-remove-db-wal",
+  "rollback-restore-db-wal",
+  "rollback-remove-db-shm",
+  "rollback-restore-db-shm",
+  "rollback-remove-media",
+  "rollback-restore-media",
+  "rollback-cleanup",
+] as const;
+
+type RestoreOperation = (typeof RESTORE_OPERATIONS)[number];
+
+function isRestoreOperation(value: unknown): value is RestoreOperation {
+  return (
+    typeof value === "string" &&
+    RESTORE_OPERATIONS.includes(value as RestoreOperation)
+  );
+}
 
 export interface RestoreTransaction {
   id: string;
-  phase: RestorePhase;
+  operation: RestoreOperation;
+  originalDatabaseExists?: boolean;
+  originalMediaExists?: boolean;
   entryCount?: number;
   mediaCount?: number;
   timestamp?: number;
@@ -154,15 +182,8 @@ function createExpoFileSystem(): RestoreFileSystem {
   };
 }
 
-let customFileSystem: RestoreFileSystem | null = null;
-
-export function setRestoreFileSystem(fs: RestoreFileSystem | null): void {
-  customFileSystem = fs;
-}
-
 function resolveFileSystem(fs?: RestoreFileSystem): RestoreFileSystem {
   if (fs) return fs;
-  if (customFileSystem) return customFileSystem;
   return createExpoFileSystem();
 }
 
@@ -196,20 +217,6 @@ function getActiveMediaPath(fs: RestoreFileSystem): string {
   return getDocPath(fs, "media");
 }
 
-async function moveDatabaseFiles(
-  fs: RestoreFileSystem,
-  sourceBaseName: string,
-  destBaseName: string
-): Promise<void> {
-  for (const suffix of ["", "-wal", "-shm"] as const) {
-    const src = getDbPath(fs, `${sourceBaseName}${suffix}`);
-    const dst = getDbPath(fs, `${destBaseName}${suffix}`);
-    if (await fs.exists(src)) {
-      await fs.moveFile(src, dst);
-    }
-  }
-}
-
 async function removeDatabaseFiles(fs: RestoreFileSystem, baseName: string): Promise<void> {
   for (const suffix of ["", "-wal", "-shm"] as const) {
     const file = getDbPath(fs, `${baseName}${suffix}`);
@@ -225,13 +232,19 @@ function parseTransactionJson(raw: string): RestoreTransaction | null {
     if (
       typeof value.id !== "string" ||
       !value.id ||
-      !["prepared", "database-swapped", "media-swapped"].includes(value.phase ?? "")
+      !isRestoreOperation(value.operation)
     ) {
       return null;
     }
     const result: RestoreTransaction = {
       id: value.id,
-      phase: value.phase as RestorePhase,
+      operation: value.operation,
+      ...(typeof value.originalDatabaseExists === "boolean"
+        ? { originalDatabaseExists: value.originalDatabaseExists }
+        : {}),
+      ...(typeof value.originalMediaExists === "boolean"
+        ? { originalMediaExists: value.originalMediaExists }
+        : {}),
       entryCount:
         typeof value.entryCount === "number" && value.entryCount >= 0 ? value.entryCount : 0,
       mediaCount:
@@ -405,55 +418,11 @@ export function discardRestoreStaging(id: string, fsOrCustom?: RestoreFileSystem
 }
 
 export async function queueRestore(
-  id: string,
-  counts: { entry: number; media: number },
-  fsParam?: RestoreFileSystem
-): Promise<void>;
-export async function queueRestore(
   options: QueueRestoreOptions,
   fsParam?: RestoreFileSystem
-): Promise<void>;
-export async function queueRestore(
-  options: string | QueueRestoreOptions,
-  legacyOrFs?:
-    | { entry?: number; entryCount?: number; media?: number; mediaCount?: number }
-    | number
-    | RestoreFileSystem,
-  fsArg?: RestoreFileSystem
 ): Promise<void> {
-  let fs: RestoreFileSystem;
-  let entryCount: number | undefined;
-  let mediaCount: number | undefined;
-  let id: string;
-
-  if (typeof options === "string") {
-    id = options;
-    if (typeof legacyOrFs === "number") {
-      entryCount = legacyOrFs;
-      fs = resolveFileSystem(fsArg);
-    } else if (legacyOrFs && typeof legacyOrFs === "object") {
-      if ("journalPath" in legacyOrFs) {
-        fs = legacyOrFs as RestoreFileSystem;
-      } else {
-        const counts = legacyOrFs as {
-          entry?: number;
-          entryCount?: number;
-          media?: number;
-          mediaCount?: number;
-        };
-        entryCount = counts.entry ?? counts.entryCount;
-        mediaCount = counts.media ?? counts.mediaCount;
-        fs = resolveFileSystem(fsArg);
-      }
-    } else {
-      fs = resolveFileSystem(fsArg);
-    }
-  } else {
-    id = options.id;
-    entryCount = options.entryCount;
-    mediaCount = options.mediaCount;
-    fs = resolveFileSystem(legacyOrFs as RestoreFileSystem | undefined);
-  }
+  const fs = resolveFileSystem(fsParam);
+  const { id, entryCount = 0, mediaCount = 0 } = options;
 
   const existing = await readDurableTransaction(fs);
   if (existing.transaction || existing.corrupt) {
@@ -462,9 +431,11 @@ export async function queueRestore(
 
   const transaction: RestoreTransaction = {
     id,
-    phase: "prepared",
-    entryCount: entryCount ?? 0,
-    mediaCount: mediaCount ?? 0,
+    operation: "preserve-db-main",
+    originalDatabaseExists: await fs.exists(getDbPath(fs, DATABASE_NAME)),
+    originalMediaExists: await fs.directoryExists(getActiveMediaPath(fs)),
+    entryCount,
+    mediaCount,
     timestamp: Date.now(),
   };
   const stagedDb = getStagedDbPath(fs, id);
@@ -478,74 +449,27 @@ export async function queueRestore(
 }
 
 export async function rollbackPendingRestore(
-  fsOrCustom?: RestoreFileSystem,
-  target?: { id?: string; phase?: RestorePhase }
+  fsOrCustom?: RestoreFileSystem
 ): Promise<void> {
   const fs = resolveFileSystem(fsOrCustom);
-  const targetId = target?.id;
-
-  let prevDbBase = targetId ? getPreviousDbBase(targetId) : undefined;
-  let prevMediaPath = targetId ? getPreviousMediaPath(fs, targetId) : undefined;
-
-  if (!prevDbBase || !prevMediaPath) {
-    const diskArtifacts = await findPreviousArtifactsOnDisk(fs);
-    if (!prevDbBase && diskArtifacts.previousDbBase) {
-      prevDbBase = diskArtifacts.previousDbBase;
-    }
-    if (!prevMediaPath && diskArtifacts.previousMediaPath) {
-      prevMediaPath = diskArtifacts.previousMediaPath;
-    }
-  }
-
-  // 1. Move previousDatabase back to live DATABASE_NAME
-  if (prevDbBase) {
-    const prevDbFile = getDbPath(fs, prevDbBase);
-    if (await fs.exists(prevDbFile)) {
-      await moveDatabaseFiles(fs, prevDbBase, DATABASE_NAME);
+  const durable = (await readDurableTransaction(fs)).transaction;
+  let transaction: RestoreTransaction | null = durable;
+  if (!transaction) {
+    const artifacts = await findPreviousArtifactsOnDisk(fs);
+    const id = artifacts.previousDbBase?.match(/^openlog-restore-(.+)-previous\.sqlite$/)?.[1];
+    if (id) {
+      transaction = {
+        id,
+        operation: "rollback-remove-db-main",
+        originalDatabaseExists: true,
+        originalMediaExists: Boolean(artifacts.previousMediaPath),
+      };
     }
   }
-
-  // 2. Move previousMedia back to live media directory, or clean up active media
-  // only if media was actually swapped and the original timeline had no media
-  const activeMedia = getActiveMediaPath(fs);
-  if (prevMediaPath && (await fs.directoryExists(prevMediaPath))) {
-    if (await fs.directoryExists(activeMedia)) {
-      await fs.deleteDirectory(activeMedia);
-    }
-    await fs.moveDirectory(prevMediaPath, activeMedia);
-  } else if (target?.phase === "media-swapped" && (await fs.directoryExists(activeMedia))) {
-    // Media was swapped and the original timeline had no media directory;
-    // remove the swapped-in active media to cleanly restore the original state.
-    await fs.deleteDirectory(activeMedia);
-  }
-
-  // 3. Remove staging
-  if (targetId) {
-    const stagedDb = getStagedDbPath(fs, targetId);
-    if (await fs.exists(stagedDb)) await fs.deleteFile(stagedDb);
-    const stagedMedia = getStagedMediaPath(fs, targetId);
-    if (await fs.directoryExists(stagedMedia)) await fs.deleteDirectory(stagedMedia);
-  }
-
-  // Clean up any remaining restore artifacts on disk
-  try {
-    const docFiles = await fs.listFiles(fs.documentDirectory);
-    for (const item of docFiles) {
-      if (item.startsWith("openlog-restore-")) {
-        const itemPath = getDocPath(fs, item);
-        if (await fs.directoryExists(itemPath)) {
-          await fs.deleteDirectory(itemPath);
-        } else if (await fs.exists(itemPath)) {
-          await fs.deleteFile(itemPath);
-        }
-      }
-    }
-  } catch {
-    // ignore
-  }
-
-  // 4. Remove all journal files
-  await clearAllJournalFiles(fs);
+  if (!transaction) return;
+  transaction.operation = "rollback-remove-db-main";
+  await saveDurableTransaction(transaction, fs);
+  await resumeRollback(transaction, fs);
 }
 
 export async function applyPendingRestore(
@@ -574,83 +498,200 @@ export async function applyPendingRestore(
     return { applied: false };
   }
 
+  try {
+    await resumeRestore(transaction, fs);
+    return { applied: true, id: transaction.id, entryCount: transaction.entryCount };
+  } catch {
+    // Missing staging cannot be retried. Reconstruct the preserved original instead.
+    // Other ambiguous states retain their journal and artifacts for a later safe retry.
+    const databaseCannotBeActivated =
+      !(await fs.exists(getStagedDbPath(fs, transaction.id))) &&
+      !(await fs.exists(getDbPath(fs, DATABASE_NAME)));
+    const mediaCannotBeActivated =
+      !(await fs.directoryExists(getStagedMediaPath(fs, transaction.id))) &&
+      !(await fs.directoryExists(getActiveMediaPath(fs)));
+    if (databaseCannotBeActivated || mediaCannotBeActivated) {
+      await rollbackPendingRestore(fs);
+    }
+    return { applied: false };
+  }
+}
+
+async function advanceOperation(
+  transaction: RestoreTransaction,
+  operation: RestoreOperation,
+  fs: RestoreFileSystem
+): Promise<void> {
+  transaction.operation = operation;
+  await saveDurableTransaction(transaction, fs);
+}
+
+async function reconcileFileMove(
+  fs: RestoreFileSystem,
+  source: string,
+  destination: string,
+  required: boolean
+): Promise<void> {
+  const sourceExists = await fs.exists(source);
+  const destinationExists = await fs.exists(destination);
+  if (sourceExists && !destinationExists) {
+    await fs.moveFile(source, destination);
+    return;
+  }
+  if (!sourceExists && destinationExists) return;
+  if (!sourceExists && !destinationExists && !required) return;
+  throw new Error("Restore filesystem state is ambiguous; preserved data was not changed.");
+}
+
+async function reconcileDirectoryMove(
+  fs: RestoreFileSystem,
+  source: string,
+  destination: string,
+  required: boolean
+): Promise<void> {
+  const sourceExists = await fs.directoryExists(source);
+  const destinationExists = await fs.directoryExists(destination);
+  if (sourceExists && !destinationExists) {
+    await fs.moveDirectory(source, destination);
+    return;
+  }
+  if (!sourceExists && destinationExists) return;
+  if (!sourceExists && !destinationExists && !required) return;
+  throw new Error("Restore filesystem state is ambiguous; preserved data was not changed.");
+}
+
+async function resumeRestore(
+  transaction: RestoreTransaction,
+  fs: RestoreFileSystem
+): Promise<void> {
   const { id } = transaction;
-
-  if (transaction.phase === "prepared") {
-    const stagedDb = getStagedDbPath(fs, id);
-    if (!(await fs.exists(stagedDb))) {
-      await rollbackPendingRestore(fs, transaction);
-      return { applied: false };
+  while (transaction.operation !== "ready-for-verification") {
+    switch (transaction.operation) {
+      case "preserve-db-main":
+        await reconcileFileMove(
+          fs,
+          getDbPath(fs, DATABASE_NAME),
+          getDbPath(fs, getPreviousDbBase(id)),
+          transaction.originalDatabaseExists === true
+        );
+        await advanceOperation(transaction, "preserve-db-wal", fs);
+        break;
+      case "preserve-db-wal":
+        await reconcileFileMove(
+          fs,
+          getDbPath(fs, `${DATABASE_NAME}-wal`),
+          getDbPath(fs, `${getPreviousDbBase(id)}-wal`),
+          false
+        );
+        await advanceOperation(transaction, "preserve-db-shm", fs);
+        break;
+      case "preserve-db-shm":
+        await reconcileFileMove(
+          fs,
+          getDbPath(fs, `${DATABASE_NAME}-shm`),
+          getDbPath(fs, `${getPreviousDbBase(id)}-shm`),
+          false
+        );
+        await advanceOperation(transaction, "activate-db", fs);
+        break;
+      case "activate-db":
+        await reconcileFileMove(fs, getStagedDbPath(fs, id), getDbPath(fs, DATABASE_NAME), true);
+        await advanceOperation(transaction, "preserve-media", fs);
+        break;
+      case "preserve-media":
+        await reconcileDirectoryMove(
+          fs,
+          getActiveMediaPath(fs),
+          getPreviousMediaPath(fs, id),
+          transaction.originalMediaExists === true
+        );
+        await advanceOperation(transaction, "activate-media", fs);
+        break;
+      case "activate-media":
+        await reconcileDirectoryMove(fs, getStagedMediaPath(fs, id), getActiveMediaPath(fs), true);
+        await advanceOperation(transaction, "ready-for-verification", fs);
+        break;
     }
-
-    // Step 1: swap database
-    const prevDbBase = getPreviousDbBase(id);
-    await moveDatabaseFiles(fs, DATABASE_NAME, prevDbBase);
-    const liveDb = getDbPath(fs, DATABASE_NAME);
-    await fs.moveFile(stagedDb, liveDb);
-
-    transaction.phase = "database-swapped";
-    await saveDurableTransaction(transaction, fs);
-
-    // Step 2: swap media
-    const stagedMedia = getStagedMediaPath(fs, id);
-    if (!(await fs.directoryExists(stagedMedia))) {
-      await rollbackPendingRestore(fs, transaction);
-      return { applied: false };
-    }
-
-    const activeMedia = getActiveMediaPath(fs);
-    const prevMedia = getPreviousMediaPath(fs, id);
-    if (await fs.directoryExists(activeMedia)) {
-      await fs.moveDirectory(activeMedia, prevMedia);
-    }
-    await fs.moveDirectory(stagedMedia, activeMedia);
-
-    transaction.phase = "media-swapped";
-    await saveDurableTransaction(transaction, fs);
-    return { applied: true, id: transaction.id, entryCount: transaction.entryCount };
   }
+}
 
-  if (transaction.phase === "database-swapped") {
-    const stagedMedia = getStagedMediaPath(fs, id);
-    if (!(await fs.directoryExists(stagedMedia))) {
-      // Staged media missing; roll back to ensure consistency
-      await rollbackPendingRestore(fs, transaction);
-      return { applied: false };
+async function resumeRollback(
+  transaction: RestoreTransaction,
+  fs: RestoreFileSystem
+): Promise<void> {
+  const { id } = transaction;
+  const previous = getPreviousDbBase(id);
+  while (transaction.operation !== "rollback-cleanup") {
+    switch (transaction.operation) {
+      case "rollback-remove-db-main":
+        await removeDatabaseFiles(fs, DATABASE_NAME);
+        await advanceOperation(transaction, "rollback-restore-db-main", fs);
+        break;
+      case "rollback-restore-db-main":
+        await reconcileFileMove(
+          fs,
+          getDbPath(fs, previous),
+          getDbPath(fs, DATABASE_NAME),
+          transaction.originalDatabaseExists !== false
+        );
+        await advanceOperation(transaction, "rollback-remove-db-wal", fs);
+        break;
+      case "rollback-remove-db-wal":
+        if (await fs.exists(getDbPath(fs, `${DATABASE_NAME}-wal`))) {
+          await fs.deleteFile(getDbPath(fs, `${DATABASE_NAME}-wal`));
+        }
+        await advanceOperation(transaction, "rollback-restore-db-wal", fs);
+        break;
+      case "rollback-restore-db-wal":
+        await reconcileFileMove(
+          fs,
+          getDbPath(fs, `${previous}-wal`),
+          getDbPath(fs, `${DATABASE_NAME}-wal`),
+          false
+        );
+        await advanceOperation(transaction, "rollback-remove-db-shm", fs);
+        break;
+      case "rollback-remove-db-shm":
+        if (await fs.exists(getDbPath(fs, `${DATABASE_NAME}-shm`))) {
+          await fs.deleteFile(getDbPath(fs, `${DATABASE_NAME}-shm`));
+        }
+        await advanceOperation(transaction, "rollback-restore-db-shm", fs);
+        break;
+      case "rollback-restore-db-shm":
+        await reconcileFileMove(
+          fs,
+          getDbPath(fs, `${previous}-shm`),
+          getDbPath(fs, `${DATABASE_NAME}-shm`),
+          false
+        );
+        await advanceOperation(transaction, "rollback-remove-media", fs);
+        break;
+      case "rollback-remove-media": {
+        const activeMedia = getActiveMediaPath(fs);
+        if (await fs.directoryExists(activeMedia)) await fs.deleteDirectory(activeMedia);
+        await advanceOperation(transaction, "rollback-restore-media", fs);
+        break;
+      }
+      case "rollback-restore-media":
+        await reconcileDirectoryMove(
+          fs,
+          getPreviousMediaPath(fs, id),
+          getActiveMediaPath(fs),
+          transaction.originalMediaExists === true
+        );
+        await advanceOperation(transaction, "rollback-cleanup", fs);
+        break;
     }
-
-    const activeMedia = getActiveMediaPath(fs);
-    const prevMedia = getPreviousMediaPath(fs, id);
-    if (await fs.directoryExists(activeMedia)) {
-      await fs.moveDirectory(activeMedia, prevMedia);
-    }
-    await fs.moveDirectory(stagedMedia, activeMedia);
-
-    transaction.phase = "media-swapped";
-    await saveDurableTransaction(transaction, fs);
-    return { applied: true, id: transaction.id, entryCount: transaction.entryCount };
   }
-
-  if (transaction.phase === "media-swapped") {
-    return { applied: true, id: transaction.id, entryCount: transaction.entryCount };
+  if (await fs.exists(getStagedDbPath(fs, id))) await fs.deleteFile(getStagedDbPath(fs, id));
+  if (await fs.directoryExists(getStagedMediaPath(fs, id))) {
+    await fs.deleteDirectory(getStagedMediaPath(fs, id));
   }
-
-  return { applied: false };
+  await clearAllJournalFiles(fs);
 }
 
 interface DatabaseCountReader {
   getFirstAsync<T>(source: string): Promise<T | null>;
-}
-
-let defaultNotifyImportComplete: ((entryCount: number) => void) | null = null;
-let defaultAnalyticsCapture: ((entryCount: number) => void) | null = null;
-
-export function configureRestoreCompletion(hooks: {
-  notify?: (entryCount: number) => void;
-  analytics?: (entryCount: number) => void;
-}): void {
-  if (hooks.notify) defaultNotifyImportComplete = hooks.notify;
-  if (hooks.analytics) defaultAnalyticsCapture = hooks.analytics;
 }
 
 export async function completePendingRestore(
@@ -659,7 +700,7 @@ export async function completePendingRestore(
 ): Promise<CompletedRestoreDetails | null> {
   const fs = resolveFileSystem(options?.fs);
   const { transaction } = await readDurableTransaction(fs);
-  if (transaction?.phase !== "media-swapped") {
+  if (transaction?.operation !== "ready-for-verification") {
     return null;
   }
 
@@ -727,7 +768,7 @@ export async function completePendingRestore(
   await clearAllJournalFiles(fs);
 
   // Fire notifications and analytics
-  const notifyFn = options?.notify ?? defaultNotifyImportComplete;
+  const notifyFn = options?.notify;
   if (notifyFn) {
     try {
       notifyFn(finalCount);
@@ -736,7 +777,7 @@ export async function completePendingRestore(
     }
   }
 
-  const analyticsFn = options?.analytics ?? defaultAnalyticsCapture;
+  const analyticsFn = options?.analytics;
   if (analyticsFn) {
     try {
       analyticsFn(finalCount);
@@ -748,97 +789,5 @@ export async function completePendingRestore(
   return {
     entryCount: finalCount,
     mediaCount: transaction.mediaCount ?? 0,
-  };
-}
-
-export function createMemoryRestoreFileSystem(
-  initialFiles: Record<string, string> = {}
-): RestoreFileSystem & { files: Map<string, string>; dirs: Set<string> } {
-  const files = new Map<string, string>(Object.entries(initialFiles));
-  const dirs = new Set<string>(["/mock/doc", "/mock/db", "/mock/doc/media"]);
-
-  const docDir = "/mock/doc";
-  const dbDir = "/mock/db";
-
-  return {
-    files,
-    dirs,
-    documentDirectory: docDir,
-    databaseDirectory: dbDir,
-    journalPath: `${docDir}/openlog-restore-transaction.json`,
-    journalBakPath: `${docDir}/openlog-restore-transaction.bak`,
-    journalTmpPath: `${docDir}/openlog-restore-transaction.tmp`,
-
-    exists: async (p) => files.has(p) || dirs.has(p),
-    readText: async (p) => {
-      const content = files.get(p);
-      if (content === undefined) throw new Error(`File not found: ${p}`);
-      return content;
-    },
-    writeText: async (p, content) => {
-      files.set(p, content);
-    },
-    deleteFile: async (p) => {
-      files.delete(p);
-    },
-    copyFile: async (src, dst) => {
-      const content = files.get(src);
-      if (content !== undefined) files.set(dst, content);
-    },
-    moveFile: async (src, dst) => {
-      const content = files.get(src);
-      if (content !== undefined) {
-        files.set(dst, content);
-        files.delete(src);
-      }
-    },
-    directoryExists: async (p) => dirs.has(p),
-    deleteDirectory: async (p) => {
-      dirs.delete(p);
-      const prefix = p.endsWith("/") ? p : `${p}/`;
-      for (const k of Array.from(files.keys())) {
-        if (k.startsWith(prefix) || k === p) files.delete(k);
-      }
-      for (const d of Array.from(dirs)) {
-        if (d.startsWith(prefix) || d === p) dirs.delete(d);
-      }
-    },
-    moveDirectory: async (src, dst) => {
-      dirs.delete(src);
-      dirs.add(dst);
-      const srcPrefix = src.endsWith("/") ? src : `${src}/`;
-      const dstPrefix = dst.endsWith("/") ? dst : `${dst}/`;
-      for (const [k, v] of Array.from(files.entries())) {
-        if (k.startsWith(srcPrefix)) {
-          files.set(dstPrefix + k.slice(srcPrefix.length), v);
-          files.delete(k);
-        }
-      }
-      for (const d of Array.from(dirs)) {
-        if (d.startsWith(srcPrefix)) {
-          dirs.add(dstPrefix + d.slice(srcPrefix.length));
-          dirs.delete(d);
-        }
-      }
-    },
-    listFiles: async (dir) => {
-      const prefix = dir.endsWith("/") ? dir : `${dir}/`;
-      const results = new Set<string>();
-      for (const f of files.keys()) {
-        if (f.startsWith(prefix)) {
-          const rest = f.slice(prefix.length);
-          const seg = rest.split("/")[0];
-          if (seg) results.add(seg);
-        }
-      }
-      for (const d of dirs) {
-        if (d.startsWith(prefix)) {
-          const rest = d.slice(prefix.length);
-          const seg = rest.split("/")[0];
-          if (seg) results.add(seg);
-        }
-      }
-      return Array.from(results);
-    },
   };
 }

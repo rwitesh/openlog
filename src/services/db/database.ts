@@ -5,7 +5,7 @@ import {
   applyPendingRestore,
   completePendingRestore,
   rollbackPendingRestore,
-} from "@/services/backup/restoreTransaction";
+} from "@/services/backup/restore";
 import { DATABASE_SIZE_CEILING } from "@/services/backup/shared";
 import { notifyBackupImportComplete } from "@/services/notifications";
 import { logDevWarning } from "@/shared/utils/devLog";
