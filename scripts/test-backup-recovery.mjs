@@ -4,12 +4,11 @@ import test from "node:test";
 import {
   applyPendingRestore,
   completePendingRestore,
-  createMemoryRestoreFileSystem,
   queueRestore,
   readDurableTransaction,
   rollbackPendingRestore,
   saveDurableTransaction,
-} from "../src/services/backup/restoreTransaction.ts";
+} from "../src/services/backup/restore.ts";
 import {
   acquireExportGate,
   assertArchiveManifest,
@@ -26,6 +25,85 @@ import {
 } from "../src/services/backup/shared.ts";
 import { initializeDatabaseSchema, migrateRestoreSchema } from "../src/services/db/schema.ts";
 import { validateAttachedDatabase } from "../src/services/db/validation.ts";
+
+function createMemoryRestoreFileSystem(initialFiles = {}) {
+  const files = new Map(Object.entries(initialFiles));
+  const dirs = new Set(["/mock/doc", "/mock/db", "/mock/doc/media"]);
+  const documentDirectory = "/mock/doc";
+  const databaseDirectory = "/mock/db";
+
+  return {
+    files,
+    dirs,
+    documentDirectory,
+    databaseDirectory,
+    journalPath: `${documentDirectory}/openlog-restore-transaction.json`,
+    journalBakPath: `${documentDirectory}/openlog-restore-transaction.bak`,
+    journalTmpPath: `${documentDirectory}/openlog-restore-transaction.tmp`,
+    exists: async (path) => files.has(path) || dirs.has(path),
+    readText: async (path) => {
+      const content = files.get(path);
+      if (content === undefined) throw new Error(`File not found: ${path}`);
+      return content;
+    },
+    writeText: async (path, content) => {
+      files.set(path, content);
+    },
+    deleteFile: async (path) => {
+      files.delete(path);
+    },
+    copyFile: async (source, destination) => {
+      const content = files.get(source);
+      if (content !== undefined) files.set(destination, content);
+    },
+    moveFile: async (source, destination) => {
+      const content = files.get(source);
+      if (content !== undefined) {
+        files.set(destination, content);
+        files.delete(source);
+      }
+    },
+    directoryExists: async (path) => dirs.has(path),
+    deleteDirectory: async (path) => {
+      dirs.delete(path);
+      const prefix = path.endsWith("/") ? path : `${path}/`;
+      for (const file of Array.from(files.keys())) {
+        if (file.startsWith(prefix) || file === path) files.delete(file);
+      }
+      for (const directory of Array.from(dirs)) {
+        if (directory.startsWith(prefix) || directory === path) dirs.delete(directory);
+      }
+    },
+    moveDirectory: async (source, destination) => {
+      dirs.delete(source);
+      dirs.add(destination);
+      const sourcePrefix = source.endsWith("/") ? source : `${source}/`;
+      const destinationPrefix = destination.endsWith("/") ? destination : `${destination}/`;
+      for (const [file, content] of Array.from(files.entries())) {
+        if (file.startsWith(sourcePrefix)) {
+          files.set(destinationPrefix + file.slice(sourcePrefix.length), content);
+          files.delete(file);
+        }
+      }
+      for (const directory of Array.from(dirs)) {
+        if (directory.startsWith(sourcePrefix)) {
+          dirs.add(destinationPrefix + directory.slice(sourcePrefix.length));
+          dirs.delete(directory);
+        }
+      }
+    },
+    listFiles: async (directory) => {
+      const prefix = directory.endsWith("/") ? directory : `${directory}/`;
+      const results = new Set();
+      for (const path of [...files.keys(), ...dirs]) {
+        if (!path.startsWith(prefix)) continue;
+        const name = path.slice(prefix.length).split("/")[0];
+        if (name) results.add(name);
+      }
+      return Array.from(results);
+    },
+  };
+}
 
 const manifest = {
   format: "openlog-archive",
@@ -134,7 +212,7 @@ test("export gate serializes media cleanup and unblocks when released", async ()
   assert.equal(cleanupDone, true);
 });
 
-test("durable journal states and .bak preservation protocol preserve records across phases", async () => {
+test("durable journal preserves the single next operation across writes", async () => {
   const fs = createMemoryRestoreFileSystem();
 
   // Initial state: no restore
@@ -148,27 +226,29 @@ test("durable journal states and .bak preservation protocol preserve records acr
 
   await queueRestore({ id: "tx1", entryCount: 42 }, fs);
 
-  // Verified prepared phase
   const prepared = await readDurableTransaction(fs);
-  assert.ok(prepared.transaction);
-  assert.equal(prepared.transaction.id, "tx1");
-  assert.equal(prepared.transaction.phase, "prepared");
-  assert.equal(prepared.transaction.entryCount, 42);
+  assert.equal(prepared.transaction?.id, "tx1");
+  assert.equal(prepared.transaction?.operation, "preserve-db-main");
+  assert.equal(prepared.transaction?.entryCount, 42);
 
-  // Transition to database-swapped: verifies atomic writing (tmp -> json, keeping bak)
-  await saveDurableTransaction({ id: "tx1", phase: "database-swapped", entryCount: 42 }, fs);
+  await saveDurableTransaction(
+    { ...prepared.transaction, operation: "activate-db" },
+    fs
+  );
   assert.equal(fs.files.has(fs.journalTmpPath), false);
   assert.ok(fs.files.has(fs.journalBakPath));
-  assert.equal(JSON.parse(fs.files.get(fs.journalBakPath)).phase, "prepared");
-  assert.equal(JSON.parse(fs.files.get(fs.journalPath)).phase, "database-swapped");
+  assert.equal(JSON.parse(fs.files.get(fs.journalBakPath)).operation, "preserve-db-main");
+  assert.equal(JSON.parse(fs.files.get(fs.journalPath)).operation, "activate-db");
 
-  // Transition to media-swapped
-  await saveDurableTransaction({ id: "tx1", phase: "media-swapped", entryCount: 42 }, fs);
-  assert.equal(JSON.parse(fs.files.get(fs.journalBakPath)).phase, "database-swapped");
-  assert.equal(JSON.parse(fs.files.get(fs.journalPath)).phase, "media-swapped");
+  await saveDurableTransaction(
+    { ...prepared.transaction, operation: "ready-for-verification" },
+    fs
+  );
+  assert.equal(JSON.parse(fs.files.get(fs.journalBakPath)).operation, "activate-db");
+  assert.equal(JSON.parse(fs.files.get(fs.journalPath)).operation, "ready-for-verification");
 });
 
-test("interruption recovery from 'prepared' phase completes database and media swap", async () => {
+test("queued restore completes database and media swap", async () => {
   const fs = createMemoryRestoreFileSystem({
     "/mock/db/app.db": "original-live-db",
     "/mock/db/app.db-wal": "original-live-wal",
@@ -178,8 +258,7 @@ test("interruption recovery from 'prepared' phase completes database and media s
   fs.dirs.add("/mock/doc/openlog-restore-p1-media");
   fs.files.set("/mock/doc/openlog-restore-p1-media/new-photo.jpg", "restored-media-file");
 
-  await saveDurableTransaction({ id: "p1", phase: "prepared", entryCount: 15 }, fs);
-
+  await queueRestore({ id: "p1", entryCount: 15, mediaCount: 1 }, fs);
   const result = await applyPendingRestore(fs);
   assert.equal(result.applied, true);
   assert.equal(result.id, "p1");
@@ -200,78 +279,138 @@ test("interruption recovery from 'prepared' phase completes database and media s
     "original-media-file"
   );
 
-  // Verify journal advanced to media-swapped
+  // Verify the write-ahead restore reached verification.
   const journal = await readDurableTransaction(fs);
-  assert.equal(journal.transaction?.phase, "media-swapped");
+  assert.equal(journal.transaction?.operation, "ready-for-verification");
 });
 
-test("interruption recovery from 'database-swapped' phase resumes media swap", async () => {
+function createRestoreCrashFixture(id = "crash") {
   const fs = createMemoryRestoreFileSystem({
-    "/mock/db/app.db": "restored-db-content",
-    "/mock/db/openlog-restore-p2-previous.sqlite": "original-live-db",
-    "/mock/doc/media/photo.jpg": "original-media-file",
+    "/mock/db/app.db": "original-live-db",
+    "/mock/db/app.db-wal": "original-live-wal",
+    "/mock/doc/media/original-photo.jpg": "original-media-file",
+    [`/mock/doc/openlog-restore-${id}.sqlite`]: "restored-db-content",
   });
-  fs.dirs.add("/mock/doc/openlog-restore-p2-media");
-  fs.files.set("/mock/doc/openlog-restore-p2-media/new-recording.m4a", "restored-audio-file");
+  fs.dirs.add(`/mock/doc/openlog-restore-${id}-media`);
+  fs.files.set(`/mock/doc/openlog-restore-${id}-media/restored-photo.jpg`, "restored-media-file");
+  return fs;
+}
 
-  await saveDurableTransaction({ id: "p2", phase: "database-swapped", entryCount: 5 }, fs);
+function crashAfterOperation(fs, targetOperation) {
+  const originals = new Map();
+  let operation = 0;
+  for (const name of ["writeText", "moveFile", "moveDirectory"]) {
+    const original = fs[name];
+    originals.set(name, original);
+    fs[name] = async (...args) => {
+      await original(...args);
+      if (name === "writeText" && args[0] !== fs.journalPath) return;
+      operation += 1;
+      if (operation === targetOperation) throw new Error(`simulated crash after ${name}`);
+    };
+  }
+  return () => {
+    for (const [name, original] of originals) fs[name] = original;
+  };
+}
 
-  const result = await applyPendingRestore(fs);
-  assert.equal(result.applied, true);
-  assert.equal(result.id, "p2");
-  assert.equal(result.entryCount, 5);
+test("write-ahead restore recovery survives a crash after every move and journal write", async () => {
+  const baseline = createRestoreCrashFixture();
+  await queueRestore({ id: "crash", entryCount: 1, mediaCount: 1 }, baseline);
+  let operationCount = 0;
+  for (const name of ["writeText", "moveFile", "moveDirectory"]) {
+    const original = baseline[name];
+    baseline[name] = async (...args) => {
+      if (name === "writeText" && args[0] !== baseline.journalPath) {
+        return await original(...args);
+      }
+      operationCount += 1;
+      return await original(...args);
+    };
+  }
+  assert.equal((await applyPendingRestore(baseline)).applied, true);
+  assert.ok(operationCount > 0);
 
-  // Media swap should now be completed
-  assert.equal(fs.files.get("/mock/doc/media/new-recording.m4a"), "restored-audio-file");
-  assert.equal(
-    fs.files.get("/mock/doc/openlog-restore-p2-previous-media/photo.jpg"),
-    "original-media-file"
-  );
+  for (
+    let interruptedOperation = 1;
+    interruptedOperation <= operationCount;
+    interruptedOperation += 1
+  ) {
+    const fs = createRestoreCrashFixture();
+    await queueRestore({ id: "crash", entryCount: 1, mediaCount: 1 }, fs);
+    const disableCrash = crashAfterOperation(fs, interruptedOperation);
+    await applyPendingRestore(fs);
+    disableCrash();
 
-  const journal = await readDurableTransaction(fs);
-  assert.equal(journal.transaction?.phase, "media-swapped");
+    const recovered = await applyPendingRestore(fs);
+    assert.equal(recovered.applied, true, `operation ${interruptedOperation}`);
+    assert.equal(
+      fs.files.get("/mock/db/openlog-restore-crash-previous.sqlite"),
+      "original-live-db",
+      `database recoverable after operation ${interruptedOperation}`
+    );
+    assert.equal(
+      fs.files.get("/mock/db/openlog-restore-crash-previous.sqlite-wal"),
+      "original-live-wal",
+      `WAL recoverable after operation ${interruptedOperation}`
+    );
+    assert.equal(
+      fs.files.get("/mock/doc/openlog-restore-crash-previous-media/original-photo.jpg"),
+      "original-media-file",
+      `media recoverable after operation ${interruptedOperation}`
+    );
+
+    await rollbackPendingRestore(fs);
+    assert.equal(fs.files.get("/mock/db/app.db"), "original-live-db");
+    assert.equal(fs.files.get("/mock/doc/media/original-photo.jpg"), "original-media-file");
+  }
 });
 
-test("interruption in 'database-swapped' with missing staged media rolls back safely", async () => {
-  const fs = createMemoryRestoreFileSystem({
-    "/mock/db/app.db": "restored-db-content",
-    "/mock/db/openlog-restore-p2b-previous.sqlite": "original-live-db",
-    "/mock/doc/media/photo.jpg": "original-media-file",
-  });
+test("write-ahead rollback survives a crash after every move and journal write", async () => {
+  const baseline = createRestoreCrashFixture("rollback-crash");
+  await queueRestore({ id: "rollback-crash", entryCount: 1, mediaCount: 1 }, baseline);
+  await applyPendingRestore(baseline);
 
-  await saveDurableTransaction({ id: "p2b", phase: "database-swapped", entryCount: 3 }, fs);
+  let operationCount = 0;
+  for (const name of ["writeText", "moveFile", "moveDirectory"]) {
+    const original = baseline[name];
+    baseline[name] = async (...args) => {
+      if (name === "writeText" && args[0] !== baseline.journalPath) {
+        return await original(...args);
+      }
+      operationCount += 1;
+      return await original(...args);
+    };
+  }
+  await rollbackPendingRestore(baseline);
+  assert.ok(operationCount > 0);
 
-  const result = await applyPendingRestore(fs);
-  assert.equal(result.applied, false);
+  for (let interruptedOperation = 1; interruptedOperation <= operationCount; interruptedOperation += 1) {
+    const fs = createRestoreCrashFixture("rollback-crash");
+    await queueRestore({ id: "rollback-crash", entryCount: 1, mediaCount: 1 }, fs);
+    await applyPendingRestore(fs);
 
-  // Database rolled back to original
-  assert.equal(fs.files.get("/mock/db/app.db"), "original-live-db");
-  // Media untouched
-  assert.equal(fs.files.get("/mock/doc/media/photo.jpg"), "original-media-file");
-  // Journal cleared
-  const journal = await readDurableTransaction(fs);
-  assert.equal(journal.transaction, null);
-});
+    const disableCrash = crashAfterOperation(fs, interruptedOperation);
+    await assert.rejects(() => rollbackPendingRestore(fs));
+    disableCrash();
 
-test("interruption in 'media-swapped' phase is ready for database verification", async () => {
-  const fs = createMemoryRestoreFileSystem({
-    "/mock/db/app.db": "restored-db-content",
-    "/mock/db/openlog-restore-p3-previous.sqlite": "original-live-db",
-    "/mock/doc/media/new-photo.jpg": "restored-media-file",
-    "/mock/doc/openlog-restore-p3-previous-media/old-photo.jpg": "original-media-file",
-  });
-  fs.dirs.add("/mock/doc/openlog-restore-p3-previous-media");
-
-  await saveDurableTransaction({ id: "p3", phase: "media-swapped", entryCount: 20 }, fs);
-
-  const result = await applyPendingRestore(fs);
-  assert.equal(result.applied, true);
-  assert.equal(result.id, "p3");
-  assert.equal(result.entryCount, 20);
-
-  // Files remain in place
-  assert.equal(fs.files.get("/mock/db/app.db"), "restored-db-content");
-  assert.equal(fs.files.get("/mock/doc/media/new-photo.jpg"), "restored-media-file");
+    await rollbackPendingRestore(fs);
+    assert.equal(
+      fs.files.get("/mock/db/app.db"),
+      "original-live-db",
+      `database recoverable after rollback operation ${interruptedOperation}`
+    );
+    assert.equal(
+      fs.files.get("/mock/db/app.db-wal"),
+      "original-live-wal",
+      `WAL recoverable after rollback operation ${interruptedOperation}`
+    );
+    assert.equal(
+      fs.files.get("/mock/doc/media/original-photo.jpg"),
+      "original-media-file",
+      `media recoverable after rollback operation ${interruptedOperation}`
+    );
+  }
 });
 
 test("corrupted journal recovers valid transaction from .bak or .tmp", async () => {
@@ -279,13 +418,24 @@ test("corrupted journal recovers valid transaction from .bak or .tmp", async () 
 
   // Case 1: Corrupted .json, valid .bak
   fs.files.set(fs.journalPath, '{"id": "incomplete');
-  fs.files.set(fs.journalBakPath, JSON.stringify({ id: "rec1", phase: "prepared", entryCount: 8 }));
+  fs.files.set(
+    fs.journalBakPath,
+    JSON.stringify({
+      id: "rec1",
+      operation: "preserve-db-main",
+      originalDatabaseExists: true,
+      originalMediaExists: true,
+      entryCount: 8,
+      mediaCount: 0,
+      timestamp: 1,
+    })
+  );
 
   const recoveredBak = await readDurableTransaction(fs);
   assert.equal(recoveredBak.corrupt, false);
   assert.equal(recoveredBak.recovered, true);
   assert.equal(recoveredBak.transaction?.id, "rec1");
-  assert.equal(recoveredBak.transaction?.phase, "prepared");
+  assert.equal(recoveredBak.transaction?.operation, "preserve-db-main");
   assert.equal(recoveredBak.transaction?.entryCount, 8);
   // Primary .json should be repaired
   assert.equal(JSON.parse(fs.files.get(fs.journalPath)).id, "rec1");
@@ -295,14 +445,22 @@ test("corrupted journal recovers valid transaction from .bak or .tmp", async () 
   fs.files.set(fs.journalBakPath, "{invalid");
   fs.files.set(
     fs.journalTmpPath,
-    JSON.stringify({ id: "rec2", phase: "media-swapped", entryCount: 12 })
+    JSON.stringify({
+      id: "rec2",
+      operation: "ready-for-verification",
+      originalDatabaseExists: true,
+      originalMediaExists: true,
+      entryCount: 12,
+      mediaCount: 0,
+      timestamp: 1,
+    })
   );
 
   const recoveredTmp = await readDurableTransaction(fs);
   assert.equal(recoveredTmp.corrupt, false);
   assert.equal(recoveredTmp.recovered, true);
   assert.equal(recoveredTmp.transaction?.id, "rec2");
-  assert.equal(recoveredTmp.transaction?.phase, "media-swapped");
+  assert.equal(recoveredTmp.transaction?.operation, "ready-for-verification");
   assert.equal(JSON.parse(fs.files.get(fs.journalPath)).id, "rec2");
 });
 
@@ -350,7 +508,18 @@ test("rollback restores original data and purges staging when database initializ
   fs.dirs.add("/mock/doc/openlog-restore-fail-previous-media");
   fs.dirs.add("/mock/doc/openlog-restore-fail-media");
 
-  await saveDurableTransaction({ id: "fail", phase: "media-swapped", entryCount: 1 }, fs);
+  await saveDurableTransaction(
+    {
+      id: "fail",
+      operation: "ready-for-verification",
+      originalDatabaseExists: true,
+      originalMediaExists: true,
+      entryCount: 1,
+      mediaCount: 1,
+      timestamp: 1,
+    },
+    fs
+  );
 
   // Simulate failure in schema initialization triggering rollbackPendingRestore
   await rollbackPendingRestore(fs, { id: "fail" });
@@ -381,7 +550,18 @@ test("completePendingRestore purges rollback copies and fires notification and a
   fs.dirs.add("/mock/doc/openlog-restore-ok-previous-media");
   fs.dirs.add("/mock/doc/openlog-restore-ok-media");
 
-  await saveDurableTransaction({ id: "ok", phase: "media-swapped", entryCount: 99 }, fs);
+  await saveDurableTransaction(
+    {
+      id: "ok",
+      operation: "ready-for-verification",
+      originalDatabaseExists: true,
+      originalMediaExists: true,
+      entryCount: 99,
+      mediaCount: 1,
+      timestamp: 1,
+    },
+    fs
+  );
 
   const notifications = [];
   const analyticsEvents = [];
@@ -416,9 +596,20 @@ test("rollback cleans up swapped active media when original timeline had no medi
   // because the original timeline had zero media!
   fs.dirs.add("/mock/doc/media");
 
-  await saveDurableTransaction({ id: "nomedia", phase: "media-swapped", entryCount: 5 }, fs);
+  await saveDurableTransaction(
+    {
+      id: "nomedia",
+      operation: "ready-for-verification",
+      originalDatabaseExists: true,
+      originalMediaExists: false,
+      entryCount: 5,
+      mediaCount: 0,
+      timestamp: 1,
+    },
+    fs
+  );
 
-  await rollbackPendingRestore(fs, { id: "nomedia", phase: "media-swapped" });
+  await rollbackPendingRestore(fs);
 
   // Original database restored
   assert.equal(fs.files.get("/mock/db/app.db"), "original-db-only");

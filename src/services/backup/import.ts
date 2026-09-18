@@ -5,7 +5,7 @@ import { strFromU8, Unzip, UnzipInflate, UnzipPassThrough } from "fflate";
 
 import { validateDatabaseSnapshot } from "@/services/db/database";
 
-import { createRestoreStaging, discardRestoreStaging, queueRestore } from "./restoreTransaction";
+import { createRestoreStaging, discardRestoreStaging, queueRestore } from "./restore";
 import {
   assertArchiveManifest,
   BACKUP_LIMITS,
@@ -271,7 +271,11 @@ export async function importBackupArchive(
     }
     if (options?.signal?.aborted) throw new Error("Import cancelled");
 
-    await queueRestore(id, options?.counts ?? { entry: importedCount, media: mediaCount });
+    await queueRestore({
+      id,
+      entryCount: options?.counts?.entry ?? importedCount,
+      mediaCount: options?.counts?.media ?? mediaCount,
+    });
     queued = true;
     return { importedCount };
   } finally {
