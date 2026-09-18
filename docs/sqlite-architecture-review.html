@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OpenLog SQLite architecture review</title>
+    <style>
+      :root { --ink:#292420; --muted:#70675f; --paper:#f5f0e8; --panel:#fffaf3; --line:#ded4c7; --rust:#a6482d; --moss:#476352; --gold:#bb812f; --night:#1d1a18; }
+      * { box-sizing:border-box; }
+      body { margin:0; background:var(--paper); color:var(--ink); font:16px/1.62 Georgia, 'Times New Roman', serif; }
+      main { width:min(1120px, calc(100% - 36px)); margin:auto; padding:56px 0 84px; }
+      .kicker, .eyebrow, code, .score b, .badge, th { font-family:'Courier New', monospace; letter-spacing:.07em; text-transform:uppercase; }
+      .kicker { color:var(--rust); font-size:12px; font-weight:bold; }
+      h1,h2,h3 { font-weight:normal; line-height:1.04; margin:0; }
+      h1 { max-width:900px; font-size:clamp(44px, 8vw, 88px); letter-spacing:-.055em; margin:10px 0 22px; }
+      h2 { font-size:34px; letter-spacing:-.035em; margin:0 0 18px; } h3 { font-size:22px; margin:0 0 8px; }
+      .lede { max-width:720px; color:#504941; font-size:21px; }
+      .hero { border-bottom:1px solid var(--line); padding-bottom:43px; }
+      .verdict { margin-top:36px; display:grid; grid-template-columns:210px 1fr; background:var(--night); color:#f8f0e5; }
+      .score { padding:28px; border-right:1px solid #544a42; } .score strong { display:block; font-size:58px; line-height:.9; color:#e6a65c; letter-spacing:-.07em; } .score b { display:block; margin-top:12px; font-size:11px; color:#c7b5a6; }
+      .verdict p { margin:auto 30px; max-width:680px; font-size:18px; }
+      section { padding-top:57px; }
+      .eyebrow { display:block; margin-bottom:9px; color:var(--rust); font-size:11px; font-weight:bold; }
+      .grid { display:grid; grid-template-columns:repeat(12,1fr); gap:18px; } .card { background:var(--panel); border:1px solid var(--line); padding:22px; } .span-4{grid-column:span 4}.span-6{grid-column:span 6}.span-8{grid-column:span 8}.span-12{grid-column:span 12}
+      .card p { margin:0; color:#594f47; } .card ul { margin:10px 0 0; padding-left:20px; } .card li + li { margin-top:7px; }
+      .model { background:#e8dfd2; padding:28px; border-left:5px solid var(--moss); } .model .flow { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:18px; }
+      .node { background:#fffaf3; border:1px solid #c8baaa; padding:12px 15px; font-family:'Courier New',monospace; font-size:13px; font-weight:bold; } .arrow { color:var(--rust); font-size:22px; }
+      .metric { border-top:2px solid var(--ink); padding-top:10px; } .metric strong { display:block; font-size:25px; line-height:1.1; } .metric span { color:var(--muted); font-size:14px; }
+      table { width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); } th { text-align:left; padding:14px 16px; font-size:11px; color:var(--muted); border-bottom:1px solid var(--line); } td { vertical-align:top; padding:18px 16px; border-bottom:1px solid var(--line); } tr:last-child td { border:0; } .badge { display:inline-block; padding:4px 7px; font-size:10px; font-weight:bold; } .p0 { color:#fff; background:#922e22; } .p1 { color:#fff; background:#b76820; } .p2 { color:#fff; background:#6d7752; }
+      code { text-transform:none; letter-spacing:0; font-size:.82em; color:#7f3525; word-break:break-word; } .source { color:var(--muted); font-size:14px; }
+      .principle { font-size:28px; line-height:1.25; padding:28px; background:#d9e0d2; border:1px solid #bdc9b2; } .principle em { color:var(--moss); }
+      .foot { border-top:1px solid var(--line); margin-top:55px; padding-top:18px; color:var(--muted); font-size:14px; }
+      @media (max-width:700px) { main{width:min(100% - 24px,1120px);padding-top:30px}.verdict{grid-template-columns:1fr}.score{border-right:0;border-bottom:1px solid #544a42}.verdict p{margin:24px 28px 30px}.span-4,.span-6,.span-8{grid-column:span 12}td,th{padding:12px 10px}table{font-size:14px} }
+      @media print { body{background:#fff} main{width:100%;padding:0}.card,table{break-inside:avoid}.hero{padding-top:0} }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header class="hero">
+        <div class="kicker">OpenLog · engineering review · 17 September 2026</div>
+        <h1>A calm, capable SQLite core—with a few sharp edges around recovery.</h1>
+        <p class="lede">This is a review of the current local database and the persistence paths that make its promises real. It asks whether the design is appropriate for OpenLog today, not whether it is maximally normalized or enterprise-shaped.</p>
+        <div class="verdict"><div class="score"><strong>7.5</strong><b>out of 10 today</b></div><p><strong>Verdict:</strong> a good v1 for a single-person, local-first timeline. The relational center is clean and the backup validation is thoughtful. The priority is to close two recovery holes, not to replace the schema with a larger one.</p></div>
+      </header>
+
+      <section>
+        <span class="eyebrow">At a glance</span><h2>What is already working well</h2>
+        <div class="grid">
+          <div class="span-4 metric"><strong>Timeline-aligned reads</strong><span><code>(created_at DESC, id DESC)</code> matches the cursor and primary listing order.</span></div>
+          <div class="span-4 metric"><strong>Real tag integrity</strong><span>A composite link key, foreign keys, cascades, and reverse index protect the only many-to-many relation.</span></div>
+          <div class="span-4 metric"><strong>Fail-closed evolution</strong><span>Versioned migrations advance atomically; unknown future databases are rejected.</span></div>
+          <div class="span-6 metric"><strong>Derived search, not a second truth</strong><span>FTS indexes entry text and location while the <code>entries</code> table remains canonical.</span></div>
+          <div class="span-6 metric"><strong>Restore is staged before swap</strong><span>Integrity, foreign-key, schema, and referenced-media checks happen before the live timeline is touched.</span></div>
+        </div>
+      </section>
+
+      <section>
+        <span class="eyebrow">The model</span><h2>Small on purpose</h2>
+        <div class="model"><p style="margin:0">The core is a sensible fit for OpenLog’s current retrieval lenses. Media lives in ordered JSON lists on an entry, while tags—where uniqueness, reuse, and relationship queries matter—are normalized.</p><div class="flow"><span class="node">entries</span><span class="arrow">← 1 : many →</span><span class="node">entry_tags</span><span class="arrow">← many : 1 →</span><span class="node">tags</span><span class="arrow">&nbsp;&nbsp; + &nbsp;&nbsp;</span><span class="node">settings</span></div></div>
+        <div class="grid" style="margin-top:18px">
+          <article class="card span-6"><h3>Why the JSON media columns are reasonable</h3><p>They preserve display order, make the common “load an entry” path one row read, and avoid a join-heavy media model before OpenLog needs media-specific filtering or sharing. This is an intentional simplification, not a schema flaw.</p></article>
+          <article class="card span-6"><h3>What that choice gives up</h3><p>SQLite cannot enforce each media item’s shape or answer “who else references this file?” efficiently. That matters for cleanup and imported-data validation; it does <em>not</em> yet require a wholesale media-table rewrite.</p></article>
+        </div>
+      </section>
+
+      <section>
+        <span class="eyebrow">Protection layers</span><h2>The good failure story</h2>
+        <div class="grid">
+          <article class="card span-4"><h3>Atomic database writes</h3><p>Create/update replaces an entry’s tag links in one SQLite transaction. A process-local FIFO lock serializes normal database operations, avoiding startup and write interleaving.</p></article>
+          <article class="card span-4"><h3>Relational guarantees</h3><p><code>entry_tags</code> rejects duplicate pairs and points only to existing entries and tags. Deleting an entry removes its links but leaves reusable tags intact.</p></article>
+          <article class="card span-4"><h3>Recovery-minded backup</h3><p>WAL, snapshotting on the active connection, a media-deletion gate, staging, a durable restore journal, and rollback copies are all strong local-first choices.</p></article>
+        </div>
+        <p class="principle">The design gets the most important idea right: <em>the timeline database is the source of truth;</em> search and views are derived from it.</p>
+      </section>
+
+      <section>
+        <span class="eyebrow">Priority fixes</span><h2>Where fault tolerance falls short</h2>
+        <table><thead><tr><th>Priority</th><th>Finding</th><th>Why it matters</th><th>Lucid next move</th></tr></thead><tbody>
+          <tr><td><span class="badge p0">Resolved</span></td><td><strong>Restore and rollback are now write-ahead and resumable.</strong><br><span class="source"><code>restore.ts</code></span></td><td>Each database sidecar and media handoff records its next operation before mutation. After a restart, source/destination topology distinguishes an unfinished move from one that completed before its next journal write, without overwriting the preserved timeline.</td><td>New journals use a validated operation cursor; existing phase-only journals remain readable. Crash injection covers every restore move and journal write, and the original database, WAL, and media remain available until restored SQLite startup verification succeeds.</td></tr>
+          <tr><td><span class="badge p1">P1</span></td><td><strong>Restore checks names more than semantics.</strong><br><span class="source"><code>validation.ts</code> 104–234</span></td><td>A backup may have required tables, indexes, and trigger names while still using wrong nullability, index columns, cascade action, or FTS trigger SQL. It can restore yet later behave incorrectly or search incompletely.</td><td>Validate canonical table/index/FK details through PRAGMAs (including <code>notnull</code>, PK order, <code>on_delete</code>, and index columns). Recreate and rebuild the derived FTS objects during restore rather than trusting named objects.</td></tr>
+          <tr><td><span class="badge p1">P1</span></td><td><strong>FTS can be stale while looking healthy.</strong><br><span class="source"><code>schema.ts</code> 72–117</span></td><td>Startup rebuilds only when one of four FTS object names is missing. A present-but-wrong trigger or stale mirror passes that test, so valid entries can disappear from search.</td><td>On open, run the FTS integrity check and rebuild on failure. During restore, rebuild unconditionally after the base tables are accepted. Test an altered-but-present trigger and a stale mirror.</td></tr>
+          <tr><td><span class="badge p1">P1</span></td><td><strong>Acknowledged writes favor speed over maximum durability.</strong><br><span class="source"><code>schema.ts</code> 61–66</span></td><td><code>WAL + synchronous=NORMAL</code> keeps the database consistent, but an abrupt power/OS failure can lose the newest acknowledged transactions on some devices.</td><td>Make this an explicit product decision. For “a just-saved entry must survive,” use <code>synchronous=FULL</code> and validate the performance cost on devices; otherwise document the bounded risk.</td></tr>
+          <tr><td><span class="badge p2">P2</span></td><td><strong>Media files and rows are not one transaction.</strong><br><span class="source"><code>DraftTransform.ts</code> 18–30; <code>useComposeDraft.ts</code> 72–89</span></td><td>Files are copied before the entry write. A failed save or interruption leaves orphan files. Conversely, cleanup after a successful update is deliberately best-effort and can also leak.</td><td>Add a deterministic orphan-media reconciliation pass (startup or settings-safe maintenance). Keep “database commit before destructive cleanup”—that ordering is correct.</td></tr>
+          <tr><td><span class="badge p2">P2</span></td><td><strong>Shared media paths are unsafe.</strong><br><span class="source"><code>entries.ts</code> 345–354; <code>mediaMutation.ts</code> 7–46</span></td><td>Because paths are stored in per-entry JSON, deleting one entry can delete a file another entry references. UUID filenames reduce normal occurrence but imports and reuse make it possible.</td><td>Before physical deletion, check for another reference; later, introduce a media table only if media needs first-class lifecycle/query behavior.</td></tr>
+          <tr><td><span class="badge p2">P2</span></td><td><strong>Row validity is mostly application-enforced.</strong><br><span class="source"><code>migrations/v1.ts</code> 6–38; <code>uris.ts</code> 3–34</span></td><td>Coordinates, timestamp relationships, JSON arrays, attachment shape, and tag color semantics are not fully constrained. Malformed JSON is silently omitted by tolerant readers, including media validation.</td><td>In a forward migration, add compatible coordinate/timestamp checks. Independently validate imported JSON arrays and local media paths before accepting a restore; report bad data rather than silently dropping it.</td></tr>
+        </tbody></table>
+      </section>
+
+      <section>
+        <span class="eyebrow">Not urgent</span><h2>Useful polish, later</h2>
+        <div class="grid">
+          <article class="card span-4"><h3>Reduce FTS churn</h3><p>The update trigger runs after every entry update, even timestamp/media-only edits. Scope it to <code>UPDATE OF text, location</code>.</p></article>
+          <article class="card span-4"><h3>Keep the lock hard to bypass</h3><p><code>getDatabase()</code> exposes the raw handle. Current callers are disciplined; keeping it internal would preserve the serialization rule mechanically.</p></article>
+          <article class="card span-4"><h3>Scale tags only when needed</h3><p>Prefix tag search uses <code>instr()</code>, which normally cannot use the unique key index. Tags are small; revisit only if profiling says it matters.</p></article>
+        </div>
+      </section>
+
+      <section>
+        <span class="eyebrow">Suggested sequence</span><h2>Improve resilience without redesigning the model</h2>
+        <div class="grid">
+          <article class="card span-4"><h3>1 · Protect restore first</h3><ul><li>Journal before each irreversible move.</li><li>Make replay state-aware and idempotent.</li><li>Exercise every crash boundary in tests.</li></ul></article>
+          <article class="card span-4"><h3>2 · Harden import truthfulness</h3><ul><li>Verify actual schema semantics.</li><li>Rebuild FTS during restore.</li><li>Reject invalid JSON/media references explicitly.</li></ul></article>
+          <article class="card span-4"><h3>3 · Tidy file lifecycle</h3><ul><li>Reconcile orphans deterministically.</li><li>Check references before deleting media.</li><li>Decide and document the WAL durability level.</li></ul></article>
+        </div>
+      </section>
+      <p class="foot">Method: independent data-model, SQLite-integrity, and persistence-recovery reviews; source inspection of the v1 migration, schema initialization, validation, entry/media paths, restore transaction, and current test suite. <code>pnpm test</code> passed: 38 tests, 0 failures. This report describes the repository state reviewed on 17 September 2026; device power-loss behavior has not been simulated on a physical Android or iOS target.</p>
+    </main>
+  </body>
+</html>

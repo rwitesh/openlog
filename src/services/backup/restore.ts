@@ -10,13 +10,13 @@ const RESTORE_OPERATIONS = [
   "preserve-media",
   "activate-media",
   "ready-for-verification",
-  "rollback-remove-db-main",
+  "rollback-discard-db-main",
+  "rollback-discard-db-wal",
+  "rollback-discard-db-shm",
   "rollback-restore-db-main",
-  "rollback-remove-db-wal",
   "rollback-restore-db-wal",
-  "rollback-remove-db-shm",
   "rollback-restore-db-shm",
-  "rollback-remove-media",
+  "rollback-discard-media",
   "rollback-restore-media",
   "rollback-cleanup",
 ] as const;
@@ -24,10 +24,11 @@ const RESTORE_OPERATIONS = [
 type RestoreOperation = (typeof RESTORE_OPERATIONS)[number];
 
 function isRestoreOperation(value: unknown): value is RestoreOperation {
-  return (
-    typeof value === "string" &&
-    RESTORE_OPERATIONS.includes(value as RestoreOperation)
-  );
+  return typeof value === "string" && RESTORE_OPERATIONS.includes(value as RestoreOperation);
+}
+
+function isRollbackOperation(operation: RestoreOperation): boolean {
+  return operation.startsWith("rollback-");
 }
 
 export interface RestoreTransaction {
@@ -205,12 +206,20 @@ function getPreviousDbBase(id: string): string {
   return `openlog-restore-${id}-previous.sqlite`;
 }
 
+function getDiscardedDbBase(id: string): string {
+  return `openlog-restore-${id}-discarded.sqlite`;
+}
+
 function getStagedMediaPath(fs: RestoreFileSystem, id: string): string {
   return getDocPath(fs, `openlog-restore-${id}-media`);
 }
 
 function getPreviousMediaPath(fs: RestoreFileSystem, id: string): string {
   return getDocPath(fs, `openlog-restore-${id}-previous-media`);
+}
+
+function getDiscardedMediaPath(fs: RestoreFileSystem, id: string): string {
+  return getDocPath(fs, `openlog-restore-${id}-discarded-media`);
 }
 
 function getActiveMediaPath(fs: RestoreFileSystem): string {
@@ -229,11 +238,7 @@ async function removeDatabaseFiles(fs: RestoreFileSystem, baseName: string): Pro
 function parseTransactionJson(raw: string): RestoreTransaction | null {
   try {
     const value = JSON.parse(raw) as Partial<RestoreTransaction>;
-    if (
-      typeof value.id !== "string" ||
-      !value.id ||
-      !isRestoreOperation(value.operation)
-    ) {
+    if (typeof value.id !== "string" || !value.id || !isRestoreOperation(value.operation)) {
       return null;
     }
     const result: RestoreTransaction = {
@@ -448,9 +453,7 @@ export async function queueRestore(
   await saveDurableTransaction(transaction, fs);
 }
 
-export async function rollbackPendingRestore(
-  fsOrCustom?: RestoreFileSystem
-): Promise<void> {
+export async function rollbackPendingRestore(fsOrCustom?: RestoreFileSystem): Promise<void> {
   const fs = resolveFileSystem(fsOrCustom);
   const durable = (await readDurableTransaction(fs)).transaction;
   let transaction: RestoreTransaction | null = durable;
@@ -460,14 +463,16 @@ export async function rollbackPendingRestore(
     if (id) {
       transaction = {
         id,
-        operation: "rollback-remove-db-main",
+        operation: "rollback-discard-db-main",
         originalDatabaseExists: true,
         originalMediaExists: Boolean(artifacts.previousMediaPath),
       };
     }
   }
   if (!transaction) return;
-  transaction.operation = "rollback-remove-db-main";
+  if (!isRollbackOperation(transaction.operation)) {
+    transaction.operation = "rollback-discard-db-main";
+  }
   await saveDurableTransaction(transaction, fs);
   await resumeRollback(transaction, fs);
 }
@@ -499,6 +504,10 @@ export async function applyPendingRestore(
   }
 
   try {
+    if (isRollbackOperation(transaction.operation)) {
+      await resumeRollback(transaction, fs);
+      return { applied: false };
+    }
     await resumeRestore(transaction, fs);
     return { applied: true, id: transaction.id, entryCount: transaction.entryCount };
   } catch {
@@ -621,10 +630,29 @@ async function resumeRollback(
 ): Promise<void> {
   const { id } = transaction;
   const previous = getPreviousDbBase(id);
+  const discarded = getDiscardedDbBase(id);
   while (transaction.operation !== "rollback-cleanup") {
     switch (transaction.operation) {
-      case "rollback-remove-db-main":
-        await removeDatabaseFiles(fs, DATABASE_NAME);
+      case "rollback-discard-db-main":
+        await reconcileFileMove(fs, getDbPath(fs, DATABASE_NAME), getDbPath(fs, discarded), false);
+        await advanceOperation(transaction, "rollback-discard-db-wal", fs);
+        break;
+      case "rollback-discard-db-wal":
+        await reconcileFileMove(
+          fs,
+          getDbPath(fs, `${DATABASE_NAME}-wal`),
+          getDbPath(fs, `${discarded}-wal`),
+          false
+        );
+        await advanceOperation(transaction, "rollback-discard-db-shm", fs);
+        break;
+      case "rollback-discard-db-shm":
+        await reconcileFileMove(
+          fs,
+          getDbPath(fs, `${DATABASE_NAME}-shm`),
+          getDbPath(fs, `${discarded}-shm`),
+          false
+        );
         await advanceOperation(transaction, "rollback-restore-db-main", fs);
         break;
       case "rollback-restore-db-main":
@@ -634,12 +662,6 @@ async function resumeRollback(
           getDbPath(fs, DATABASE_NAME),
           transaction.originalDatabaseExists !== false
         );
-        await advanceOperation(transaction, "rollback-remove-db-wal", fs);
-        break;
-      case "rollback-remove-db-wal":
-        if (await fs.exists(getDbPath(fs, `${DATABASE_NAME}-wal`))) {
-          await fs.deleteFile(getDbPath(fs, `${DATABASE_NAME}-wal`));
-        }
         await advanceOperation(transaction, "rollback-restore-db-wal", fs);
         break;
       case "rollback-restore-db-wal":
@@ -649,12 +671,6 @@ async function resumeRollback(
           getDbPath(fs, `${DATABASE_NAME}-wal`),
           false
         );
-        await advanceOperation(transaction, "rollback-remove-db-shm", fs);
-        break;
-      case "rollback-remove-db-shm":
-        if (await fs.exists(getDbPath(fs, `${DATABASE_NAME}-shm`))) {
-          await fs.deleteFile(getDbPath(fs, `${DATABASE_NAME}-shm`));
-        }
         await advanceOperation(transaction, "rollback-restore-db-shm", fs);
         break;
       case "rollback-restore-db-shm":
@@ -664,14 +680,17 @@ async function resumeRollback(
           getDbPath(fs, `${DATABASE_NAME}-shm`),
           false
         );
-        await advanceOperation(transaction, "rollback-remove-media", fs);
+        await advanceOperation(transaction, "rollback-discard-media", fs);
         break;
-      case "rollback-remove-media": {
-        const activeMedia = getActiveMediaPath(fs);
-        if (await fs.directoryExists(activeMedia)) await fs.deleteDirectory(activeMedia);
+      case "rollback-discard-media":
+        await reconcileDirectoryMove(
+          fs,
+          getActiveMediaPath(fs),
+          getDiscardedMediaPath(fs, id),
+          false
+        );
         await advanceOperation(transaction, "rollback-restore-media", fs);
         break;
-      }
       case "rollback-restore-media":
         await reconcileDirectoryMove(
           fs,
@@ -683,6 +702,9 @@ async function resumeRollback(
         break;
     }
   }
+  await removeDatabaseFiles(fs, discarded);
+  const discardedMedia = getDiscardedMediaPath(fs, id);
+  if (await fs.directoryExists(discardedMedia)) await fs.deleteDirectory(discardedMedia);
   if (await fs.exists(getStagedDbPath(fs, id))) await fs.deleteFile(getStagedDbPath(fs, id));
   if (await fs.directoryExists(getStagedMediaPath(fs, id))) {
     await fs.deleteDirectory(getStagedMediaPath(fs, id));
