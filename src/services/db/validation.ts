@@ -1,4 +1,4 @@
-import { DATABASE_SCHEMA_VERSION } from "./schema.ts";
+import { DATABASE_SCHEMA_VERSION, recreateSearchIndex } from "./schema.ts";
 import { parseAttachments, parseUris } from "./uris.ts";
 
 export interface ValidationDatabase {
@@ -30,26 +30,91 @@ export function extractMediaFilenameFromUri(rawUri: string): string | null {
   return filename;
 }
 
-async function assertTableColumns(
+const CANONICAL_SCHEMA = "main";
+const CANONICAL_TABLES = ["entries", "tags", "entry_tags", "settings"] as const;
+
+interface TableColumn {
+  cid: number;
+  name: string;
+  type: string;
+  notnull: number;
+  dflt_value: string | null;
+  pk: number;
+}
+
+interface ForeignKey {
+  id: number;
+  seq: number;
+  table: string;
+  from: string;
+  to: string;
+  on_update: string;
+  on_delete: string;
+  match: string;
+}
+
+interface IndexListEntry {
+  seq: number;
+  name: string;
+  unique: number;
+  origin: string;
+  partial: number;
+}
+
+interface IndexColumn {
+  seqno: number;
+  cid: number;
+  name: string | null;
+  desc: number;
+  coll: string;
+  key: number;
+}
+
+function sameMetadata(expected: unknown, actual: unknown): boolean {
+  return JSON.stringify(expected) === JSON.stringify(actual);
+}
+
+async function assertCanonicalTable(
   database: ValidationDatabase,
   sourceSchema: string,
-  table: string,
-  requiredCols: string[],
-  primaryKeyCol?: string
-): Promise<Map<string, { name: string; pk: number }>> {
-  const info = await database.getAllAsync<{ name: string; pk: number }>(
-    `PRAGMA ${sourceSchema}.table_info(${table})`
-  );
-  const cols = new Map(info.map((c) => [c.name, c]));
-  for (const col of requiredCols) {
-    if (!cols.has(col)) {
-      throw new Error(`Invalid backup database: ${table} table is missing column '${col}'.`);
+  table: (typeof CANONICAL_TABLES)[number]
+): Promise<void> {
+  const [expectedColumns, actualColumns, expectedForeignKeys, actualForeignKeys] =
+    await Promise.all([
+      database.getAllAsync<TableColumn>(`PRAGMA ${CANONICAL_SCHEMA}.table_info(${table})`),
+      database.getAllAsync<TableColumn>(`PRAGMA ${sourceSchema}.table_info(${table})`),
+      database.getAllAsync<ForeignKey>(`PRAGMA ${CANONICAL_SCHEMA}.foreign_key_list(${table})`),
+      database.getAllAsync<ForeignKey>(`PRAGMA ${sourceSchema}.foreign_key_list(${table})`),
+    ]);
+
+  if (!sameMetadata(expectedColumns, actualColumns)) {
+    throw new Error(`Invalid backup database: ${table} columns do not match the current schema.`);
+  }
+  if (!sameMetadata(expectedForeignKeys, actualForeignKeys)) {
+    throw new Error(
+      `Invalid backup database: ${table} foreign keys do not match the current schema.`
+    );
+  }
+
+  const [expectedIndexes, actualIndexes] = await Promise.all([
+    database.getAllAsync<IndexListEntry>(`PRAGMA ${CANONICAL_SCHEMA}.index_list(${table})`),
+    database.getAllAsync<IndexListEntry>(`PRAGMA ${sourceSchema}.index_list(${table})`),
+  ]);
+  if (!sameMetadata(expectedIndexes, actualIndexes)) {
+    throw new Error(`Invalid backup database: ${table} indexes do not match the current schema.`);
+  }
+
+  for (const index of expectedIndexes) {
+    const [expectedColumns, actualColumns] = await Promise.all([
+      database.getAllAsync<IndexColumn>(`PRAGMA ${CANONICAL_SCHEMA}.index_xinfo(${index.name})`),
+      database.getAllAsync<IndexColumn>(`PRAGMA ${sourceSchema}.index_xinfo(${index.name})`),
+    ]);
+    if (!sameMetadata(expectedColumns, actualColumns)) {
+      throw new Error(
+        `Invalid backup database: ${table}.${index.name} does not match the current schema.`
+      );
     }
   }
-  if (primaryKeyCol && (cols.get(primaryKeyCol)?.pk ?? 0) < 1) {
-    throw new Error(`Invalid backup database: ${table}.${primaryKeyCol} must be a primary key.`);
-  }
-  return cols;
 }
 
 /**
@@ -57,8 +122,8 @@ async function assertTableColumns(
  * - Integrity check
  * - Schema version (user_version <= DATABASE_SCHEMA_VERSION, >= 1)
  * - Foreign key violations
- * - Table definitions and constraints (entries, tags, entry_tags, settings)
- * - Required indexes and FTS virtual table & synchronization triggers
+ * - Base table, foreign-key, and index metadata matched against the initialized canonical schema
+ * - Recreated FTS virtual table and synchronization triggers
  * - Referential media integrity against extracted staging files
  */
 export async function validateAttachedDatabase(
@@ -92,146 +157,20 @@ export async function validateAttachedDatabase(
     throw new Error("Invalid backup database: foreign key check failed.");
   }
 
-  const requiredTables = ["entries", "tags", "entry_tags", "settings"];
   const tables = await database.getAllAsync<{ name: string }>(
     `SELECT name FROM ${sourceSchema}.sqlite_master
      WHERE type = 'table' AND name IN ('entries', 'tags', 'entry_tags', 'settings')`
   );
-  if (tables.length !== requiredTables.length) {
+  if (tables.length !== CANONICAL_TABLES.length) {
     throw new Error("Invalid backup database: required tables are missing.");
   }
 
-  // Validate required table schemas and constraints
-  await assertTableColumns(
-    database,
-    sourceSchema,
-    "entries",
-    [
-      "id",
-      "created_at",
-      "updated_at",
-      "text",
-      "images",
-      "audios",
-      "attachments",
-      "latitude",
-      "longitude",
-      "location",
-    ],
-    "id"
-  );
-
-  await assertTableColumns(
-    database,
-    sourceSchema,
-    "tags",
-    ["id", "name", "key", "color_id", "created_at", "updated_at"],
-    "id"
-  );
-
-  const tagsIndexes = await database.getAllAsync<{ name: string; unique: number }>(
-    `PRAGMA ${sourceSchema}.index_list(tags)`
-  );
-  let keyIsUnique = false;
-  for (const idx of tagsIndexes) {
-    if (idx.unique === 1) {
-      const idxCols = await database.getAllAsync<{ name: string }>(
-        `PRAGMA ${sourceSchema}.index_info(${idx.name})`
-      );
-      if (idxCols.length === 1 && idxCols[0].name === "key") {
-        keyIsUnique = true;
-        break;
-      }
-    }
-  }
-  if (!keyIsUnique) {
-    throw new Error("Invalid backup database: tags.key must have a UNIQUE constraint.");
+  for (const table of CANONICAL_TABLES) {
+    await assertCanonicalTable(database, sourceSchema, table);
   }
 
-  const entryTagsCols = await assertTableColumns(database, sourceSchema, "entry_tags", [
-    "entry_id",
-    "tag_id",
-  ]);
-  if ((entryTagsCols.get("entry_id")?.pk ?? 0) < 1 || (entryTagsCols.get("tag_id")?.pk ?? 0) < 1) {
-    throw new Error(
-      "Invalid backup database: entry_tags must have a composite primary key on (entry_id, tag_id)."
-    );
-  }
-
-  const entryTagsFks = await database.getAllAsync<{ table: string; from: string; to: string }>(
-    `PRAGMA ${sourceSchema}.foreign_key_list(entry_tags)`
-  );
-  const hasEntryFk = entryTagsFks.some(
-    (fk) => fk.table === "entries" && fk.from === "entry_id" && fk.to === "id"
-  );
-  const hasTagFk = entryTagsFks.some(
-    (fk) => fk.table === "tags" && fk.from === "tag_id" && fk.to === "id"
-  );
-  if (!hasEntryFk || !hasTagFk) {
-    throw new Error(
-      "Invalid backup database: entry_tags missing required foreign key constraints."
-    );
-  }
-
-  await assertTableColumns(database, sourceSchema, "settings", ["key", "value"], "key");
-
-  // Validate required indexes: idx_entries_created_at_id, idx_entry_tags_tag_entry
-  const indexes = await database.getAllAsync<{ name: string }>(
-    `SELECT name FROM ${sourceSchema}.sqlite_master
-     WHERE type = 'index' AND name IN ('idx_entries_created_at_id', 'idx_entry_tags_tag_entry')`
-  );
-  if (indexes.length !== 2) {
-    throw new Error("Invalid backup database: required indexes are missing.");
-  }
-
-  // Validate FTS virtual table and triggers (recreate/rebuild if missing or corrupted)
-  const ftsObjects = await database.getAllAsync<{ name: string }>(
-    `SELECT name FROM ${sourceSchema}.sqlite_master
-     WHERE name IN ('entries_fts', 'entries_fts_ai', 'entries_fts_ad', 'entries_fts_au')`
-  );
-  let ftsValid = ftsObjects.length === 4;
-  if (ftsValid) {
-    try {
-      await database.runAsync(
-        `INSERT INTO ${sourceSchema}.entries_fts(entries_fts) VALUES('integrity-check')`
-      );
-    } catch {
-      ftsValid = false;
-    }
-  }
-
-  if (!ftsValid) {
-    await database.execAsync(`
-      DROP TRIGGER IF EXISTS ${sourceSchema}.entries_fts_ai;
-      DROP TRIGGER IF EXISTS ${sourceSchema}.entries_fts_ad;
-      DROP TRIGGER IF EXISTS ${sourceSchema}.entries_fts_au;
-      DROP TABLE IF EXISTS ${sourceSchema}.entries_fts;
-      CREATE VIRTUAL TABLE ${sourceSchema}.entries_fts USING fts5(
-        text,
-        location,
-        content='entries',
-        content_rowid='rowid'
-      );
-      CREATE TRIGGER ${sourceSchema}.entries_fts_ai AFTER INSERT ON entries BEGIN
-        INSERT INTO entries_fts (rowid, text, location)
-        VALUES (new.rowid, new.text, new.location);
-      END;
-      CREATE TRIGGER ${sourceSchema}.entries_fts_ad AFTER DELETE ON entries BEGIN
-        INSERT INTO entries_fts (entries_fts, rowid, text, location)
-        VALUES ('delete', old.rowid, old.text, old.location);
-      END;
-      CREATE TRIGGER ${sourceSchema}.entries_fts_au AFTER UPDATE ON entries BEGIN
-        INSERT INTO entries_fts (entries_fts, rowid, text, location)
-        VALUES ('delete', old.rowid, old.text, old.location);
-        INSERT INTO entries_fts (rowid, text, location)
-        VALUES (new.rowid, new.text, new.location);
-      END;
-      INSERT INTO ${sourceSchema}.entries_fts(entries_fts) VALUES ('rebuild');
-    `);
-    await database.runAsync(
-      `INSERT INTO ${sourceSchema}.entries_fts(entries_fts) VALUES('integrity-check')`
-    );
-  }
+  // FTS is derived from entries, so no staged FTS object is trusted during restore.
+  await recreateSearchIndex(database, sourceSchema);
 
   // Validate media references against stagingMediaDir (if provided)
   if (stagingMediaDir) {
