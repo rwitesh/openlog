@@ -5,6 +5,9 @@ import { press, radius, space, typography, useEntryPreferences, useTheme } from 
 
 const DOT = 7;
 const MARKER = 30;
+// The last rail line trails a few points past the final entry's bottom edge so
+// the spine ends with the content instead of at its marker.
+const LAST_TAIL = 6;
 
 interface RailProps extends ViewProps {
   dayTs: number;
@@ -52,7 +55,7 @@ export function TimelineRail({
                 width: lineWidth,
                 left: (MARKER - lineWidth) / 2,
                 top: isFirst ? center : 0,
-                bottom: isLast ? center : 0,
+                bottom: isLast ? -LAST_TAIL : 0,
                 backgroundColor: colors.marker,
                 opacity: lineOpacity,
               },
