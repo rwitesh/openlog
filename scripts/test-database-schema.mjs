@@ -136,6 +136,30 @@ test("database initialization creates the current schema and maintains the FTS m
   });
 });
 
+test("foreign keys are enforced only after migrations complete", async () => {
+  const database = new DatabaseSync(":memory:");
+  const base = createAdapter(database);
+  const foreignKeyStatesDuringMigrations = [];
+  const db = {
+    ...base,
+    withTransactionAsync: async (task) => {
+      // Migrations run inside transactions; capture the constraint state they see.
+      foreignKeyStatesDuringMigrations.push(
+        database.prepare("PRAGMA foreign_keys").get().foreign_keys
+      );
+      return base.withTransactionAsync(task);
+    },
+  };
+
+  await initializeDatabaseSchema(db);
+
+  // A future migration must be able to use SQLite's rename/copy/drop table
+  // rebuild, which enforced foreign keys from entry_tags would block; the
+  // pragma also cannot be toggled inside the migration's own transaction.
+  assert.deepEqual(foreignKeyStatesDuringMigrations, [0]);
+  assert.equal(database.prepare("PRAGMA foreign_keys").get().foreign_keys, 1);
+});
+
 test("identifies unreferenced media without false matches on prefixes or shared references", async () => {
   const database = new DatabaseSync(":memory:");
   const db = createAdapter(database);
