@@ -36,6 +36,32 @@ function getNotifications(): NotificationsModule | null {
   return cachedModule;
 }
 
+let channelsConfigured = false;
+
+async function ensureBackupChannels(Notifications: NotificationsModule): Promise<void> {
+  if (Platform.OS !== "android" || channelsConfigured) {
+    return;
+  }
+
+  try {
+    await Notifications.setNotificationChannelAsync("backup", {
+      name: "Backup & Restore",
+      importance: Notifications.AndroidImportance.HIGH,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: "#8B5CF6",
+    });
+    await Notifications.setNotificationChannelAsync("backup-progress", {
+      name: "Backup & Restore Progress",
+      importance: Notifications.AndroidImportance.LOW,
+      enableVibrate: false,
+      sound: null,
+    });
+    channelsConfigured = true;
+  } catch (error) {
+    logDevWarning("notifications:ensureBackupChannels", error);
+  }
+}
+
 /** Requests notification permission if not granted; the OS itself never re-prompts after a decision. */
 export async function requestNotificationPermission(): Promise<boolean> {
   const Notifications = getNotifications();
@@ -59,18 +85,7 @@ export async function requestNotificationPermission(): Promise<boolean> {
     }
 
     if (Platform.OS === "android") {
-      await Notifications.setNotificationChannelAsync("backup", {
-        name: "Backup & Restore",
-        importance: Notifications.AndroidImportance.HIGH,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: "#8B5CF6",
-      });
-      await Notifications.setNotificationChannelAsync("backup-progress", {
-        name: "Backup & Restore Progress",
-        importance: Notifications.AndroidImportance.LOW,
-        enableVibrate: false,
-        sound: null,
-      });
+      await ensureBackupChannels(Notifications);
     }
 
     return finalStatus === "granted";
@@ -117,6 +132,8 @@ export async function notifyBackupProgress(title: string, body: string): Promise
   const Notifications = getNotifications();
   if (!Notifications) return;
 
+  await ensureBackupChannels(Notifications);
+
   try {
     await Notifications.scheduleNotificationAsync({
       identifier: BACKUP_NOTIFICATION_ID,
@@ -158,6 +175,8 @@ export async function notifyBackupExportComplete(
   const Notifications = getNotifications();
   if (!Notifications) return;
 
+  await ensureBackupChannels(Notifications);
+
   const sizeText = byteSize ? ` (${formatBytes(byteSize)})` : "";
   try {
     await Notifications.scheduleNotificationAsync({
@@ -183,6 +202,8 @@ export async function notifyBackupImportComplete(importedCount: number): Promise
   const Notifications = getNotifications();
   if (!Notifications) return;
 
+  await ensureBackupChannels(Notifications);
+
   try {
     await Notifications.scheduleNotificationAsync({
       identifier: BACKUP_NOTIFICATION_ID,
@@ -206,6 +227,8 @@ export async function notifyBackupImportComplete(importedCount: number): Promise
 export async function notifyBackupError(title: string, body: string): Promise<void> {
   const Notifications = getNotifications();
   if (!Notifications) return;
+
+  await ensureBackupChannels(Notifications);
 
   try {
     await Notifications.scheduleNotificationAsync({

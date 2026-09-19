@@ -3,27 +3,22 @@ import * as FileSystem from "expo-file-system/legacy";
 import { defaultDatabaseDirectory } from "expo-sqlite";
 import { strFromU8, Unzip, UnzipInflate, UnzipPassThrough } from "fflate";
 
-import { validateDatabaseSnapshot } from "@/services/db/database";
-
-import { createRestoreStaging, discardRestoreStaging, queueRestore } from "./restore";
+import { notifyStoreReload } from "@/modules/entry/store/EntryStore";
+import { runDb } from "@/services/db/database";
 import {
-  assertArchiveManifest,
+  type ImportBackupOptions,
+  type ImportBackupResult,
+  MANIFEST_FILENAME,
+  TIMELINE_DATA_FILENAME,
+} from "./types";
+import {
+  assertBackupManifest,
+  assertBackupTimelineData,
   BACKUP_LIMITS,
   calculateRequiredRestoreBytes,
   extractMediaFilename,
   validateArchivePath,
-} from "./shared";
-import {
-  ARCHIVE_FORMAT,
-  ARCHIVE_SCHEMA_VERSION,
-  type ArchiveManifest,
-  type ImportBackupOptions,
-  type ImportBackupResult,
-} from "./types";
-
-function restoreId(): string {
-  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
+} from "./utils";
 
 function getExistingTimelineDiskBytes(): number {
   let bytes = 0;
@@ -66,7 +61,9 @@ function concat(chunks: Uint8Array[]): Uint8Array {
   return result;
 }
 
-/** Restores an opaque SQLite/media archive, retaining a durable marker across the media/database handoff. */
+/**
+ * Restores a structured JSON backup archive in-session with ACID transactional safety.
+ */
 export async function importBackupArchive(
   fileUri: string,
   options?: ImportBackupOptions
@@ -74,8 +71,9 @@ export async function importBackupArchive(
   const sourceFile = new File(fileUri);
   if (!sourceFile.exists) throw new Error("Selected backup file does not exist.");
   const archiveBytes = sourceFile.info().size ?? 0;
-  if (archiveBytes > BACKUP_LIMITS.archiveBytes)
+  if (archiveBytes > BACKUP_LIMITS.archiveBytes) {
     throw new Error("Backup file is too large to restore.");
+  }
   if (options?.signal?.aborted) throw new Error("Import cancelled");
   if (
     options?.expectedArchiveBytes !== undefined &&
@@ -105,24 +103,25 @@ export async function importBackupArchive(
   if (typeof freeBytes === "number" && freeBytes > 0) {
     if (freeBytes < requiredBytes) {
       throw new Error(
-        "Insufficient storage to restore backup. OpenLog requires free space for staging and rollback copies."
+        "Insufficient storage to restore backup. OpenLog requires free space for staging."
       );
     }
   }
 
-  const id = restoreId();
-  const staging = createRestoreStaging(id);
-  const snapshotFile = staging.database;
-  if (staging.media.exists) staging.media.delete();
-  staging.media.create({ idempotent: true, intermediates: true });
-  if (snapshotFile.exists) snapshotFile.delete();
-  snapshotFile.create({ overwrite: true });
-  const snapshotHandle = snapshotFile.open(FileMode.WriteOnly);
-  let snapshotClosed = false;
-  let manifest: ArchiveManifest | null = null;
-  let queued = false;
+  const stagingDir = new Directory(
+    Paths.cache,
+    `openlog-restore-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  );
+  stagingDir.create({ idempotent: true, intermediates: true });
+  const stagingMediaDir = new Directory(stagingDir, "media");
+  stagingMediaDir.create({ idempotent: true, intermediates: true });
+
+  const manifestChunks: Uint8Array[] = [];
+  const timelineChunks: Uint8Array[] = [];
   let failure: Error | null = null;
   let totalUncompressed = 0;
+  let manifestBytes = 0;
+  let timelineBytes = 0;
   let mediaCount = 0;
   const paths = new Set<string>();
   const mediaNames = new Set<string>();
@@ -131,6 +130,7 @@ export async function importBackupArchive(
     const unzipper = new Unzip();
     unzipper.register(UnzipInflate);
     unzipper.register(UnzipPassThrough);
+
     unzipper.onfile = (member) => {
       if (failure) return;
       if (options?.signal?.aborted) {
@@ -139,20 +139,12 @@ export async function importBackupArchive(
       }
 
       try {
-        validateArchivePath(member.name);
+        validateArchivePath(member.name, paths);
       } catch (err) {
         failure = err instanceof Error ? err : new Error(String(err));
         return;
       }
 
-      if (member.name === "manifest.json" && paths.has("manifest.json")) {
-        failure = new Error("Invalid backup file: duplicate manifest.");
-        return;
-      }
-      if (paths.has(member.name)) {
-        failure = new Error("Invalid backup file: duplicate archive path.");
-        return;
-      }
       paths.add(member.name);
       if (member.originalSize !== undefined && member.originalSize > BACKUP_LIMITS.memberBytes) {
         failure = new Error("Invalid backup file: archive member is too large.");
@@ -161,7 +153,7 @@ export async function importBackupArchive(
 
       let mediaHandle: ReturnType<File["open"]> | null = null;
       let memberBytes = 0;
-      const metadataChunks: Uint8Array[] = [];
+
       try {
         if (member.name.startsWith("media/")) {
           const filename = extractMediaFilename(member.name);
@@ -171,9 +163,10 @@ export async function importBackupArchive(
           }
           mediaNames.add(filenameKey);
           mediaCount++;
-          if (mediaCount > BACKUP_LIMITS.media)
+          if (mediaCount > BACKUP_LIMITS.media) {
             throw new Error("Invalid backup file: too many media files.");
-          const destination = new File(staging.media, filename);
+          }
+          const destination = new File(stagingMediaDir, filename);
           destination.create({ overwrite: true });
           mediaHandle = destination.open(FileMode.WriteOnly);
         }
@@ -203,26 +196,25 @@ export async function importBackupArchive(
           mediaHandle?.close();
           return;
         }
-        if (options?.signal?.aborted) {
-          failure = new Error("Import cancelled");
-          mediaHandle?.close();
-          return;
-        }
+
         try {
-          if (member.name === "database.sqlite") snapshotHandle.writeBytes(chunk);
-          else if (mediaHandle) mediaHandle.writeBytes(chunk);
-          else {
-            if (memberBytes > BACKUP_LIMITS.manifestBytes) {
-              throw new Error("Invalid backup manifest: too large.");
+          if (member.name === MANIFEST_FILENAME) {
+            manifestBytes += chunk.length;
+            if (manifestBytes > BACKUP_LIMITS.manifestBytes) {
+              throw new Error("Invalid backup manifest: manifest data too large.");
             }
-            metadataChunks.push(chunk);
+            manifestChunks.push(chunk);
+          } else if (member.name === TIMELINE_DATA_FILENAME) {
+            timelineBytes += chunk.length;
+            if (timelineBytes > BACKUP_LIMITS.timelineDataBytes) {
+              throw new Error("Invalid backup data: timeline data too large.");
+            }
+            timelineChunks.push(chunk);
+          } else if (mediaHandle) {
+            mediaHandle.writeBytes(chunk);
           }
           if (final) {
             mediaHandle?.close();
-            if (member.name === "manifest.json") {
-              manifest = JSON.parse(strFromU8(concat(metadataChunks))) as ArchiveManifest;
-              assertArchiveManifest(manifest, ARCHIVE_FORMAT, ARCHIVE_SCHEMA_VERSION);
-            }
           }
         } catch (writeError) {
           failure = writeError instanceof Error ? writeError : new Error(String(writeError));
@@ -248,38 +240,156 @@ export async function importBackupArchive(
     } finally {
       input.close();
     }
+
     if (failure) throw failure;
-    if (!manifest || !paths.has("database.sqlite")) {
-      throw new Error("Invalid backup file: manifest or database missing.");
+    if (!paths.has(MANIFEST_FILENAME) || manifestChunks.length === 0) {
+      throw new Error(`Invalid backup file: ${MANIFEST_FILENAME} missing.`);
     }
-    const validatedManifest = manifest as ArchiveManifest;
-    if (mediaCount !== validatedManifest.counts.media) {
-      throw new Error("Backup data does not match the manifest media count.");
+    if (!paths.has(TIMELINE_DATA_FILENAME) || timelineChunks.length === 0) {
+      throw new Error(`Invalid backup file: ${TIMELINE_DATA_FILENAME} missing.`);
     }
 
-    snapshotHandle.close();
-    snapshotClosed = true;
-    const importedCount = await validateDatabaseSnapshot(snapshotFile, staging.media);
-    if (importedCount !== validatedManifest.counts.entry) {
-      throw new Error("Backup data does not match the manifest entry count.");
+    let rawManifest: unknown;
+    try {
+      rawManifest = JSON.parse(strFromU8(concat(manifestChunks)));
+    } catch {
+      throw new Error("Invalid backup manifest: malformed JSON.");
     }
-    if (
-      options?.counts &&
-      (options.counts.entry !== importedCount || options.counts.media !== mediaCount)
-    ) {
-      throw new Error("Backup counts do not match the expected counts.");
+    assertBackupManifest(rawManifest);
+
+    let rawTimeline: unknown;
+    try {
+      rawTimeline = JSON.parse(strFromU8(concat(timelineChunks)));
+    } catch {
+      throw new Error("Invalid backup data: malformed JSON.");
+    }
+    assertBackupTimelineData(rawTimeline);
+
+    if (rawTimeline.entries.length !== rawManifest.counts.entry) {
+      throw new Error(
+        `Backup entry count mismatch (${rawTimeline.entries.length} entries, manifest specifies ${rawManifest.counts.entry}).`
+      );
+    }
+    if (rawTimeline.tags.length !== rawManifest.counts.tag) {
+      throw new Error(
+        `Backup tag count mismatch (${rawTimeline.tags.length} tags, manifest specifies ${rawManifest.counts.tag}).`
+      );
+    }
+    if (mediaCount !== rawManifest.counts.media) {
+      throw new Error(
+        `Backup media count mismatch (${mediaCount} media files, manifest specifies ${rawManifest.counts.media}).`
+      );
+    }
+    if (options?.counts) {
+      if (
+        options.counts.entry !== rawManifest.counts.entry ||
+        options.counts.media !== rawManifest.counts.media
+      ) {
+        throw new Error("Backup counts do not match the expected counts.");
+      }
     }
     if (options?.signal?.aborted) throw new Error("Import cancelled");
 
-    await queueRestore({
-      id,
-      entryCount: options?.counts?.entry ?? importedCount,
-      mediaCount: options?.counts?.media ?? mediaCount,
+    // Execute single ACID SQLite transaction
+    await runDb(async (db) => {
+      await db.withTransactionAsync(async () => {
+        await db.runAsync("DELETE FROM entry_tags");
+        await db.runAsync("DELETE FROM tags");
+        await db.runAsync("DELETE FROM entries");
+
+        // 1. Insert tags
+        for (const tag of rawTimeline.tags) {
+          await db.runAsync(
+            `INSERT INTO tags (id, name, key, color_id, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            tag.id,
+            tag.name,
+            tag.key,
+            tag.colorId,
+            tag.createdAt,
+            tag.updatedAt
+          );
+        }
+
+        // 2. Insert entries & entry_tags
+        for (const entry of rawTimeline.entries) {
+          const imagesJson = entry.images?.length ? JSON.stringify(entry.images) : null;
+          const audiosJson = entry.audios?.length ? JSON.stringify(entry.audios) : null;
+          const attachmentsJson = entry.attachments?.length
+            ? JSON.stringify(entry.attachments)
+            : null;
+          const lat = entry.location?.latitude ?? null;
+          const lng = entry.location?.longitude ?? null;
+          const locationName = entry.location?.name ?? null;
+
+          await db.runAsync(
+            `INSERT INTO entries (
+               id, created_at, updated_at, text, images, audios, attachments,
+               latitude, longitude, location
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            entry.id,
+            entry.createdAt,
+            entry.updatedAt,
+            entry.text ?? null,
+            imagesJson,
+            audiosJson,
+            attachmentsJson,
+            lat,
+            lng,
+            locationName
+          );
+
+          if (entry.tagIds && entry.tagIds.length > 0) {
+            for (const tagId of entry.tagIds) {
+              await db.runAsync(
+                "INSERT INTO entry_tags (entry_id, tag_id) VALUES (?, ?)",
+                entry.id,
+                tagId
+              );
+            }
+          }
+        }
+
+        // 3. Update settings if present
+        if (rawTimeline.settings) {
+          for (const [key, value] of Object.entries(rawTimeline.settings)) {
+            await db.runAsync(
+              "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+              key,
+              value
+            );
+          }
+        }
+
+        // 4. Rebuild FTS5 search index
+        await db.runAsync("INSERT INTO entries_fts(entries_fts) VALUES ('rebuild')");
+      });
     });
-    queued = true;
-    return { importedCount };
+
+    // Copy media files to live media directory
+    const liveMediaDir = new Directory(Paths.document, "media");
+    liveMediaDir.create({ idempotent: true, intermediates: true });
+
+    if (stagingMediaDir.exists) {
+      const stagedItems = stagingMediaDir.list();
+      for (const item of stagedItems) {
+        if (item instanceof File && item.exists) {
+          const target = new File(liveMediaDir, item.name);
+          await item.copy(target, { overwrite: true });
+        }
+      }
+    }
+
+    notifyStoreReload();
+
+    return { importedCount: rawTimeline.entries.length };
   } finally {
-    if (!snapshotClosed) snapshotHandle.close();
-    if (!queued) discardRestoreStaging(id);
+    if (stagingDir.exists) {
+      try {
+        stagingDir.delete();
+      } catch {
+        // ignore
+      }
+    }
   }
 }

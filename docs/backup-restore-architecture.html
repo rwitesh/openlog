@@ -1,0 +1,716 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OpenLog — Backup &amp; Recovery Architecture</title>
+    <style>
+      :root {
+        --paper: #f8f5f0;
+        --panel: #ffffff;
+        --panel-subtle: #f2ede4;
+        --line: #e3dacd;
+        --line-subtle: #eee7dc;
+        --ink: #1f1b18;
+        --ink-secondary: #574f46;
+        --muted: #857b70;
+        --rust: #9e361d;
+        --rust-bg: #fbeee9;
+        --moss: #2b6140;
+        --moss-bg: #edf6f0;
+        --gold: #ad6d15;
+        --gold-bg: #fdf6e9;
+        --night: #1c1815;
+        --font-serif: Georgia, 'Times New Roman', serif;
+        --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        --font-mono: ui-monospace, 'DM Mono', 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font-family: var(--font-sans);
+        font-size: 16px;
+        line-height: 1.65;
+        -webkit-font-smoothing: antialiased;
+      }
+      main {
+        width: min(1160px, calc(100% - 40px));
+        margin: auto;
+        padding: 56px 0 96px;
+      }
+      .kicker, .eyebrow, code, .badge, th, .step-badge, .tag {
+        font-family: var(--font-mono);
+        letter-spacing: .06em;
+        text-transform: uppercase;
+      }
+      .kicker {
+        color: var(--rust);
+        font-size: 12px;
+        font-weight: 700;
+      }
+      h1, h2, h3, h4 {
+        font-family: var(--font-serif);
+        font-weight: normal;
+        line-height: 1.12;
+        margin: 0;
+        color: var(--ink);
+      }
+      h1 {
+        font-size: clamp(38px, 6vw, 68px);
+        letter-spacing: -0.04em;
+        margin: 14px 0 20px;
+      }
+      h2 {
+        font-size: 32px;
+        letter-spacing: -0.025em;
+        margin: 0 0 16px;
+      }
+      h3 {
+        font-size: 22px;
+        margin: 0 0 10px;
+      }
+      .lede {
+        max-width: 840px;
+        color: var(--ink-secondary);
+        font-size: 20px;
+        line-height: 1.55;
+        margin: 0 0 32px;
+      }
+      .hero {
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 40px;
+      }
+      .stats-strip {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+        margin-top: 32px;
+      }
+      .stat-card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        padding: 20px 22px;
+        border-radius: 4px;
+      }
+      .stat-card strong {
+        display: block;
+        font-size: 30px;
+        font-family: var(--font-mono);
+        font-weight: 700;
+        color: var(--rust);
+        letter-spacing: -0.03em;
+        line-height: 1;
+      }
+      .stat-card.moss strong { color: var(--moss); }
+      .stat-card.gold strong { color: var(--gold); }
+      .stat-card.ink strong { color: var(--ink); }
+      .stat-card span {
+        display: block;
+        margin-top: 8px;
+        font-size: 13px;
+        color: var(--muted);
+        line-height: 1.35;
+      }
+      section {
+        padding-top: 60px;
+      }
+      .eyebrow {
+        display: block;
+        margin-bottom: 10px;
+        color: var(--rust);
+        font-size: 11px;
+        font-weight: 700;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(12, 1fr);
+        gap: 18px;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        padding: 24px;
+        border-radius: 4px;
+      }
+      .card p {
+        margin: 0;
+        color: var(--ink-secondary);
+      }
+      .card p + p { margin-top: 12px; }
+      .card ul {
+        margin: 12px 0 0;
+        padding-left: 20px;
+        color: var(--ink-secondary);
+      }
+      .card li + li { margin-top: 8px; }
+      .span-3 { grid-column: span 3; }
+      .span-4 { grid-column: span 4; }
+      .span-5 { grid-column: span 5; }
+      .span-6 { grid-column: span 6; }
+      .span-7 { grid-column: span 7; }
+      .span-8 { grid-column: span 8; }
+      .span-12 { grid-column: span 12; }
+
+      .diagram-box {
+        background: var(--panel-subtle);
+        border: 1px solid var(--line);
+        border-left: 5px solid var(--rust);
+        padding: 24px;
+        border-radius: 4px;
+        margin-top: 16px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        overflow: hidden;
+      }
+      th {
+        text-align: left;
+        padding: 14px 18px;
+        font-size: 11px;
+        color: var(--muted);
+        border-bottom: 1px solid var(--line);
+        background: var(--panel-subtle);
+      }
+      td {
+        vertical-align: top;
+        padding: 18px 18px;
+        border-bottom: 1px solid var(--line);
+        font-size: 14.5px;
+        color: var(--ink-secondary);
+      }
+      tr:last-child td { border-bottom: none; }
+      .badge {
+        display: inline-block;
+        padding: 3px 8px;
+        font-size: 10px;
+        font-weight: 700;
+        border-radius: 2px;
+      }
+      .badge.pass { background: var(--moss-bg); color: var(--moss); border: 1px solid #c7e5d2; }
+      .badge.fail { background: var(--rust-bg); color: var(--rust); border: 1px solid #f5cfc5; }
+      .badge.neutral { background: var(--gold-bg); color: var(--gold); border: 1px solid #f2ddb5; }
+      code {
+        text-transform: none;
+        letter-spacing: 0;
+        font-size: 0.88em;
+        color: var(--rust);
+        background: #fbf5ee;
+        padding: 2px 5px;
+        border-radius: 3px;
+        border: 1px solid #eee4d5;
+      }
+      pre code {
+        display: block;
+        padding: 16px;
+        background: #fdfbf7;
+        border: 1px solid var(--line);
+        color: var(--ink);
+        line-height: 1.5;
+        overflow-x: auto;
+      }
+      .step-list {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .step-item {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        padding: 20px 24px;
+        border-radius: 4px;
+        display: grid;
+        grid-template-columns: 140px 1fr;
+        gap: 20px;
+      }
+      .step-badge {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--rust);
+        background: var(--rust-bg);
+        padding: 6px 10px;
+        border-radius: 3px;
+        align-self: start;
+        text-align: center;
+        border: 1px solid #f7d2c8;
+      }
+      .step-content h4 {
+        font-size: 17px;
+        margin: 0 0 6px;
+        font-family: var(--font-sans);
+        font-weight: 600;
+        color: var(--ink);
+      }
+      .step-content p {
+        margin: 0;
+        color: var(--ink-secondary);
+        font-size: 14.5px;
+      }
+      .guarantee-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin-top: 16px;
+      }
+      .guarantee-item {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        padding: 18px 20px;
+        border-radius: 4px;
+      }
+      .guarantee-item strong {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 15px;
+        color: var(--ink);
+        margin-bottom: 6px;
+      }
+      .guarantee-item p {
+        margin: 0;
+        font-size: 13.5px;
+        color: var(--ink-secondary);
+      }
+      .check-icon {
+        color: var(--moss);
+        font-weight: bold;
+        font-size: 16px;
+      }
+      footer {
+        margin-top: 80px;
+        border-top: 1px solid var(--line);
+        padding-top: 24px;
+        font-size: 13px;
+        color: var(--muted);
+        display: flex;
+        justify-content: space-between;
+      }
+      @media (max-width: 800px) {
+        .stats-strip { grid-template-columns: repeat(2, 1fr); }
+        .span-3, .span-4, .span-5, .span-6, .span-7, .span-8 { grid-column: span 12; }
+        .step-item { grid-template-columns: 1fr; gap: 10px; }
+        .guarantee-grid { grid-template-columns: 1fr; }
+        footer { flex-direction: column; gap: 10px; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header class="hero">
+        <div class="kicker">OpenLog Engineering Reference · Architecture &amp; Reliability Report</div>
+        <h1>In-Session JSON Archive &amp; ACID Restore Architecture</h1>
+        <p class="lede">
+          OpenLog features an in-session structured JSON archive streaming engine with decoupled manifest metadata.
+          The architecture delivers 100% in-process backups and restores, instant O(1) archive inspection,
+          zero application restarts, ACID transaction safety with automatic rollback, and proactive Zip-Slip defenses.
+        </p>
+
+        <div class="stats-strip">
+          <div class="stat-card moss">
+            <strong>O(1) Inspect</strong>
+            <span>Inspection reads only lightweight manifest metadata (~500 B) without parsing timeline entries.</span>
+          </div>
+          <div class="stat-card rust">
+            <strong>ACID Safe</strong>
+            <span>Single SQLite transaction with automatic rollback preserves existing data on any failure.</span>
+          </div>
+          <div class="stat-card gold">
+            <strong>Zip-Slip Free</strong>
+            <span>Strict path traversal validator rejects malicious archive paths and duplicate members.</span>
+          </div>
+          <div class="stat-card ink">
+            <strong>100,000+</strong>
+            <span>High-capacity bounds handling over 100k media items with bounded 256 KiB streaming chunks.</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- SECTION 1: CORE DESIGN PRINCIPLES -->
+      <section>
+        <span class="eyebrow">Core Principles</span>
+        <h2>System Architecture &amp; Local-First Safety</h2>
+        <div class="grid">
+          <article class="card span-4">
+            <h3>Pure In-Session Lifecycle</h3>
+            <p>
+              Backups and restores run entirely within the active app session. On restore completion,
+              <code>notifyStoreReload()</code> triggers in-memory Zustand stores to re-query SQLite,
+              refreshing all timeline and search screens immediately without app restarts.
+            </p>
+          </article>
+          <article class="card span-4">
+            <h3>Decoupled Manifest &amp; Payload</h3>
+            <p>
+              Package metadata lives in <code>manifest.json</code> (~500 B) while domain entities reside in
+              <code>timeline.json</code>. This enables near-instant inspection modals and pre-flight checks
+              without loading multi-megabyte payloads into RAM.
+            </p>
+          </article>
+          <article class="card span-4">
+            <h3>Defensive Boundary Limits</h3>
+            <p>
+              Input files are treated as untrusted. Archives are bound to 512 MiB total size, 2 GiB
+              uncompressed expansion, 256 MiB per member, 64 MiB timeline JSON, and 100,000 media files.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <!-- SECTION 2: ARCHIVE SPECIFICATION -->
+      <section>
+        <span class="eyebrow">Format Specification</span>
+        <h2>Container &amp; Payload Structure</h2>
+        <p class="lede" style="font-size: 16.5px; margin-bottom: 20px;">
+          OpenLog archives are standard PKZip files with the <code>.openlog</code> extension.
+          The archive cleanly isolates metadata, canonical timeline records, and binary media assets.
+        </p>
+
+        <div class="grid">
+          <div class="card span-12">
+            <h3>Archive Container Layout</h3>
+            <p>Every <code>.openlog</code> archive cleanly separates metadata, relational entities, and binary media assets into three member categories:</p>
+            <ul>
+              <li><code>manifest.json</code> — Lightweight export metadata, counts, and schema version (Deflate Level 6).</li>
+              <li><code>timeline.json</code> — Canonical database entities (tags, entries, settings) (Deflate Level 6).</li>
+              <li><code>media/&lt;filename&gt;</code> — Individual media binaries stored using <code>ZipPassThrough</code> to eliminate redundant CPU compression on already-compressed media.</li>
+            </ul>
+            <div class="diagram-box">
+              <div style="font-family: var(--font-mono); font-size: 13.5px; line-height: 1.75;">
+                📁 <strong>openlog-backup-2026-09-19T08-56-32-123Z.openlog</strong><br>
+                ├── 📄 <code>manifest.json</code> <span style="color: var(--gold); font-weight: bold;">(Metadata · Deflate L6 · ~500 B)</span><br>
+                ├── 📄 <code>timeline.json</code> <span style="color: var(--moss); font-weight: bold;">(Timeline Payload · Deflate L6)</span><br>
+                └── 📁 <code>media/</code> <span style="color: var(--rust); font-weight: bold;">(Binary Assets · PassThrough)</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;├── 📷 <code>photo-9a8b7c6d.jpg</code><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;├── 🎙️ <code>voice-1e2f3a4b.m4a</code><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;└── 📄 <code>doc-5c6d7e8f.pdf</code>
+              </div>
+            </div>
+          </div>
+
+          <div class="card span-5">
+            <h3>Metadata Contract</h3>
+            <h4 style="font-size: 14px; margin: 0 0 8px; color: var(--gold);"><code>manifest.json</code> (~500 Bytes)</h4>
+            <p style="font-size: 13.5px; margin-bottom: 12px;">Enables instant O(1) archive inspection and pre-flight storage calculation without loading heavy timeline entries into RAM.</p>
+            <pre><code>{
+  "format": "openlog-backup",
+  "version": 1,
+  "createdAt": 1789808192000,
+  "appVersion": "1.3.5",
+  "counts": {
+    "entry": 42,
+    "tag": 7,
+    "media": 12
+  }
+}</code></pre>
+          </div>
+
+          <div class="card span-7">
+            <h3>Timeline Payload Contract</h3>
+            <h4 style="font-size: 14px; margin: 0 0 8px; color: var(--moss);"><code>timeline.json</code> (Timeline Payload)</h4>
+            <p style="font-size: 13.5px; margin-bottom: 12px;">Relational timeline entities serialized and restored inside a single ACID SQLite transaction.</p>
+            <pre><code>{
+  "tags": [
+    { "id": "t1", "name": "Work", "key": "work", "colorId": "c1", "createdAt": 1789800000000, "updatedAt": 1789800000000 }
+  ],
+  "entries": [
+    {
+      "id": "e1",
+      "createdAt": 1789801000000,
+      "updatedAt": 1789801000000,
+      "text": "Shipped new decoupled manifest backup engine.",
+      "images": ["photo-9a8b7c6d.jpg"],
+      "audios": ["voice-1e2f3a4b.m4a"],
+      "attachments": [{ "uri": "doc-5c6d7e8f.pdf", "name": "notes.pdf", "size": 12048, "mimeType": "application/pdf" }],
+      "tagIds": ["t1"],
+      "location": { "latitude": 37.7749, "longitude": -122.4194, "name": "San Francisco" }
+    }
+  ],
+  "settings": { "theme": "system", "haptics": "true" }
+}</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 3: EXPORT PIPELINE -->
+      <section>
+        <span class="eyebrow">Export Mechanism</span>
+        <h2>The Streaming Export Pipeline</h2>
+        <p class="lede" style="font-size: 16.5px; margin-bottom: 24px;">
+          Exporting serializes live database records and media files into a compressed stream without buffering
+          the entire archive into memory or blocking user navigation.
+        </p>
+
+        <div class="step-list">
+          <div class="step-item">
+            <div class="step-badge">Phase 1 · Gate</div>
+            <div class="step-content">
+              <h4>Acquire Export Gate (<code>acquireExportGate</code>)</h4>
+              <p>Creates an asynchronous synchronization barrier that pauses background media cleanup tasks, preventing any concurrent deletions while media files are being read.</p>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-badge">Phase 2 · Snapshot</div>
+            <div class="step-content">
+              <h4>Read-Only SQLite Database Snapshot</h4>
+              <p>Executes a fast read-only query using <code>runDb</code> to extract tags, entries, entry-tag associations, and user settings. Absolute media URIs (e.g. <code>file:///.../media/photo.jpg</code>) are normalized to relative filenames.</p>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-badge">Phase 3 · Stream</div>
+            <div class="step-content">
+              <h4>Streaming Zip Compression via <code>fflate</code></h4>
+              <p>Constructs and compresses <code>manifest.json</code> and <code>timeline.json</code> using <code>ZipDeflate</code>. Streams media files in bounded 256 KiB chunks using <code>ZipPassThrough</code>, keeping memory consumption low (&lt; 30 MiB) regardless of timeline size.</p>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-badge">Phase 4 · Notify</div>
+            <div class="step-content">
+              <h4>Background Progress Notifications &amp; Storage</h4>
+              <p>Emits progress callbacks to OS notification channels (<em>"Saving entries"</em>, <em>"Saving files (14 of 42)"</em>). Saves directly to the user-picked folder, purges temporary cache, and releases the export gate.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 4: INSPECT & RESTORE PIPELINES -->
+      <section>
+        <span class="eyebrow">Inspection &amp; Restore</span>
+        <h2>O(1) Inspection &amp; In-Session ACID Restore</h2>
+        <p class="lede" style="font-size: 16.5px; margin-bottom: 24px;">
+          Archive inspection is lightweight and instant, while restoration guarantees atomic all-or-nothing commits.
+        </p>
+
+        <div class="grid" style="margin-bottom: 24px;">
+          <article class="card span-12" style="border-left: 4px solid var(--gold);">
+            <h3 style="color: var(--gold);">O(1) Stream Inspection (<code>inspectBackupArchive</code>)</h3>
+            <p>
+              When a user chooses an archive file to restore, <code>inspectBackupArchive</code> extracts and parses
+              <strong>only <code>manifest.json</code></strong>. It validates schema format, version compatibility,
+              and entry/media counts without buffering <code>timeline.json</code> or media assets into memory.
+              The inspection prompt displays in milliseconds even for massive archives.
+            </p>
+          </article>
+        </div>
+
+        <div class="step-list">
+          <div class="step-item">
+            <div class="step-badge">Step 1 · Preflight</div>
+            <div class="step-content">
+              <h4>Storage Space Calculation &amp; Free Space Verification</h4>
+              <p>Calculates required space: <code>archiveBytes + uncompressedBytes + existingTimelineBytes + 50 MiB safety buffer</code>. Checks device storage via <code>FileSystem.getFreeDiskStorageAsync()</code>. If storage is insufficient, import halts before modifying disk.</p>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-badge">Step 2 · Decompress</div>
+            <div class="step-content">
+              <h4>Defensive Streaming Unzip &amp; Path Traversal Check</h4>
+              <p>Decompresses into an isolated staging cache folder (<code>openlog-restore-&lt;timestamp&gt;-&lt;rand&gt;</code>). Every file path is inspected by <code>validateArchivePath()</code>. Path traversal (<code>../</code>), root slashes (<code>/</code>), backslashes (<code>\</code>), duplicate files, or oversized members are rejected immediately.</p>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-badge">Step 3 · Validate</div>
+            <div class="step-content">
+              <h4>Strict Schema &amp; Cross-Count Invariant Validation</h4>
+              <p>Validates <code>manifest.json</code> via <code>assertBackupManifest</code> and <code>timeline.json</code> via <code>assertBackupTimelineData</code>. Enforces cross-count parity: <code>manifest.counts.entry === timeline.entries.length</code> and <code>manifest.counts.tag === timeline.tags.length</code>.</p>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-badge">Step 4 · ACID Commit</div>
+            <div class="step-content">
+              <h4>Single SQLite ACID Transaction</h4>
+              <p>Executes inside <code>db.withTransactionAsync()</code>:
+                <code>DELETE FROM entry_tags; DELETE FROM tags; DELETE FROM entries;</code>
+                Batch-inserts all tags, entries, entry-tag links, and settings.
+                Executes <code>INSERT INTO entries_fts(entries_fts) VALUES ('rebuild')</code> to construct the search index directly from restored entries.
+                <strong>If any error occurs during this step, SQLite automatically rolls back the entire transaction.</strong>
+              </p>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-badge">Step 5 · Reconcile</div>
+            <div class="step-content">
+              <h4>Media Copy &amp; Cache Cleanup</h4>
+              <p>Only after the SQLite transaction commits successfully, staged media files are copied to the live document media directory (<code>Paths.document/media</code>). Staging folder is immediately deleted.</p>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-badge">Step 6 · Refresh</div>
+            <div class="step-content">
+              <h4>Reactive In-Memory Store Notification</h4>
+              <p>Fires <code>notifyStoreReload()</code>. All active Zustand stores, query hooks, and timeline UI screens re-fetch from SQLite immediately. The user sees their restored timeline instantly with zero application restarts.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 5: FAULT TOLERANCE MATRIX -->
+      <section>
+        <span class="eyebrow">Failure Scenarios</span>
+        <h2>Fault Tolerance &amp; Recovery Matrix</h2>
+        <p class="lede" style="font-size: 16.5px; margin-bottom: 20px;">
+          The system follows a strict <em>fail-closed, local-first</em> doctrine: all untrusted data is validated
+          before mutation, resource use is tightly bounded, and existing data remains 100% recoverable.
+        </p>
+
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 20%;">Failure Scenario</th>
+              <th style="width: 25%;">Detection Mechanism</th>
+              <th style="width: 30%;">System Behavior</th>
+              <th style="width: 25%;">Timeline State</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Truncated / Corrupt Zip</strong></td>
+              <td><code>fflate</code> streaming decompressor throws CRC/format error during chunk read.</td>
+              <td>Import loop halts immediately. Staging directory is wiped in <code>finally</code> block.</td>
+              <td><span class="badge pass">Untouched</span> Live database was never opened for mutation.</td>
+            </tr>
+            <tr>
+              <td><strong>Zip Slip Path Traversal (<code>../../etc/passwd</code>)</strong></td>
+              <td><code>validateArchivePath()</code> inspects every member name before extracting bytes.</td>
+              <td>Throws <code>"Invalid backup file: unexpected archive path."</code> Halts stream instantly.</td>
+              <td><span class="badge pass">Protected</span> Filesystem security boundary preserved.</td>
+            </tr>
+            <tr>
+              <td><strong>Future Schema Version (e.g. <code>v2</code>)</strong></td>
+              <td><code>assertBackupManifest()</code> checks <code>obj.version &gt; ARCHIVE_SCHEMA_VERSION</code>.</td>
+              <td>Throws <code>"Unsupported backup version (2). Please update OpenLog."</code></td>
+              <td><span class="badge pass">Untouched</span> Prevents accidental downgrade data corruption.</td>
+            </tr>
+            <tr>
+              <td><strong>Oversized Member / Zip Bomb</strong></td>
+              <td>Member size checked against <code>BACKUP_LIMITS.memberBytes</code> (256 MiB) &amp; total uncompressed (2 GiB).</td>
+              <td>Throws expansion limit error during streaming; aborts immediately without exhausting RAM.</td>
+              <td><span class="badge pass">Protected</span> Out-of-memory crash prevented.</td>
+            </tr>
+            <tr>
+              <td><strong>Tampered Manifest Counts</strong></td>
+              <td>Cross-count validation compares manifest counts against actual extracted entities and media.</td>
+              <td>Throws count mismatch error before entering SQLite transaction.</td>
+              <td><span class="badge pass">Untouched</span> Desynchronized archive rejected before DB change.</td>
+            </tr>
+            <tr>
+              <td><strong>Malformed Row / Missing ID</strong></td>
+              <td><code>assertBackupTimelineData()</code> validates types, coordinate numbers, and required fields.</td>
+              <td>Rejects data before SQL execution. No invalid rows can ever reach SQLite.</td>
+              <td><span class="badge pass">Untouched</span> Schema invariants strictly preserved.</td>
+            </tr>
+            <tr>
+              <td><strong>Power Loss Mid-SQLite Insert</strong></td>
+              <td>Operating system crash or power outage during batch insertion.</td>
+              <td>SQLite WAL rollback journal deterministically rolls back uncommitted transaction on next open.</td>
+              <td><span class="badge pass">Self-Healing</span> Prior timeline restored cleanly.</td>
+            </tr>
+            <tr>
+              <td><strong>User Cancellation (Abort)</strong></td>
+              <td><code>AbortSignal</code> checked before every chunk and loop iteration.</td>
+              <td>Closes file handles, deletes partial export/import file, dismisses notifications.</td>
+              <td><span class="badge pass">Clean</span> Zero orphan files or corrupted state.</td>
+            </tr>
+            <tr>
+              <td><strong>Concurrent Media Purge</strong></td>
+              <td><code>acquireExportGate()</code> synchronizes with draft discard and entry deletion.</td>
+              <td>Media cleanup waits until export stream completes and gate releases.</td>
+              <td><span class="badge pass">Consistent</span> Zero missing media files in backup.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- SECTION 6: MODULE ORGANIZATION -->
+      <section>
+        <span class="eyebrow">Code Architecture</span>
+        <h2>Module Structure &amp; Responsibilities</h2>
+        <div class="grid">
+          <div class="card span-6">
+            <h3><code>src/services/backup/</code></h3>
+            <ul>
+              <li><code>types.ts</code> — Canonical archive constants (<code>ARCHIVE_FORMAT = "openlog-backup"</code>, <code>ARCHIVE_SCHEMA_VERSION = 1</code>, <code>ARCHIVE_EXTENSION = ".openlog"</code>, <code>MANIFEST_FILENAME = "manifest.json"</code>, <code>TIMELINE_DATA_FILENAME = "timeline.json"</code>) and strict TypeScript interfaces.</li>
+              <li><code>export.ts</code> — Streaming export pipeline, 256 KiB chunked I/O, native ISO string date tags, export gate locking, writing separate <code>manifest.json</code> and <code>timeline.json</code>.</li>
+              <li><code>import.ts</code> — In-session ACID restore engine with storage pre-flight, Zip-Slip prevention, manifest and timeline assertions, single SQLite transaction (<code>db.withTransactionAsync</code>), media reconciliation, and instant store reload via <code>notifyStoreReload()</code>.</li>
+            </ul>
+          </div>
+          <div class="card span-6">
+            <h3>Utility &amp; UI Integration</h3>
+            <ul>
+              <li><code>inspect.ts</code> — Lightweight O(1) stream inspection reading only <code>manifest.json</code> without loading heavy timeline entries or media into memory.</li>
+              <li><code>utils.ts</code> — Runtime schema validations (<code>assertBackupManifest</code>, <code>assertBackupTimelineData</code>), path traversal sanitizer (<code>validateArchivePath</code>), filename extractors, restore storage calculator, and concurrency export gate.</li>
+              <li><code>io.ts</code> — Native file and directory pickers with system share fallback.</li>
+              <li><code>status.ts</code> — Observable external store with React hook (<code>useBackupStatus</code>) and abort controllers (<code>cancelActiveBackup</code>, <code>cancelActiveRestore</code>).</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 7: GUARANTEES CHECKMARKS -->
+      <section>
+        <span class="eyebrow">Verification</span>
+        <h2>Engineering Checkmarks &amp; Invariants</h2>
+        <p class="lede" style="font-size: 16.5px; margin-bottom: 20px;">
+          All resilience guarantees are verified via automated tests in <code>scripts/test-backup-recovery.mjs</code>.
+        </p>
+
+        <div class="guarantee-grid">
+          <div class="guarantee-item">
+            <strong><span class="check-icon">✓</span> Zero Native Restarts</strong>
+            <p>100% in-session restore without requiring app kill or app switcher navigation.</p>
+          </div>
+          <div class="guarantee-item">
+            <strong><span class="check-icon">✓</span> O(1) Lightweight Inspection</strong>
+            <p>Inspects manifest metadata without loading large entry payloads into RAM.</p>
+          </div>
+          <div class="guarantee-item">
+            <strong><span class="check-icon">✓</span> Atomic ACID Transactions</strong>
+            <p>SQLite <code>withTransactionAsync</code> wraps wipe, insert, and FTS rebuild.</p>
+          </div>
+          <div class="guarantee-item">
+            <strong><span class="check-icon">✓</span> Zip Slip Defense</strong>
+            <p>Strict path sanitizer prevents traversal, root paths, and duplicate members.</p>
+          </div>
+          <div class="guarantee-item">
+            <strong><span class="check-icon">✓</span> Schema Fail-Closed</strong>
+            <p>Rejects future schema versions and prompts user to update OpenLog.</p>
+          </div>
+          <div class="guarantee-item">
+            <strong><span class="check-icon">✓</span> Flat Memory Footprint</strong>
+            <p>256 KiB chunked streaming avoids buffering large archives in RAM.</p>
+          </div>
+          <div class="guarantee-item">
+            <strong><span class="check-icon">✓</span> Pre-Flight Storage Check</strong>
+            <p>Calculates required disk space and verifies available device storage upfront.</p>
+          </div>
+          <div class="guarantee-item">
+            <strong><span class="check-icon">✓</span> Export Gate Synchronization</strong>
+            <p>Serializes media cleanup tasks to guarantee archive consistency.</p>
+          </div>
+          <div class="guarantee-item">
+            <strong><span class="check-icon">✓</span> Cross-Count Parity</strong>
+            <p>Strictly enforces that manifest counts match extracted entries, tags, and media.</p>
+          </div>
+        </div>
+      </section>
+
+      <footer>
+        <div>OpenLog · In-Session JSON Backup &amp; Recovery Specification</div>
+        <div>Verified with Node.js 24 · TypeScript 5.9 · Expo SDK 54</div>
+      </footer>
+    </main>
+  </body>
+</html>

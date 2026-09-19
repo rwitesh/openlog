@@ -52,11 +52,6 @@ export async function migrateDatabaseSchema(db: SchemaDatabase): Promise<void> {
   await applyMigrations(db, await readSchemaVersion(db, "main"), 0, "main");
 }
 
-/** Migrates a staged restore snapshot before it is validated or swapped into place. */
-export async function migrateRestoreSchema(db: SchemaDatabase, schema: string): Promise<void> {
-  await applyMigrations(db, await readSchemaVersion(db, schema), 1, schema);
-}
-
 export async function initializeDatabaseSchema(db: SchemaDatabase): Promise<void> {
   await db.execAsync(`
     PRAGMA journal_mode = WAL;

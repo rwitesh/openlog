@@ -1,15 +1,13 @@
 import { File, FileMode } from "expo-file-system";
 import { strFromU8, Unzip, UnzipInflate, UnzipPassThrough } from "fflate";
-
-import { assertArchiveManifest, BACKUP_LIMITS, validateArchivePath } from "./shared";
 import {
   ARCHIVE_EXTENSION,
-  ARCHIVE_FORMAT,
-  ARCHIVE_SCHEMA_VERSION,
-  type ArchiveManifest,
   type InspectBackupOptions,
   type InspectBackupResult,
+  MANIFEST_FILENAME,
+  TIMELINE_DATA_FILENAME,
 } from "./types";
+import { assertBackupManifest, BACKUP_LIMITS, validateArchivePath } from "./utils";
 
 function concatChunks(chunks: Uint8Array[]): Uint8Array {
   const length = chunks.reduce((total, chunk) => total + chunk.length, 0);
@@ -24,8 +22,8 @@ function concatChunks(chunks: Uint8Array[]): Uint8Array {
 
 /**
  * Inspects a backup archive without modifying disk or database.
- * Reads manifest.json only — the database and media are not loaded into memory.
- * Applies the same conservative limits, path validation, and duplicate rejection as restore.
+ * Reads manifest.json only — entries and media files are not loaded into memory.
+ * Applies conservative limits, path validation, and duplicate rejection.
  */
 export async function inspectBackupArchive(
   fileUri: string,
@@ -40,9 +38,8 @@ export async function inspectBackupArchive(
   }
   if (options?.signal?.aborted) throw new Error("Inspection cancelled");
 
-  const buffers = { manifest: null as Uint8Array[] | null };
+  const buffers = { manifestData: null as Uint8Array[] | null };
   let failure: Error | null = null;
-  let manifestSeen = false;
   let manifestBytes = 0;
   let totalUncompressed = 0;
   let mediaCount = 0;
@@ -60,25 +57,12 @@ export async function inspectBackupArchive(
     }
 
     try {
-      validateArchivePath(member.name);
+      validateArchivePath(member.name, paths);
     } catch (err) {
       failure = err instanceof Error ? err : new Error(String(err));
       return;
     }
-
-    if (member.name === "manifest.json" && manifestSeen) {
-      failure = new Error("Invalid backup file: duplicate manifest.");
-      return;
-    }
-    if (paths.has(member.name)) {
-      failure = new Error("Invalid backup file: duplicate archive path.");
-      return;
-    }
     paths.add(member.name);
-
-    if (member.name === "manifest.json") {
-      manifestSeen = true;
-    }
 
     if (member.originalSize !== undefined) {
       if (member.originalSize > BACKUP_LIMITS.memberBytes) {
@@ -100,9 +84,9 @@ export async function inspectBackupArchive(
       }
     }
 
-    if (member.name === "manifest.json") {
+    if (member.name === MANIFEST_FILENAME) {
       const chunks: Uint8Array[] = [];
-      buffers.manifest = chunks;
+      buffers.manifestData = chunks;
       member.ondata = (err, chunk) => {
         if (err) {
           failure = err instanceof Error ? err : new Error(String(err));
@@ -115,7 +99,7 @@ export async function inspectBackupArchive(
         manifestBytes += chunk.length;
         totalUncompressed += chunk.length;
         if (manifestBytes > BACKUP_LIMITS.manifestBytes) {
-          failure = new Error("Invalid backup manifest: too large.");
+          failure = new Error("Invalid backup manifest: manifest data too large.");
           return;
         }
         if (totalUncompressed > BACKUP_LIMITS.uncompressedBytes) {
@@ -152,24 +136,35 @@ export async function inspectBackupArchive(
   if (failure) throw failure;
   if (options?.signal?.aborted) throw new Error("Inspection cancelled");
 
-  if (!manifestSeen || !buffers.manifest?.length) {
-    throw new Error(`Invalid file: Not a valid ${ARCHIVE_EXTENSION} archive (manifest missing).`);
+  if (!paths.has(MANIFEST_FILENAME) || !buffers.manifestData?.length) {
+    throw new Error(
+      `Invalid file: Not a valid ${ARCHIVE_EXTENSION} archive (${MANIFEST_FILENAME} missing).`
+    );
+  }
+  if (!paths.has(TIMELINE_DATA_FILENAME)) {
+    throw new Error(
+      `Invalid file: Not a valid ${ARCHIVE_EXTENSION} archive (${TIMELINE_DATA_FILENAME} missing).`
+    );
   }
 
-  let manifest: ArchiveManifest;
+  let data: unknown;
   try {
-    manifest = JSON.parse(strFromU8(concatChunks(buffers.manifest))) as ArchiveManifest;
+    data = JSON.parse(strFromU8(concatChunks(buffers.manifestData)));
   } catch {
     throw new Error("Invalid backup manifest: malformed JSON.");
   }
-  assertArchiveManifest(manifest, ARCHIVE_FORMAT, ARCHIVE_SCHEMA_VERSION);
+  assertBackupManifest(data);
 
   return {
-    format: manifest.format,
-    version: manifest.version,
-    createdAt: manifest.createdAt,
-    appVersion: manifest.appVersion,
-    counts: manifest.counts,
+    format: data.format,
+    version: data.version,
+    createdAt: data.createdAt,
+    appVersion: data.appVersion,
+    counts: {
+      entry: data.counts.entry,
+      tag: data.counts.tag,
+      media: data.counts.media,
+    },
     uncompressedBytes: totalUncompressed,
     archiveBytes,
   };
