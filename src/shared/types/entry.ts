@@ -7,7 +7,7 @@ export interface EntryLocation {
 
 /** A generic attached document (PDF, spreadsheet, video, anything) kept alongside an entry. */
 export interface Attachment {
-  /** Durable file URI inside the app's media directory. */
+  /** Media reference: the stored filename on inputs, resolved to a live file URI on read. */
   uri: string;
   /** Original filename shown to the user, e.g. "Invoice.pdf". */
   name: string;
@@ -29,6 +29,7 @@ export interface Entry {
   createdAt: number;
   updatedAt: number;
   text?: string;
+  /** Live file URIs resolved from stored filenames; SQLite persists bare filenames only. */
   images: string[];
   audios: string[];
   attachments: Attachment[];

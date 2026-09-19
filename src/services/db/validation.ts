@@ -8,7 +8,10 @@ export function extractMediaFilenameFromUri(rawUri: string): string | null {
   if (path.startsWith("file://")) {
     path = path.slice("file://".length);
   }
-  const cleanPath = path.replace(/^media\//, "");
+  const cleanPath = path
+    .replace(/^media\//, "")
+    .split("?")[0]
+    .split("#")[0];
   const parts = cleanPath.split("/");
   const filename = parts[parts.length - 1];
   if (!filename || filename === "." || filename === ".." || filename.includes("\\")) {

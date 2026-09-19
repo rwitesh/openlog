@@ -5,6 +5,7 @@ import { strFromU8, Unzip, UnzipInflate, UnzipPassThrough } from "fflate";
 
 import { notifyStoreReload } from "@/modules/entry/store/EntryStore";
 import { runDb } from "@/services/db/database";
+import { mediaDirectory } from "@/services/media/storage";
 import {
   type ImportBackupOptions,
   type ImportBackupResult,
@@ -36,7 +37,7 @@ function getExistingTimelineDiskBytes(): number {
     // ignore
   }
   try {
-    const mediaDir = new Directory(Paths.document, "media");
+    const mediaDir = mediaDirectory();
     if (mediaDir.exists) {
       for (const item of mediaDir.list()) {
         if (item instanceof File && item.exists) {
@@ -367,7 +368,7 @@ export async function importBackupArchive(
     });
 
     // Copy media files to live media directory
-    const liveMediaDir = new Directory(Paths.document, "media");
+    const liveMediaDir = mediaDirectory();
     liveMediaDir.create({ idempotent: true, intermediates: true });
 
     if (stagingMediaDir.exists) {

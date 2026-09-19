@@ -4,16 +4,18 @@ import {
   deleteAllEntries,
   deleteEntry,
   type EntryCursor,
+  filterUnreferencedMedia,
   getEntryById,
   getPagedEntries,
   type NewEntryInput,
   type UpdateEntryInput,
   updateEntry,
 } from "@/services/db/entries";
-import { deleteMediaList } from "@/services/media";
+import { deleteMediaFiles } from "@/services/media";
 import type { Entry } from "@/shared/types";
 import { addDays, addMonths, startOfDay, startOfMonth } from "@/shared/utils/dates";
-import { commitMediaUpdate } from "./mediaMutation";
+import { logDevWarning } from "@/shared/utils/devLog";
+import { removedMedia } from "./mediaDiff";
 
 export type EntryMutation =
   | { type: "add"; entry: Entry }
@@ -45,6 +47,13 @@ export function subscribeMutations(listener: (mutation: EntryMutation) => void) 
 // In-memory single-entry cache for fast lookups
 const entryCache = new Map<string, Entry>();
 
+async function cleanupMedia(filenames: string[]): Promise<void> {
+  const unreferenced = await filterUnreferencedMedia(filenames);
+  if (unreferenced.length > 0) {
+    await deleteMediaFiles(unreferenced);
+  }
+}
+
 export async function addEntry(input: NewEntryInput): Promise<Entry> {
   const entry = await createEntry(input);
   entryCache.set(entry.id, entry);
@@ -54,23 +63,22 @@ export async function addEntry(input: NewEntryInput): Promise<Entry> {
 
 export async function patchEntry(id: string, input: UpdateEntryInput): Promise<Entry> {
   const existing = entryCache.get(id) ?? (await getEntryById(id));
-  const entry = existing
-    ? await commitMediaUpdate({
-        existing,
-        input,
-        update: () => updateEntry(id, input),
-        cleanup: deleteMediaList,
-      })
-    : await updateEntry(id, input);
+  const entry = await updateEntry(id, input);
   entryCache.set(entry.id, entry);
-
   notifyMutation({ type: "update", entry });
+
+  // File cleanup starts only after the row committed; failures there must not fail the save.
+  if (existing) {
+    void cleanupMedia(removedMedia(existing, input)).catch((error) =>
+      logDevWarning("entry:cleanupMedia", error)
+    );
+  }
   return entry;
 }
 
 export async function removeEntry(id: string): Promise<void> {
   const uris = await deleteEntry(id);
-  await deleteMediaList(uris);
+  await cleanupMedia(uris);
   entryCache.delete(id);
   notifyMutation({ type: "delete", id });
 }

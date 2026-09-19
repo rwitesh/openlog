@@ -32,7 +32,7 @@ import {
   setImportController,
   useBackupStatus,
 } from "@/services/backup";
-import { deleteMediaList } from "@/services/media";
+import { deleteMediaFiles } from "@/services/media";
 import {
   dismissBackupProgressNotification,
   notifyBackupError,
@@ -367,7 +367,7 @@ export function PrivacySettingsScreen() {
       "Delete all entries?",
       "This permanently removes every entry and its attached media. This cannot be undone.",
       "Delete",
-      async () => deleteMediaList(await clearAll())
+      async () => deleteMediaFiles(await clearAll())
     );
 
   return (

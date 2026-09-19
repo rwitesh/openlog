@@ -1,54 +1,20 @@
 import { Directory, File, Paths } from "expo-file-system";
 
-import { waitForExportGate } from "@/services/backup";
+import { waitForExportGate } from "@/services/backup/utils";
 import { logDevWarning } from "@/shared/utils/devLog";
 
-function mediaDirectory(): Directory {
+/** The app's single durable media directory; the database stores bare filenames relative to it. */
+export function mediaDirectory(): Directory {
   return new Directory(Paths.document, "media");
 }
 
-/**
- * Resolves a stored media URI to an active durable URI.
- * Handles iOS container migration by recovering the filename if the old sandbox path is dead.
- */
-export function resolveMediaUri(uri: string | undefined | null): string {
-  if (!uri) return "";
-
-  // If it's a relative filename or media path
-  if (!uri.startsWith("file://") && !uri.startsWith("http://") && !uri.startsWith("https://")) {
-    const filename = uri.replace(/^media\//, "");
-    return new File(mediaDirectory(), filename).uri;
-  }
-
-  // If it's a file:// URI, check if it exists or if container migrated
-  try {
-    const file = new File(uri);
-    if (file.exists) {
-      return uri;
-    }
-
-    // Try recovering via filename under current media directory
-    const parts = uri.split("/");
-    const filename = parts[parts.length - 1];
-    if (filename) {
-      const recovered = new File(mediaDirectory(), filename);
-      if (recovered.exists) {
-        return recovered.uri;
-      }
-    }
-  } catch {
-    // Fallback to original
-  }
-
-  return uri;
+/** Resolves a stored media filename (e.g. "uuid.jpg") to its live file URI for display and playback. */
+export function mediaFileUri(filename: string): string {
+  return new File(mediaDirectory(), filename).uri;
 }
 
-export function resolveMediaUriList(uris: string[]): string[] {
-  return uris.map(resolveMediaUri);
-}
-
-/** Generates a collision-free filename with UUID for durable media storage. */
-export function createMediaFilename(ext: string): string {
+/** Generates a collision-free filename for durable media storage. */
+function createMediaFilename(ext: string): string {
   const cleanExt = ext.replace(/^\./, "").toLowerCase() || "bin";
   const uuid =
     typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -58,49 +24,40 @@ export function createMediaFilename(ext: string): string {
 }
 
 /**
- * Copies a picked/recorded file into the app's private document directory so
- * it survives app restarts (cache and picker URIs are not durable).
- * If the file is already in the durable media directory, returns its active URI as-is.
+ * Copies a picked or recorded file into the durable media directory and returns
+ * its stored filename. Cache and picker URIs are ephemeral, so only durable
+ * copies may be referenced by an entry. A source already inside the media
+ * directory passes through unchanged — re-editing an entry must not duplicate
+ * its files.
  */
 export async function persistMedia(sourceUri: string, ext: string): Promise<string> {
   const dir = mediaDirectory();
   dir.create({ idempotent: true, intermediates: true });
 
-  const resolved = resolveMediaUri(sourceUri);
-  const dirUri = dir.uri.endsWith("/") ? dir.uri : `${dir.uri}/`;
+  const dirPrefix = dir.uri.endsWith("/") ? dir.uri : `${dir.uri}/`;
+  if (sourceUri.startsWith(dirPrefix)) {
+    return sourceUri.slice(dirPrefix.length);
+  }
 
-  // If already in durable media directory, return active URI as-is without re-copying
-  if (resolved.startsWith(dirUri)) {
-    try {
-      if (new File(resolved).exists) {
-        return resolved;
+  const filename = createMediaFilename(ext);
+  await new File(sourceUri).copy(new File(dir, filename));
+  return filename;
+}
+
+/** Deletes stored media files by filename. Missing files are ignored. */
+export async function deleteMediaFiles(filenames: string[]): Promise<void> {
+  if (!filenames.length) return;
+  await waitForExportGate();
+
+  const dir = mediaDirectory();
+  await Promise.all(
+    filenames.map(async (filename) => {
+      try {
+        const file = new File(dir, filename);
+        if (file.exists) file.delete();
+      } catch (error) {
+        logDevWarning("media:deleteMediaFiles", error);
       }
-    } catch {
-      // Fall through to copy if checking existence throws
-    }
-  }
-
-  const name = createMediaFilename(ext);
-  const dest = new File(dir, name);
-
-  await new File(sourceUri).copy(dest);
-  return dest.uri;
-}
-
-export async function deleteMedia(uri: string | undefined | null): Promise<void> {
-  if (!uri) return;
-  await waitForExportGate();
-
-  try {
-    const resolved = resolveMediaUri(uri);
-    const file = new File(resolved);
-    if (file.exists) file.delete();
-  } catch (error) {
-    logDevWarning("storage:deleteMedia", error);
-  }
-}
-
-export async function deleteMediaList(uris: string[]): Promise<void> {
-  await waitForExportGate();
-  await Promise.all(uris.map((uri) => deleteMedia(uri)));
+    })
+  );
 }
