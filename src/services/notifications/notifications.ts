@@ -1,4 +1,5 @@
 import { Platform } from "react-native";
+import { analytics } from "@/config/analytics";
 import { formatBytes } from "@/shared/utils/appInfo";
 import { logDevWarning } from "@/shared/utils/devLog";
 
@@ -35,9 +36,7 @@ function getNotifications(): NotificationsModule | null {
   return cachedModule;
 }
 
-/**
- * Requests notification permissions if not already granted.
- */
+/** Requests notification permission if not granted; the OS itself never re-prompts after a decision. */
 export async function requestNotificationPermission(): Promise<boolean> {
   const Notifications = getNotifications();
   if (!Notifications) {
@@ -48,8 +47,14 @@ export async function requestNotificationPermission(): Promise<boolean> {
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
 
+    // The OS shows the dialog only while undecided, so repeated calls never nag.
     if (existingStatus !== "granted") {
       const { status } = await Notifications.requestPermissionsAsync();
+      if (existingStatus === "undetermined") {
+        analytics.capture("notification_permission_prompted", {
+          granted: status === "granted",
+        });
+      }
       finalStatus = status;
     }
 

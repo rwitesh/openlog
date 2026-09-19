@@ -41,7 +41,6 @@ import {
   notifyBackupError,
   notifyBackupExportComplete,
   notifyBackupProgress,
-  requestNotificationPermission,
 } from "@/services/notifications";
 import { ThemedText } from "@/shared/components/ThemedText";
 import { logDevWarning } from "@/shared/utils";
@@ -115,8 +114,6 @@ export function PrivacySettingsScreen() {
       logDevWarning("settings:pickExportDir", err);
       useShareFallback = true;
     }
-
-    void requestNotificationPermission();
 
     const controller = new AbortController();
     setExportController(controller);
@@ -209,8 +206,6 @@ export function PrivacySettingsScreen() {
     uncompressedBytes?: number,
     expectedArchiveBytes?: number
   ) => {
-    void requestNotificationPermission();
-
     const controller = new AbortController();
     setImportController(controller);
 
