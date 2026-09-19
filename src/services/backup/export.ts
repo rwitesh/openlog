@@ -1,42 +1,35 @@
 import { Directory, File, FileMode, Paths } from "expo-file-system";
 import { strToU8, Zip, ZipDeflate, ZipPassThrough } from "fflate";
 
-import {
-  DATABASE_SIZE_CEILING,
-  deleteDatabaseSnapshot,
-  snapshotDatabaseAndMedia,
-} from "@/services/db/database";
-import { APP_SLUG } from "@/shared/constants";
+import { runDb } from "@/services/db/database";
+import { parseAttachments, parseUris } from "@/services/db/uris";
 import { APP_VERSION } from "@/shared/utils/appInfo";
 import { logDevWarning } from "@/shared/utils/devLog";
-
-import { acquireExportGate, releaseExportGate } from "./shared";
 import {
   ARCHIVE_EXTENSION,
   ARCHIVE_FORMAT,
   ARCHIVE_SCHEMA_VERSION,
-  type ArchiveManifest,
+  type BackupAttachment,
+  type BackupEntry,
+  type BackupLocation,
+  type BackupManifest,
+  type BackupTag,
+  type BackupTimelineData,
   type ExportBackupOptions,
   type ExportBackupResult,
+  MANIFEST_FILENAME,
+  TIMELINE_DATA_FILENAME,
 } from "./types";
+import {
+  acquireExportGate,
+  DATABASE_SIZE_CEILING,
+  extractMediaFilenameFromUri,
+  releaseExportGate,
+} from "./utils";
 
-/**
- * Backups are constrained by {@link DATABASE_SIZE_CEILING} (256 MiB) because
- * SQLite serialization loads the entire database into JavaScript memory.
- */
 export { DATABASE_SIZE_CEILING };
 
 const CHUNK_SIZE = 256 * 1024;
-
-function backupId(): string {
-  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
-function formatDateForFilename(timestamp: number): string {
-  const date = new Date(timestamp);
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
-}
 
 function listMediaFiles(): File[] {
   const mediaDirectory = new Directory(Paths.document, "media");
@@ -91,7 +84,9 @@ function addFileToArchive(
   }
 }
 
-/** Creates an opaque, complete timeline backup: a SQLite snapshot plus the durable media directory. */
+/**
+ * Creates a structured JSON archive containing timeline.json and media files.
+ */
 export async function exportBackupArchive(
   options?: ExportBackupOptions
 ): Promise<ExportBackupResult> {
@@ -99,32 +94,161 @@ export async function exportBackupArchive(
 
   acquireExportGate();
   const createdAt = Date.now();
-  const id = backupId();
-  const filename = `${APP_SLUG}-backup-${formatDateForFilename(createdAt)}${ARCHIVE_EXTENSION}`;
+  const filename = `openlog-backup-${new Date(createdAt).toISOString().replace(/[:.]/g, "-")}${ARCHIVE_EXTENSION}`;
   const exportFile = new File(Paths.cache, filename);
-  const snapshotName = `openlog-export-${id}.sqlite`;
-  const snapshotFile = new File(Paths.cache, snapshotName);
   exportFile.create({ overwrite: true });
   const output = exportFile.open(FileMode.WriteOnly);
   let succeeded = false;
 
   try {
-    // Atomically snapshot SQLite and capture media file list under the DB lock
-    // in a single lock invocation so no database mutations or destructive media cleanup can interleave.
-    const { entryCount, mediaFiles } = await snapshotDatabaseAndMedia(snapshotFile, listMediaFiles);
+    const { tags, entries, settings } = await runDb(async (db) => {
+      const tagRows = await db.getAllAsync<{
+        id: string;
+        name: string;
+        key: string;
+        color_id: string;
+        created_at: number;
+        updated_at: number;
+      }>(
+        "SELECT id, name, key, color_id, created_at, updated_at FROM tags ORDER BY name COLLATE NOCASE, id"
+      );
+      const mappedTags: BackupTag[] = tagRows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        key: row.key,
+        colorId: row.color_id,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      }));
 
-    options?.onProgress?.(1, 1, "database");
+      const entryTagRows = await db.getAllAsync<{
+        entry_id: string;
+        tag_id: string;
+      }>("SELECT entry_id, tag_id FROM entry_tags ORDER BY entry_id, tag_id");
+      const tagIdsByEntryId = new Map<string, string[]>();
+      for (const row of entryTagRows) {
+        const existing = tagIdsByEntryId.get(row.entry_id) ?? [];
+        existing.push(row.tag_id);
+        tagIdsByEntryId.set(row.entry_id, existing);
+      }
+
+      const entryRows = await db.getAllAsync<{
+        id: string;
+        created_at: number;
+        updated_at: number;
+        text: string | null;
+        images: string | null;
+        audios: string | null;
+        attachments: string | null;
+        latitude: number | null;
+        longitude: number | null;
+        location: string | null;
+      }>(
+        "SELECT id, created_at, updated_at, text, images, audios, attachments, latitude, longitude, location FROM entries ORDER BY created_at DESC, id DESC"
+      );
+
+      const mappedEntries: BackupEntry[] = entryRows.map((row) => {
+        const parsedImages = parseUris(row.images);
+        const images: string[] = [];
+        for (const raw of parsedImages) {
+          const fn = extractMediaFilenameFromUri(raw);
+          if (fn) images.push(fn);
+        }
+
+        const parsedAudios = parseUris(row.audios);
+        const audios: string[] = [];
+        for (const raw of parsedAudios) {
+          const fn = extractMediaFilenameFromUri(raw);
+          if (fn) audios.push(fn);
+        }
+
+        const parsedAttachments = parseAttachments(row.attachments);
+        const attachments: BackupAttachment[] = [];
+        for (const att of parsedAttachments) {
+          const fn = extractMediaFilenameFromUri(att.uri);
+          if (fn) {
+            attachments.push({
+              uri: fn,
+              name: att.name,
+              size: att.size,
+              mimeType: att.mime,
+            });
+          }
+        }
+
+        const location: BackupLocation | null =
+          row.latitude != null && row.longitude != null
+            ? {
+                latitude: row.latitude,
+                longitude: row.longitude,
+                name: row.location ?? undefined,
+              }
+            : null;
+
+        return {
+          id: row.id,
+          createdAt: row.created_at,
+          updatedAt: row.updated_at,
+          text: row.text ?? null,
+          images: images.length > 0 ? images : undefined,
+          audios: audios.length > 0 ? audios : undefined,
+          attachments: attachments.length > 0 ? attachments : undefined,
+          tagIds: tagIdsByEntryId.get(row.id),
+          location,
+        };
+      });
+
+      const settingRows = await db.getAllAsync<{
+        key: string;
+        value: string;
+      }>("SELECT key, value FROM settings ORDER BY key");
+      const mappedSettings: Record<string, string> = {};
+      for (const row of settingRows) {
+        mappedSettings[row.key] = row.value;
+      }
+
+      return {
+        tags: mappedTags,
+        entries: mappedEntries,
+        settings: mappedSettings,
+      };
+    });
+
+    options?.onProgress?.(entries.length, entries.length, "entries");
     if (options?.signal?.aborted) throw new Error("Backup cancelled");
+
+    const mediaFiles = listMediaFiles().filter((f) => f.exists);
+
+    const manifest: BackupManifest = {
+      format: ARCHIVE_FORMAT,
+      version: ARCHIVE_SCHEMA_VERSION,
+      createdAt,
+      appVersion: APP_VERSION ?? "1.0.0",
+      counts: {
+        entry: entries.length,
+        tag: tags.length,
+        media: mediaFiles.length,
+      },
+    };
+
+    const timelineData: BackupTimelineData = {
+      tags,
+      entries,
+      settings: Object.keys(settings).length > 0 ? settings : undefined,
+    };
 
     const zip = new Zip((error, chunk) => {
       if (error) throw error;
       output.writeBytes(chunk);
     });
 
-    const addedDb = addFileToArchive(zip, "database.sqlite", snapshotFile, options?.signal);
-    if (!addedDb) {
-      throw new Error("Database snapshot file is no longer available.");
-    }
+    const manifestFile = new ZipDeflate(MANIFEST_FILENAME, { level: 6 });
+    zip.add(manifestFile);
+    manifestFile.push(strToU8(JSON.stringify(manifest)), true);
+
+    const timelineJsonFile = new ZipDeflate(TIMELINE_DATA_FILENAME, { level: 6 });
+    zip.add(timelineJsonFile);
+    timelineJsonFile.push(strToU8(JSON.stringify(timelineData)), true);
 
     let exportedMediaCount = 0;
     for (let index = 0; index < mediaFiles.length; index++) {
@@ -135,30 +259,22 @@ export async function exportBackupArchive(
       options?.onProgress?.(index + 1, mediaFiles.length, "media");
     }
 
-    const manifest: ArchiveManifest = {
-      format: ARCHIVE_FORMAT,
-      version: ARCHIVE_SCHEMA_VERSION,
-      createdAt,
-      appVersion: APP_VERSION ?? "1.0.0",
-      counts: { entry: entryCount, media: exportedMediaCount },
-    };
-
-    const manifestFile = new ZipDeflate("manifest.json", { level: 6 });
-    zip.add(manifestFile);
-    manifestFile.push(strToU8(JSON.stringify(manifest)), true);
     zip.end();
     succeeded = true;
 
     return {
       fileUri: exportFile.uri,
       filename,
-      counts: manifest.counts,
+      counts: {
+        entry: entries.length,
+        tag: tags.length,
+        media: exportedMediaCount,
+      },
       byteSize: exportFile.info().size ?? 0,
     };
   } finally {
     output.close();
     releaseExportGate();
-    if (snapshotFile.exists) await deleteDatabaseSnapshot(snapshotFile);
     if (!succeeded && exportFile.exists) exportFile.delete();
   }
 }

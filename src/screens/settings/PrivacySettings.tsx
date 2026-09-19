@@ -1,15 +1,7 @@
 import { File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Switch,
-  View,
-} from "react-native";
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Switch, View } from "react-native";
 
 import { analytics } from "@/config/analytics";
 import { useEntries } from "@/modules/entry";
@@ -45,6 +37,7 @@ import {
   dismissBackupProgressNotification,
   notifyBackupError,
   notifyBackupExportComplete,
+  notifyBackupImportComplete,
   notifyBackupProgress,
 } from "@/services/notifications";
 import { ThemedText } from "@/shared/components/ThemedText";
@@ -127,13 +120,12 @@ export function PrivacySettingsScreen() {
       const result = await exportBackupArchive({
         signal: controller.signal,
         onProgress: (processed, total, phase) => {
-          if (total === 0) return;
-          const step = phase === "database" ? 1 : 10;
+          const isEntriesPhase = phase === "entries";
+          const step = isEntriesPhase ? 1 : 10;
           if (processed % step !== 0 && processed !== total) return;
-          const body =
-            phase === "database"
-              ? "Saving your entries"
-              : `Saving files (${processed.toLocaleString()} of ${total.toLocaleString()})`;
+          const body = isEntriesPhase
+            ? "Saving your entries"
+            : `Saving files (${processed.toLocaleString()} of ${total.toLocaleString()})`;
           void notifyBackupProgress("Saving backup", body);
         },
       });
@@ -177,22 +169,31 @@ export function PrivacySettingsScreen() {
         }
       }
 
+      const entryCount = result.counts.entry;
       analytics.capture("backup_exported", {
-        entry_count: result.counts.entry,
+        entry_count: entryCount,
         byte_size: result.byteSize,
       });
 
-      void notifyBackupExportComplete(result.counts.entry, result.byteSize);
+      void notifyBackupExportComplete(entryCount, result.byteSize);
+
+      Alert.alert(
+        "Backup saved",
+        `${entryCount.toLocaleString()} ${entryCount === 1 ? "entry" : "entries"} saved.`,
+        [{ text: "Done" }]
+      );
     } catch (error) {
       if (controller.signal.aborted) {
         void dismissBackupProgressNotification();
         return;
       }
       logDevWarning("settings:exportBackup", error);
-      void notifyBackupError(
-        "Backup failed",
-        "Couldn’t save your backup. Check your storage and try again."
-      );
+      analytics.capture("backup_export_failed", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      const message = "Couldn’t save your backup. Check your storage and try again.";
+      void notifyBackupError("Backup failed", message);
+      Alert.alert("Backup failed", message);
     } finally {
       setExportController(null);
     }
@@ -212,10 +213,10 @@ export function PrivacySettingsScreen() {
     const controller = new AbortController();
     setImportController(controller);
 
-    void notifyBackupProgress("Restoring backup", "Checking your backup");
+    void notifyBackupProgress("Restoring backup", "Extracting files...");
 
     try {
-      await importBackupArchive(fileUri, {
+      const result = await importBackupArchive(fileUri, {
         signal: controller.signal,
         counts,
         uncompressedBytes,
@@ -224,31 +225,52 @@ export function PrivacySettingsScreen() {
 
       if (controller.signal.aborted) return;
 
-      void dismissBackupProgressNotification();
-
-      if (Platform.OS === "android") {
-        Alert.alert(
-          "One last step",
-          "Your backup is ready. Swipe OpenLog away from Recent Apps, then open it again.",
-          [{ text: "Done" }]
-        );
-      } else {
-        Alert.alert(
-          "One last step",
-          "Your backup is ready. Close OpenLog from the app switcher, then open it again.",
-          [{ text: "Done" }]
-        );
+      const importedCount = result?.importedCount ?? counts?.entry ?? 0;
+      let byteSize = expectedArchiveBytes;
+      if (byteSize === undefined) {
+        try {
+          const temp = new File(fileUri);
+          if (temp.exists) byteSize = temp.size;
+        } catch {
+          // ignore
+        }
       }
+
+      analytics.capture("backup_imported", {
+        entry_count: importedCount,
+        byte_size: byteSize ?? null,
+      });
+
+      void dismissBackupProgressNotification();
+      void notifyBackupImportComplete(importedCount);
+
+      Alert.alert(
+        "Restore complete",
+        `${importedCount.toLocaleString()} ${importedCount === 1 ? "entry" : "entries"} restored.`,
+        [{ text: "Done" }]
+      );
     } catch (error) {
       if (controller.signal.aborted) {
         void dismissBackupProgressNotification();
         return;
       }
       logDevWarning("settings:importBackup", error);
-      void notifyBackupError(
-        "Restore failed",
-        "Couldn’t restore this backup. Try another OpenLog backup file."
-      );
+      let byteSize = expectedArchiveBytes;
+      if (byteSize === undefined) {
+        try {
+          const temp = new File(fileUri);
+          if (temp.exists) byteSize = temp.size;
+        } catch {
+          // ignore
+        }
+      }
+      analytics.capture("backup_import_failed", {
+        error: error instanceof Error ? error.message : String(error),
+        byte_size: byteSize ?? null,
+      });
+      const message = "The backup couldn’t be restored. Your timeline was not changed.";
+      void notifyBackupError("Restore failed", message);
+      Alert.alert("Can’t restore backup", message);
     } finally {
       setImportController(null);
       try {
@@ -269,7 +291,7 @@ export function PrivacySettingsScreen() {
     try {
       fileUri = await pickBackupArchiveFile();
     } catch (_error) {
-      Alert.alert("Couldn’t open file", "Choose an OpenLog backup file and try again.");
+      Alert.alert("Couldn’t open file", "Unable to read the selected file.");
       return;
     }
 
@@ -280,7 +302,18 @@ export function PrivacySettingsScreen() {
       preview = await inspectBackupArchive(fileUri);
     } catch (error) {
       logDevWarning("settings:inspectBackup", error);
-      Alert.alert("Can’t restore this backup", "The file is damaged or isn’t an OpenLog backup.");
+      let byteSize: number | undefined;
+      try {
+        const temp = new File(fileUri);
+        if (temp.exists) byteSize = temp.size;
+      } catch {
+        // ignore
+      }
+      analytics.capture("backup_inspect_failed", {
+        error: error instanceof Error ? error.message : String(error),
+        byte_size: byteSize ?? null,
+      });
+      Alert.alert("Can’t open backup", "This backup file appears to be corrupted or incomplete.");
       try {
         new File(fileUri).delete();
       } catch {
@@ -294,8 +327,8 @@ export function PrivacySettingsScreen() {
     });
     const entryLabel = `${preview.counts.entry.toLocaleString()} ${preview.counts.entry === 1 ? "entry" : "entries"}`;
     Alert.alert(
-      "Restore Backup?",
-      `${entryLabel} from ${dateStr}.\n\nThis replaces your current timeline and attached files. You can’t undo this.`,
+      "Restore timeline?",
+      `${entryLabel} from ${dateStr}.\n\nThis will replace all timeline data on this device. This cannot be undone.`,
       [
         {
           text: "Cancel",
@@ -397,7 +430,7 @@ export function PrivacySettingsScreen() {
           icon="download"
           title="Import"
           subtitle={
-            isImporting ? "Checking your backup" : "Replace your current timeline with a backup"
+            isImporting ? "Restoring backup" : "Replace your current timeline with a backup"
           }
           badge={
             isImporting ? (

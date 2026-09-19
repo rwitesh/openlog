@@ -1,6 +1,6 @@
 import { Directory, File, Paths } from "expo-file-system";
 
-import { waitForExportGate } from "@/services/backup/shared";
+import { waitForExportGate } from "@/services/backup";
 import { logDevWarning } from "@/shared/utils/devLog";
 
 function mediaDirectory(): Directory {

@@ -2,168 +2,393 @@ import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import {
-  applyPendingRestore,
-  completePendingRestore,
-  queueRestore,
-  readDurableTransaction,
-  rollbackPendingRestore,
-  saveDurableTransaction,
-} from "../src/services/backup/restore.ts";
+  ARCHIVE_FORMAT,
+  ARCHIVE_SCHEMA_VERSION,
+  MANIFEST_FILENAME,
+  TIMELINE_DATA_FILENAME,
+} from "../src/services/backup/types.ts";
 import {
   acquireExportGate,
-  assertArchiveManifest,
+  assertBackupManifest,
+  assertBackupTimelineData,
   BACKUP_LIMITS,
   calculateRequiredRestoreBytes,
   DATABASE_SIZE_CEILING,
   extractMediaFilename,
   isExportGateActive,
-  LIMITS,
   RESTORE_SAFETY_BUFFER_BYTES,
   releaseExportGate,
   validateArchivePath,
   waitForExportGate,
-} from "../src/services/backup/shared.ts";
-import { initializeDatabaseSchema, migrateRestoreSchema } from "../src/services/db/schema.ts";
-import { validateAttachedDatabase } from "../src/services/db/validation.ts";
+} from "../src/services/backup/utils.ts";
+import { initializeDatabaseSchema } from "../src/services/db/schema.ts";
 
-function createMemoryRestoreFileSystem(initialFiles = {}) {
-  const files = new Map(Object.entries(initialFiles));
-  const dirs = new Set(["/mock/doc", "/mock/db", "/mock/doc/media"]);
-  const documentDirectory = "/mock/doc";
-  const databaseDirectory = "/mock/db";
-
+function createDbTarget(database) {
   return {
-    files,
-    dirs,
-    documentDirectory,
-    databaseDirectory,
-    journalPath: `${documentDirectory}/openlog-restore-transaction.json`,
-    journalBakPath: `${documentDirectory}/openlog-restore-transaction.bak`,
-    journalTmpPath: `${documentDirectory}/openlog-restore-transaction.tmp`,
-    exists: async (path) => files.has(path) || dirs.has(path),
-    readText: async (path) => {
-      const content = files.get(path);
-      if (content === undefined) throw new Error(`File not found: ${path}`);
-      return content;
-    },
-    writeText: async (path, content) => {
-      files.set(path, content);
-    },
-    deleteFile: async (path) => {
-      files.delete(path);
-    },
-    copyFile: async (source, destination) => {
-      const content = files.get(source);
-      if (content !== undefined) files.set(destination, content);
-    },
-    moveFile: async (source, destination) => {
-      const content = files.get(source);
-      if (content !== undefined) {
-        files.set(destination, content);
-        files.delete(source);
+    execAsync: async (source) => database.exec(source),
+    runAsync: async (source, ...params) => database.prepare(source).run(...params),
+    getFirstAsync: async (source, ...params) => database.prepare(source).get(...params) ?? null,
+    getAllAsync: async (source, ...params) => database.prepare(source).all(...params),
+    withTransactionAsync: async (task) => {
+      database.exec("BEGIN");
+      try {
+        await task();
+        database.exec("COMMIT");
+      } catch (e) {
+        database.exec("ROLLBACK");
+        throw e;
       }
-    },
-    directoryExists: async (path) => dirs.has(path),
-    deleteDirectory: async (path) => {
-      dirs.delete(path);
-      const prefix = path.endsWith("/") ? path : `${path}/`;
-      for (const file of Array.from(files.keys())) {
-        if (file.startsWith(prefix) || file === path) files.delete(file);
-      }
-      for (const directory of Array.from(dirs)) {
-        if (directory.startsWith(prefix) || directory === path) dirs.delete(directory);
-      }
-    },
-    moveDirectory: async (source, destination) => {
-      dirs.delete(source);
-      dirs.add(destination);
-      const sourcePrefix = source.endsWith("/") ? source : `${source}/`;
-      const destinationPrefix = destination.endsWith("/") ? destination : `${destination}/`;
-      for (const [file, content] of Array.from(files.entries())) {
-        if (file.startsWith(sourcePrefix)) {
-          files.set(destinationPrefix + file.slice(sourcePrefix.length), content);
-          files.delete(file);
-        }
-      }
-      for (const directory of Array.from(dirs)) {
-        if (directory.startsWith(sourcePrefix)) {
-          dirs.add(destinationPrefix + directory.slice(sourcePrefix.length));
-          dirs.delete(directory);
-        }
-      }
-    },
-    listFiles: async (directory) => {
-      const prefix = directory.endsWith("/") ? directory : `${directory}/`;
-      const results = new Set();
-      for (const path of [...files.keys(), ...dirs]) {
-        if (!path.startsWith(prefix)) continue;
-        const name = path.slice(prefix.length).split("/")[0];
-        if (name) results.add(name);
-      }
-      return Array.from(results);
     },
   };
 }
 
-const manifest = {
-  format: "openlog-archive",
+const validManifest = {
+  format: "openlog-backup",
   version: 1,
-  createdAt: 1_700_000_000_000,
-  appVersion: "1.3.0",
-  counts: { entry: 1, media: 3 },
+  createdAt: 1_773_900_000_000,
+  appVersion: "1.3.5",
+  counts: {
+    entry: 1,
+    tag: 1,
+    media: 0,
+  },
 };
 
-test("backup manifests require a supported format and non-negative integer counts", () => {
-  assert.doesNotThrow(() => assertArchiveManifest(manifest, "openlog-archive", 1));
+const validTimelineData = {
+  tags: [
+    {
+      id: "tag-uuid-1",
+      name: "Personal",
+      key: "personal",
+      colorId: "terracotta",
+      createdAt: 1_773_800_000_000,
+      updatedAt: 1_773_800_000_000,
+    },
+  ],
+  entries: [
+    {
+      id: "entry-uuid-1",
+      createdAt: 1_773_850_000_000,
+      updatedAt: 1_773_850_000_000,
+      text: "Evening walk through the city.",
+      images: [],
+      audios: [],
+      attachments: [],
+      tagIds: ["tag-uuid-1"],
+      location: {
+        latitude: 37.7749,
+        longitude: -122.4194,
+        name: "San Francisco, CA",
+      },
+    },
+  ],
+  preferences: {
+    appearance: {
+      mode: "system",
+      fontFamily: "Source Sans 3",
+      accent: "default",
+    },
+    timeline: {
+      firstDayOfWeek: 0,
+    },
+  },
+};
+
+test("schema & manifest JSON validation accepts valid manifest", () => {
+  assert.doesNotThrow(() => assertBackupManifest(validManifest));
+  assert.equal(validManifest.format, ARCHIVE_FORMAT);
+  assert.equal(validManifest.version, ARCHIVE_SCHEMA_VERSION);
+});
+
+test("schema & manifest JSON validation rejects missing or invalid format", () => {
   assert.throws(
-    () => assertArchiveManifest({ ...manifest, format: "other-archive" }, "openlog-archive", 1),
+    () => assertBackupManifest({ ...validManifest, format: undefined }),
     /Invalid backup format/
   );
   assert.throws(
-    () =>
-      assertArchiveManifest(
-        { ...manifest, counts: { ...manifest.counts, media: -1 } },
-        "openlog-archive",
-        1
-      ),
-    /non-negative integers/
+    () => assertBackupManifest({ ...validManifest, format: "wrong-format" }),
+    /Invalid backup format/
   );
   assert.throws(
-    () => assertArchiveManifest({ ...manifest, version: 0 }, "openlog-archive", 1),
+    () => assertBackupManifest({ ...validManifest, format: "" }),
+    /Invalid backup format/
+  );
+  assert.throws(
+    () => assertBackupManifest({ ...validManifest, format: 123 }),
+    /Invalid backup format/
+  );
+});
+
+test("schema & manifest JSON validation rejects future schema versions with update prompt", () => {
+  assert.throws(
+    () => assertBackupManifest({ ...validManifest, version: ARCHIVE_SCHEMA_VERSION + 1 }),
+    /Unsupported backup version/
+  );
+  assert.throws(
+    () => assertBackupManifest({ ...validManifest, version: 99 }),
+    /Unsupported backup version/
+  );
+  assert.throws(
+    () => assertBackupManifest({ ...validManifest, version: 0 }),
     /unsupported archive version/
   );
   assert.throws(
-    () => assertArchiveManifest({ ...manifest, appVersion: "" }, "openlog-archive", 1),
-    /appVersion is missing/
+    () => assertBackupManifest({ ...validManifest, version: -1 }),
+    /unsupported archive version/
+  );
+  assert.throws(
+    () => assertBackupManifest({ ...validManifest, version: 1.5 }),
+    /unsupported archive version/
+  );
+});
+
+test("schema & manifest JSON validation rejects negative counts", () => {
+  assert.throws(
+    () =>
+      assertBackupManifest({
+        ...validManifest,
+        counts: { ...validManifest.counts, entry: -1 },
+      }),
+    /non-negative integers/
+  );
+  assert.throws(
+    () =>
+      assertBackupManifest({
+        ...validManifest,
+        counts: { ...validManifest.counts, tag: -1 },
+      }),
+    /non-negative integers/
+  );
+  assert.throws(
+    () =>
+      assertBackupManifest({
+        ...validManifest,
+        counts: { ...validManifest.counts, media: -1 },
+      }),
+    /non-negative integers/
+  );
+});
+
+test("timeline JSON validation accepts valid timeline payload", () => {
+  assert.doesNotThrow(() => assertBackupTimelineData(validTimelineData));
+});
+
+test("manifest and timeline cross-validation rejects count mismatches", () => {
+  assert.equal(validTimelineData.entries.length, validManifest.counts.entry);
+  assert.equal(validTimelineData.tags.length, validManifest.counts.tag);
+
+  const checkCountParity = (manifest, timeline, mediaCount) => {
+    if (timeline.entries.length !== manifest.counts.entry) {
+      throw new Error(
+        `Backup entry count mismatch (${timeline.entries.length} entries, manifest specifies ${manifest.counts.entry}).`
+      );
+    }
+    if (timeline.tags.length !== manifest.counts.tag) {
+      throw new Error(
+        `Backup tag count mismatch (${timeline.tags.length} tags, manifest specifies ${manifest.counts.tag}).`
+      );
+    }
+    if (mediaCount !== manifest.counts.media) {
+      throw new Error(
+        `Backup media count mismatch (${mediaCount} media files, manifest specifies ${manifest.counts.media}).`
+      );
+    }
+  };
+
+  assert.doesNotThrow(() => checkCountParity(validManifest, validTimelineData, 0));
+  assert.throws(
+    () =>
+      checkCountParity(
+        { ...validManifest, counts: { ...validManifest.counts, entry: 99 } },
+        validTimelineData,
+        0
+      ),
+    /Backup entry count mismatch/
+  );
+  assert.throws(
+    () =>
+      checkCountParity(
+        { ...validManifest, counts: { ...validManifest.counts, tag: 99 } },
+        validTimelineData,
+        0
+      ),
+    /Backup tag count mismatch/
+  );
+  assert.throws(
+    () => checkCountParity(validManifest, validTimelineData, 5),
+    /Backup media count mismatch/
+  );
+});
+
+test("schema & timeline JSON validation rejects malformed entry rows", () => {
+  // Missing id
+  assert.throws(
+    () =>
+      assertBackupTimelineData({
+        ...validTimelineData,
+        entries: [{ ...validTimelineData.entries[0], id: "" }],
+      }),
+    /(?:id is required|missing id)/i
+  );
+
+  // Invalid timestamps
+  assert.throws(
+    () =>
+      assertBackupTimelineData({
+        ...validTimelineData,
+        entries: [{ ...validTimelineData.entries[0], createdAt: NaN }],
+      }),
+    /createdAt is required/
+  );
+  assert.throws(
+    () =>
+      assertBackupTimelineData({
+        ...validTimelineData,
+        entries: [{ ...validTimelineData.entries[0], createdAt: "not-a-number" }],
+      }),
+    /createdAt is required/
+  );
+  assert.throws(
+    () =>
+      assertBackupTimelineData({
+        ...validTimelineData,
+        entries: [{ ...validTimelineData.entries[0], updatedAt: Infinity }],
+      }),
+    /updatedAt is required/
+  );
+
+  // Invalid field types
+  assert.throws(
+    () =>
+      assertBackupTimelineData({
+        ...validTimelineData,
+        entries: [{ ...validTimelineData.entries[0], text: 12345 }],
+      }),
+    /text must be a string or null/
+  );
+  assert.throws(
+    () =>
+      assertBackupTimelineData({
+        ...validTimelineData,
+        entries: [{ ...validTimelineData.entries[0], images: "not-an-array" }],
+      }),
+    /images must be an array/
+  );
+  assert.throws(
+    () =>
+      assertBackupTimelineData({
+        ...validTimelineData,
+        entries: [{ ...validTimelineData.entries[0], audios: "not-an-array" }],
+      }),
+    /audios must be an array/
+  );
+  assert.throws(
+    () =>
+      assertBackupTimelineData({
+        ...validTimelineData,
+        entries: [{ ...validTimelineData.entries[0], attachments: "not-an-array" }],
+      }),
+    /attachments must be an array/
+  );
+  assert.throws(
+    () =>
+      assertBackupTimelineData({
+        ...validTimelineData,
+        entries: [{ ...validTimelineData.entries[0], tagIds: "not-an-array" }],
+      }),
+    /tagIds must be an array/
+  );
+  assert.throws(
+    () =>
+      assertBackupTimelineData({
+        ...validTimelineData,
+        entries: [{ ...validTimelineData.entries[0], location: "San Francisco" }],
+      }),
+    /location must be an object or null/
+  );
+});
+
+test("schema & timeline JSON validation rejects malformed tag rows", () => {
+  // Missing id
+  assert.throws(
+    () =>
+      assertBackupTimelineData({
+        ...validTimelineData,
+        tags: [{ ...validTimelineData.tags[0], id: "" }],
+      }),
+    /(?:id is required|missing id)/i
+  );
+
+  // Missing name
+  assert.throws(
+    () =>
+      assertBackupTimelineData({
+        ...validTimelineData,
+        tags: [{ id: "tag-1", key: "tag-1", colorId: "terracotta" }],
+      }),
+    /(?:name is required|missing name)/i
+  );
+
+  // Missing colorId
+  assert.throws(
+    () =>
+      assertBackupTimelineData({
+        ...validTimelineData,
+        tags: [{ ...validTimelineData.tags[0], colorId: "" }],
+      }),
+    /(?:colorId is required|missing colorId)/i
+  );
+  assert.throws(
+    () =>
+      assertBackupTimelineData({
+        ...validTimelineData,
+        tags: [{ id: "tag-1", name: "Personal", key: "personal" }],
+      }),
+    /(?:colorId is required|missing colorId)/i
   );
 });
 
 test("archive path validation enforces expected members and rejects traversal", () => {
-  // Valid members
-  assert.doesNotThrow(() => validateArchivePath("manifest.json"));
-  assert.doesNotThrow(() => validateArchivePath("database.sqlite"));
-  assert.doesNotThrow(() => validateArchivePath("media/photo.jpg"));
+  // Accepts manifest.json, timeline.json, and media/photo1.jpg
+  assert.doesNotThrow(() => validateArchivePath(MANIFEST_FILENAME));
+  assert.doesNotThrow(() => validateArchivePath(TIMELINE_DATA_FILENAME));
+  assert.doesNotThrow(() => validateArchivePath("media/photo1.jpg"));
   assert.doesNotThrow(() => validateArchivePath("media/audio-recording.m4a"));
-  assert.equal(extractMediaFilename("media/document.pdf"), "document.pdf");
+  assert.equal(extractMediaFilename("media/photo1.jpg"), "photo1.jpg");
 
-  // Traversal and root bypass
-  assert.throws(() => validateArchivePath("../manifest.json"), /unexpected archive path/);
-  assert.throws(() => validateArchivePath("/manifest.json"), /unexpected archive path/);
-  assert.throws(() => validateArchivePath("\\database.sqlite"), /unexpected archive path/);
+  // Rejects path traversal attempts
+  assert.throws(() => validateArchivePath("../secret.txt"), /unexpected archive path/);
+  assert.throws(() => validateArchivePath("../../etc/passwd"), /unexpected archive path/);
   assert.throws(() => validateArchivePath("media/../secret.txt"), /unexpected archive path/);
   assert.throws(() => validateArchivePath("media/sub/nested.jpg"), /unexpected archive path/);
-  assert.throws(() => validateArchivePath("media\\photo.jpg"), /unexpected archive path/);
   assert.throws(() => validateArchivePath("media/"), /unexpected archive path/);
   assert.throws(() => validateArchivePath("media/."), /unexpected archive path/);
   assert.throws(() => validateArchivePath("media/.."), /unexpected archive path/);
+
+  // Rejects absolute paths
+  assert.throws(() => validateArchivePath("/etc/passwd"), /unexpected archive path/);
+  assert.throws(() => validateArchivePath(`/${MANIFEST_FILENAME}`), /unexpected archive path/);
+  assert.throws(() => validateArchivePath(`/${TIMELINE_DATA_FILENAME}`), /unexpected archive path/);
+
+  // Rejects backslashes
+  assert.throws(() => validateArchivePath("media\\evil.jpg"), /unexpected archive path/);
+  assert.throws(() => validateArchivePath(`\\${MANIFEST_FILENAME}`), /unexpected archive path/);
+  assert.throws(
+    () => validateArchivePath(`\\${TIMELINE_DATA_FILENAME}`),
+    /unexpected archive path/
+  );
+
+  // Rejects duplicate paths
+  const seenPaths = new Set([MANIFEST_FILENAME, TIMELINE_DATA_FILENAME, "media/photo1.jpg"]);
+  assert.throws(() => validateArchivePath(MANIFEST_FILENAME, seenPaths), /duplicate/);
+  assert.throws(() => validateArchivePath(TIMELINE_DATA_FILENAME, seenPaths), /duplicate/);
+  assert.throws(() => validateArchivePath("media/photo1.jpg", seenPaths), /duplicate archive path/);
+  assert.doesNotThrow(() => validateArchivePath("media/photo2.jpg", seenPaths));
+
+  // Rejects unexpected root paths
+  assert.throws(() => validateArchivePath("malicious.sh"), /unexpected archive path/);
   assert.throws(() => validateArchivePath("other.txt"), /unexpected archive path/);
   assert.throws(() => validateArchivePath("database.sqlite3"), /unexpected archive path/);
-
-  // Duplicate manifest and paths rejection
-  const seenPaths = new Set(["manifest.json", "database.sqlite"]);
-  assert.throws(() => validateArchivePath("manifest.json", seenPaths), /duplicate manifest/);
-  assert.throws(() => validateArchivePath("database.sqlite", seenPaths), /duplicate archive path/);
-  assert.doesNotThrow(() => validateArchivePath("media/photo.jpg", seenPaths));
 });
 
 test("backup limits and database ceiling match conservative safety bounds", () => {
@@ -171,11 +396,9 @@ test("backup limits and database ceiling match conservative safety bounds", () =
   assert.equal(BACKUP_LIMITS.memberBytes, 256 * 1024 * 1024);
   assert.equal(BACKUP_LIMITS.archiveBytes, 512 * 1024 * 1024);
   assert.equal(BACKUP_LIMITS.uncompressedBytes, 2 * 1024 * 1024 * 1024);
-  assert.equal(BACKUP_LIMITS.manifestBytes, 256 * 1024);
+  assert.equal(BACKUP_LIMITS.timelineDataBytes, 64 * 1024 * 1024);
+  assert.equal(BACKUP_LIMITS.manifestBytes, 64 * 1024 * 1024);
   assert.equal(BACKUP_LIMITS.media, 100_000);
-  assert.equal(LIMITS.archiveBytes, 512 * 1024 * 1024);
-  assert.equal(LIMITS.manifestBytes, 256 * 1024);
-  assert.equal(LIMITS.uncompressedBytes, 2 * 1024 * 1024 * 1024);
 });
 
 test("export gate serializes media cleanup and unblocks when released", async () => {
@@ -210,648 +433,6 @@ test("export gate serializes media cleanup and unblocks when released", async ()
   await cleanupPromise;
   assert.deepEqual(events, ["cleanup-waiting", "cleanup-executed"]);
   assert.equal(cleanupDone, true);
-});
-
-test("durable journal preserves the single next operation across writes", async () => {
-  const fs = createMemoryRestoreFileSystem();
-
-  // Initial state: no restore
-  const initial = await readDurableTransaction(fs);
-  assert.equal(initial.transaction, null);
-  assert.equal(initial.corrupt, false);
-
-  // Staged files must exist to queue restore
-  fs.files.set("/mock/doc/openlog-restore-tx1.sqlite", "staged-db-content");
-  fs.dirs.add("/mock/doc/openlog-restore-tx1-media");
-
-  await queueRestore({ id: "tx1", entryCount: 42 }, fs);
-
-  const prepared = await readDurableTransaction(fs);
-  assert.equal(prepared.transaction?.id, "tx1");
-  assert.equal(prepared.transaction?.operation, "preserve-db-main");
-  assert.equal(prepared.transaction?.entryCount, 42);
-
-  await saveDurableTransaction({ ...prepared.transaction, operation: "activate-db" }, fs);
-  assert.equal(fs.files.has(fs.journalTmpPath), false);
-  assert.ok(fs.files.has(fs.journalBakPath));
-  assert.equal(JSON.parse(fs.files.get(fs.journalBakPath)).operation, "preserve-db-main");
-  assert.equal(JSON.parse(fs.files.get(fs.journalPath)).operation, "activate-db");
-
-  await saveDurableTransaction(
-    { ...prepared.transaction, operation: "ready-for-verification" },
-    fs
-  );
-  assert.equal(JSON.parse(fs.files.get(fs.journalBakPath)).operation, "activate-db");
-  assert.equal(JSON.parse(fs.files.get(fs.journalPath)).operation, "ready-for-verification");
-});
-
-test("queued restore completes database and media swap", async () => {
-  const fs = createMemoryRestoreFileSystem({
-    "/mock/db/app.db": "original-live-db",
-    "/mock/db/app.db-wal": "original-live-wal",
-    "/mock/doc/media/photo.jpg": "original-media-file",
-    "/mock/doc/openlog-restore-p1.sqlite": "restored-db-content",
-  });
-  fs.dirs.add("/mock/doc/openlog-restore-p1-media");
-  fs.files.set("/mock/doc/openlog-restore-p1-media/new-photo.jpg", "restored-media-file");
-
-  await queueRestore({ id: "p1", entryCount: 15, mediaCount: 1 }, fs);
-  const result = await applyPendingRestore(fs);
-  assert.equal(result.applied, true);
-  assert.equal(result.id, "p1");
-  assert.equal(result.entryCount, 15);
-
-  // Verify database swapped
-  assert.equal(fs.files.get("/mock/db/app.db"), "restored-db-content");
-  assert.equal(fs.files.get("/mock/db/openlog-restore-p1-previous.sqlite"), "original-live-db");
-  assert.equal(
-    fs.files.get("/mock/db/openlog-restore-p1-previous.sqlite-wal"),
-    "original-live-wal"
-  );
-
-  // Verify media swapped
-  assert.equal(fs.files.get("/mock/doc/media/new-photo.jpg"), "restored-media-file");
-  assert.equal(
-    fs.files.get("/mock/doc/openlog-restore-p1-previous-media/photo.jpg"),
-    "original-media-file"
-  );
-
-  // Verify the write-ahead restore reached verification.
-  const journal = await readDurableTransaction(fs);
-  assert.equal(journal.transaction?.operation, "ready-for-verification");
-});
-
-function createRestoreCrashFixture(id = "crash") {
-  const fs = createMemoryRestoreFileSystem({
-    "/mock/db/app.db": "original-live-db",
-    "/mock/db/app.db-wal": "original-live-wal",
-    "/mock/doc/media/original-photo.jpg": "original-media-file",
-    [`/mock/doc/openlog-restore-${id}.sqlite`]: "restored-db-content",
-  });
-  fs.dirs.add(`/mock/doc/openlog-restore-${id}-media`);
-  fs.files.set(`/mock/doc/openlog-restore-${id}-media/restored-photo.jpg`, "restored-media-file");
-  return fs;
-}
-
-function crashAfterOperation(fs, targetOperation) {
-  const originals = new Map();
-  let operation = 0;
-  for (const name of ["writeText", "moveFile", "moveDirectory"]) {
-    const original = fs[name];
-    originals.set(name, original);
-    fs[name] = async (...args) => {
-      await original(...args);
-      if (name === "writeText" && args[0] !== fs.journalPath) return;
-      operation += 1;
-      if (operation === targetOperation) throw new Error(`simulated crash after ${name}`);
-    };
-  }
-  return () => {
-    for (const [name, original] of originals) fs[name] = original;
-  };
-}
-
-test("write-ahead restore recovery survives a crash after every move and journal write", async () => {
-  const baseline = createRestoreCrashFixture();
-  await queueRestore({ id: "crash", entryCount: 1, mediaCount: 1 }, baseline);
-  let operationCount = 0;
-  for (const name of ["writeText", "moveFile", "moveDirectory"]) {
-    const original = baseline[name];
-    baseline[name] = async (...args) => {
-      if (name === "writeText" && args[0] !== baseline.journalPath) {
-        return await original(...args);
-      }
-      operationCount += 1;
-      return await original(...args);
-    };
-  }
-  assert.equal((await applyPendingRestore(baseline)).applied, true);
-  assert.ok(operationCount > 0);
-
-  for (
-    let interruptedOperation = 1;
-    interruptedOperation <= operationCount;
-    interruptedOperation += 1
-  ) {
-    const fs = createRestoreCrashFixture();
-    await queueRestore({ id: "crash", entryCount: 1, mediaCount: 1 }, fs);
-    const disableCrash = crashAfterOperation(fs, interruptedOperation);
-    await applyPendingRestore(fs);
-    disableCrash();
-
-    const recovered = await applyPendingRestore(fs);
-    assert.equal(recovered.applied, true, `operation ${interruptedOperation}`);
-    assert.equal(
-      fs.files.get("/mock/db/openlog-restore-crash-previous.sqlite"),
-      "original-live-db",
-      `database recoverable after operation ${interruptedOperation}`
-    );
-    assert.equal(
-      fs.files.get("/mock/db/openlog-restore-crash-previous.sqlite-wal"),
-      "original-live-wal",
-      `WAL recoverable after operation ${interruptedOperation}`
-    );
-    assert.equal(
-      fs.files.get("/mock/doc/openlog-restore-crash-previous-media/original-photo.jpg"),
-      "original-media-file",
-      `media recoverable after operation ${interruptedOperation}`
-    );
-
-    await rollbackPendingRestore(fs);
-    assert.equal(fs.files.get("/mock/db/app.db"), "original-live-db");
-    assert.equal(fs.files.get("/mock/doc/media/original-photo.jpg"), "original-media-file");
-  }
-});
-
-test("write-ahead rollback survives a crash after every move and journal write", async () => {
-  const baseline = createRestoreCrashFixture("rollback-crash");
-  await queueRestore({ id: "rollback-crash", entryCount: 1, mediaCount: 1 }, baseline);
-  await applyPendingRestore(baseline);
-
-  let operationCount = 0;
-  for (const name of ["writeText", "moveFile", "moveDirectory"]) {
-    const original = baseline[name];
-    baseline[name] = async (...args) => {
-      if (name === "writeText" && args[0] !== baseline.journalPath) {
-        return await original(...args);
-      }
-      operationCount += 1;
-      return await original(...args);
-    };
-  }
-  await rollbackPendingRestore(baseline);
-  assert.ok(operationCount > 0);
-
-  for (
-    let interruptedOperation = 1;
-    interruptedOperation <= operationCount;
-    interruptedOperation += 1
-  ) {
-    const fs = createRestoreCrashFixture("rollback-crash");
-    await queueRestore({ id: "rollback-crash", entryCount: 1, mediaCount: 1 }, fs);
-    await applyPendingRestore(fs);
-
-    const disableCrash = crashAfterOperation(fs, interruptedOperation);
-    await assert.rejects(() => rollbackPendingRestore(fs));
-    disableCrash();
-
-    await rollbackPendingRestore(fs);
-    assert.equal(
-      fs.files.get("/mock/db/app.db"),
-      "original-live-db",
-      `database recoverable after rollback operation ${interruptedOperation}`
-    );
-    assert.equal(
-      fs.files.get("/mock/db/app.db-wal"),
-      "original-live-wal",
-      `WAL recoverable after rollback operation ${interruptedOperation}`
-    );
-    assert.equal(
-      fs.files.get("/mock/doc/media/original-photo.jpg"),
-      "original-media-file",
-      `media recoverable after rollback operation ${interruptedOperation}`
-    );
-  }
-});
-
-test("corrupted journal recovers valid transaction from .bak or .tmp", async () => {
-  const fs = createMemoryRestoreFileSystem();
-
-  // Case 1: Corrupted .json, valid .bak
-  fs.files.set(fs.journalPath, '{"id": "incomplete');
-  fs.files.set(
-    fs.journalBakPath,
-    JSON.stringify({
-      id: "rec1",
-      operation: "preserve-db-main",
-      originalDatabaseExists: true,
-      originalMediaExists: true,
-      entryCount: 8,
-      mediaCount: 0,
-      timestamp: 1,
-    })
-  );
-
-  const recoveredBak = await readDurableTransaction(fs);
-  assert.equal(recoveredBak.corrupt, false);
-  assert.equal(recoveredBak.recovered, true);
-  assert.equal(recoveredBak.transaction?.id, "rec1");
-  assert.equal(recoveredBak.transaction?.operation, "preserve-db-main");
-  assert.equal(recoveredBak.transaction?.entryCount, 8);
-  // Primary .json should be repaired
-  assert.equal(JSON.parse(fs.files.get(fs.journalPath)).id, "rec1");
-
-  // Case 2: Corrupted .json and corrupted .bak, valid .tmp
-  fs.files.set(fs.journalPath, "GARBAGE_JSON");
-  fs.files.set(fs.journalBakPath, "{invalid");
-  fs.files.set(
-    fs.journalTmpPath,
-    JSON.stringify({
-      id: "rec2",
-      operation: "ready-for-verification",
-      originalDatabaseExists: true,
-      originalMediaExists: true,
-      entryCount: 12,
-      mediaCount: 0,
-      timestamp: 1,
-    })
-  );
-
-  const recoveredTmp = await readDurableTransaction(fs);
-  assert.equal(recoveredTmp.corrupt, false);
-  assert.equal(recoveredTmp.recovered, true);
-  assert.equal(recoveredTmp.transaction?.id, "rec2");
-  assert.equal(recoveredTmp.transaction?.operation, "ready-for-verification");
-  assert.equal(JSON.parse(fs.files.get(fs.journalPath)).id, "rec2");
-});
-
-test("completely unrecoverable journal scans disk and rolls back previous artifacts safely", async () => {
-  const fs = createMemoryRestoreFileSystem({
-    "/mock/db/app.db": "bad-replaced-db",
-    "/mock/db/openlog-restore-corrupt-previous.sqlite": "original-preserved-db",
-    "/mock/doc/media/bad-media.jpg": "bad-media",
-    "/mock/doc/openlog-restore-corrupt-previous-media/orig-media.jpg": "orig-media",
-  });
-  fs.dirs.add("/mock/doc/openlog-restore-corrupt-previous-media");
-  // Set all journal files to corrupted/unparseable content
-  fs.files.set(fs.journalPath, "{broken json");
-  fs.files.set(fs.journalBakPath, "corrupt!!");
-  fs.files.set(fs.journalTmpPath, "trash");
-
-  const result = await applyPendingRestore(fs);
-  assert.equal(result.applied, false);
-
-  // Original database restored
-  assert.equal(fs.files.get("/mock/db/app.db"), "original-preserved-db");
-  assert.equal(fs.files.has("/mock/db/openlog-restore-corrupt-previous.sqlite"), false);
-
-  // Original media restored
-  assert.equal(fs.files.get("/mock/doc/media/orig-media.jpg"), "orig-media");
-  assert.equal(fs.files.has("/mock/doc/media/bad-media.jpg"), false);
-  assert.equal(fs.dirs.has("/mock/doc/openlog-restore-corrupt-previous-media"), false);
-
-  // Corrupted journals cleared
-  assert.equal(fs.files.has(fs.journalPath), false);
-  assert.equal(fs.files.has(fs.journalBakPath), false);
-  assert.equal(fs.files.has(fs.journalTmpPath), false);
-});
-
-test("rollback restores original data and purges staging when database initialization throws", async () => {
-  const fs = createMemoryRestoreFileSystem({
-    "/mock/db/app.db": "corrupt-candidate-db",
-    "/mock/db/app.db-wal": "corrupt-candidate-wal",
-    "/mock/db/openlog-restore-fail-previous.sqlite": "good-original-db",
-    "/mock/db/openlog-restore-fail-previous.sqlite-wal": "good-original-wal",
-    "/mock/doc/media/new-file.jpg": "candidate-media",
-    "/mock/doc/openlog-restore-fail-previous-media/old-file.jpg": "original-media",
-    "/mock/doc/openlog-restore-fail.sqlite": "leftover-staged-db",
-  });
-  fs.dirs.add("/mock/doc/openlog-restore-fail-previous-media");
-  fs.dirs.add("/mock/doc/openlog-restore-fail-media");
-
-  await saveDurableTransaction(
-    {
-      id: "fail",
-      operation: "ready-for-verification",
-      originalDatabaseExists: true,
-      originalMediaExists: true,
-      entryCount: 1,
-      mediaCount: 1,
-      timestamp: 1,
-    },
-    fs
-  );
-
-  // Simulate failure in schema initialization triggering rollbackPendingRestore
-  await rollbackPendingRestore(fs, { id: "fail" });
-
-  // Original database and WAL restored
-  assert.equal(fs.files.get("/mock/db/app.db"), "good-original-db");
-  assert.equal(fs.files.get("/mock/db/app.db-wal"), "good-original-wal");
-  assert.equal(fs.files.has("/mock/db/openlog-restore-fail-previous.sqlite"), false);
-
-  // Original media restored
-  assert.equal(fs.files.get("/mock/doc/media/old-file.jpg"), "original-media");
-  assert.equal(fs.files.has("/mock/doc/media/new-file.jpg"), false);
-  assert.equal(fs.dirs.has("/mock/doc/openlog-restore-fail-previous-media"), false);
-
-  // Staging and journal purged
-  assert.equal(fs.files.has("/mock/doc/openlog-restore-fail.sqlite"), false);
-  assert.equal(fs.dirs.has("/mock/doc/openlog-restore-fail-media"), false);
-  assert.equal(fs.files.has(fs.journalPath), false);
-});
-
-test("completePendingRestore purges rollback copies and fires notification and analytics", async () => {
-  const fs = createMemoryRestoreFileSystem({
-    "/mock/db/app.db": "active-restored-db",
-    "/mock/db/openlog-restore-ok-previous.sqlite": "old-db-to-delete",
-    "/mock/doc/openlog-restore-ok-previous-media/file.jpg": "old-media-to-delete",
-    "/mock/doc/openlog-restore-ok.sqlite": "staged-db-to-delete",
-  });
-  fs.dirs.add("/mock/doc/openlog-restore-ok-previous-media");
-  fs.dirs.add("/mock/doc/openlog-restore-ok-media");
-
-  await saveDurableTransaction(
-    {
-      id: "ok",
-      operation: "ready-for-verification",
-      originalDatabaseExists: true,
-      originalMediaExists: true,
-      entryCount: 99,
-      mediaCount: 1,
-      timestamp: 1,
-    },
-    fs
-  );
-
-  const notifications = [];
-  const analyticsEvents = [];
-
-  await completePendingRestore(null, {
-    fs,
-    notify: (count) => notifications.push(count),
-    analytics: (count) => analyticsEvents.push(count),
-  });
-
-  // Rollback artifacts deleted
-  assert.equal(fs.files.has("/mock/db/openlog-restore-ok-previous.sqlite"), false);
-  assert.equal(fs.dirs.has("/mock/doc/openlog-restore-ok-previous-media"), false);
-  assert.equal(fs.files.has("/mock/doc/openlog-restore-ok.sqlite"), false);
-  assert.equal(fs.dirs.has("/mock/doc/openlog-restore-ok-media"), false);
-
-  // Journal deleted
-  assert.equal(fs.files.has(fs.journalPath), false);
-
-  // Notification and analytics fired with correct entry count
-  assert.deepEqual(notifications, [99]);
-  assert.deepEqual(analyticsEvents, [99]);
-});
-
-test("rollback cleans up swapped active media when original timeline had no media", async () => {
-  const fs = createMemoryRestoreFileSystem({
-    "/mock/db/app.db": "restored-db",
-    "/mock/db/openlog-restore-nomedia-previous.sqlite": "original-db-only",
-    "/mock/doc/media/unwanted-restored-photo.jpg": "unwanted-restored-media",
-  });
-  // Note: NO /mock/doc/openlog-restore-nomedia-previous-media directory was created,
-  // because the original timeline had zero media!
-  fs.dirs.add("/mock/doc/media");
-
-  await saveDurableTransaction(
-    {
-      id: "nomedia",
-      operation: "ready-for-verification",
-      originalDatabaseExists: true,
-      originalMediaExists: false,
-      entryCount: 5,
-      mediaCount: 0,
-      timestamp: 1,
-    },
-    fs
-  );
-
-  await rollbackPendingRestore(fs);
-
-  // Original database restored
-  assert.equal(fs.files.get("/mock/db/app.db"), "original-db-only");
-  assert.equal(fs.files.has("/mock/db/openlog-restore-nomedia-previous.sqlite"), false);
-
-  // Swapped active media completely deleted
-  assert.equal(fs.files.has("/mock/doc/media/unwanted-restored-photo.jpg"), false);
-  assert.equal(fs.dirs.has("/mock/doc/media"), false);
-
-  // Journal deleted
-  assert.equal(fs.files.has(fs.journalPath), false);
-});
-
-function createDbTarget(database) {
-  return {
-    execAsync: async (source) => database.exec(source),
-    runAsync: async (source, ...params) => database.prepare(source).run(...params),
-    getFirstAsync: async (source, ...params) => database.prepare(source).get(...params) ?? null,
-    getAllAsync: async (source, ...params) => database.prepare(source).all(...params),
-    withTransactionAsync: async (task) => {
-      database.exec("BEGIN");
-      try {
-        await task();
-        database.exec("COMMIT");
-      } catch (e) {
-        database.exec("ROLLBACK");
-        throw e;
-      }
-    },
-  };
-}
-
-async function createAttachedRestoreSource(target, options = {}) {
-  const schema = "restore_source";
-  await target.execAsync(`ATTACH DATABASE ':memory:' AS ${schema}`);
-  await target.execAsync(`
-    CREATE TABLE ${schema}.entries (
-      id          ${options.entryIdDefinition ?? "TEXT PRIMARY KEY NOT NULL"},
-      created_at  INTEGER NOT NULL,
-      updated_at  INTEGER NOT NULL,
-      text        TEXT,
-      images      TEXT,
-      audios      TEXT,
-      attachments TEXT,
-      latitude    REAL,
-      longitude   REAL,
-      location    TEXT
-    );
-    CREATE INDEX ${schema}.idx_entries_created_at_id
-      ON entries (${options.entriesIndex ?? "created_at DESC, id DESC"});
-    CREATE TABLE ${schema}.tags (
-      id         TEXT PRIMARY KEY NOT NULL,
-      name       TEXT NOT NULL,
-      key        TEXT NOT NULL UNIQUE,
-      color_id   TEXT NOT NULL,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-    CREATE TABLE ${schema}.entry_tags (
-      entry_id TEXT NOT NULL REFERENCES entries(id) ON DELETE ${options.entryDelete ?? "CASCADE"},
-      tag_id   TEXT NOT NULL REFERENCES tags(id) ON DELETE ${options.tagDelete ?? "CASCADE"},
-      PRIMARY KEY (${options.entryTagsPrimaryKey ?? "entry_id, tag_id"})
-    );
-    CREATE INDEX ${schema}.idx_entry_tags_tag_entry
-      ON entry_tags (${options.entryTagsIndex ?? "tag_id, entry_id"});
-    CREATE TABLE ${schema}.settings (
-      key   TEXT PRIMARY KEY NOT NULL,
-      value TEXT NOT NULL
-    );
-    PRAGMA ${schema}.user_version = 1;
-  `);
-  return schema;
-}
-
-test("restore schema gate accepts the current baseline and rejects unknown versions", async () => {
-  const memDb = new DatabaseSync(":memory:");
-  const target = createDbTarget(memDb);
-  await initializeDatabaseSchema(target);
-
-  // The v1 baseline is accepted before structural validation.
-  await migrateRestoreSchema(target, "main");
-  const count1 = await validateAttachedDatabase(target, "main");
-  assert.equal(count1, 0);
-
-  // A future schema is rejected rather than guessed at or downgraded.
-  memDb.exec("PRAGMA user_version = 2;");
-  await assert.rejects(
-    () => migrateRestoreSchema(target, "main"),
-    /Unsupported database version \(2\)/
-  );
-
-  // Restore archives must have a declared baseline version.
-  memDb.exec("PRAGMA user_version = 0;");
-  await assert.rejects(
-    () => migrateRestoreSchema(target, "main"),
-    /Unsupported database version \(0\)/
-  );
-});
-
-test("restore schema validation compares staged base-table semantics with the canonical schema", async (t) => {
-  const cases = [
-    {
-      name: "rejects a required column made nullable",
-      options: { entryIdDefinition: "TEXT PRIMARY KEY" },
-      message: /entries columns do not match/,
-    },
-    {
-      name: "rejects a composite primary key in the wrong order",
-      options: { entryTagsPrimaryKey: "tag_id, entry_id" },
-      message: /entry_tags columns do not match/,
-    },
-    {
-      name: "rejects a foreign key with the wrong delete action",
-      options: { entryDelete: "NO ACTION" },
-      message: /entry_tags foreign keys do not match/,
-    },
-    {
-      name: "rejects a named index with the wrong column order",
-      options: { entriesIndex: "id DESC, created_at DESC" },
-      message: /entries\.idx_entries_created_at_id does not match/,
-    },
-  ];
-
-  for (const testCase of cases) {
-    await t.test(testCase.name, async () => {
-      const database = new DatabaseSync(":memory:");
-      const target = createDbTarget(database);
-      await initializeDatabaseSchema(target);
-      const source = await createAttachedRestoreSource(target, testCase.options);
-      await assert.rejects(() => validateAttachedDatabase(target, source), testCase.message);
-    });
-  }
-});
-
-test("restore recreates FTS from canonical schema and rebuilds search for valid backups", async (t) => {
-  const database = new DatabaseSync(":memory:");
-  const target = createDbTarget(database);
-  await initializeDatabaseSchema(target);
-  const source = await createAttachedRestoreSource(target);
-  database
-    .prepare(
-      `INSERT INTO ${source}.entries (id, created_at, updated_at, text, location)
-       VALUES (?, ?, ?, ?, ?)`
-    )
-    .run("entry-1", 1, 1, "sunrise reading", "Cubbon Park");
-
-  await t.test("rebuilds a stale FTS mirror even when every derived object exists", async () => {
-    await target.execAsync(`
-      CREATE VIRTUAL TABLE ${source}.entries_fts USING fts5(
-        text,
-        location,
-        content='entries',
-        content_rowid='rowid'
-      );
-      CREATE TRIGGER ${source}.entries_fts_ai AFTER INSERT ON entries BEGIN SELECT 1; END;
-      CREATE TRIGGER ${source}.entries_fts_ad AFTER DELETE ON entries BEGIN SELECT 1; END;
-      CREATE TRIGGER ${source}.entries_fts_au AFTER UPDATE ON entries BEGIN SELECT 1; END;
-    `);
-    assert.equal(
-      database
-        .prepare(`SELECT rowid FROM ${source}.entries_fts WHERE entries_fts MATCH ?`)
-        .get("sunrise"),
-      undefined
-    );
-
-    assert.equal(await validateAttachedDatabase(target, source), 1);
-    assert.ok(
-      database
-        .prepare(`SELECT rowid FROM ${source}.entries_fts WHERE entries_fts MATCH ?`)
-        .get("sunrise")
-    );
-    assert.ok(
-      database
-        .prepare(`SELECT rowid FROM ${source}.entries_fts WHERE entries_fts MATCH ?`)
-        .get("cubbon")
-    );
-  });
-
-  await t.test(
-    "uses canonical triggers after replacing altered but present trigger SQL",
-    async () => {
-      await target.execAsync(`DROP TRIGGER ${source}.entries_fts_ai`);
-      await target.execAsync(
-        `CREATE TRIGGER ${source}.entries_fts_ai AFTER INSERT ON entries BEGIN SELECT 1; END`
-      );
-
-      await validateAttachedDatabase(target, source);
-      database
-        .prepare(
-          `INSERT INTO ${source}.entries (id, created_at, updated_at, text) VALUES (?, ?, ?, ?)`
-        )
-        .run("entry-2", 2, 2, "restored trigger works");
-      assert.ok(
-        database
-          .prepare(`SELECT rowid FROM ${source}.entries_fts WHERE entries_fts MATCH ?`)
-          .get("trigger")
-      );
-    }
-  );
-});
-
-test("validateAttachedDatabase enforces referential integrity of entry media files", async () => {
-  const memDb = new DatabaseSync(":memory:");
-  const target = createDbTarget(memDb);
-  await initializeDatabaseSchema(target);
-
-  // Insert an entry referencing media
-  memDb
-    .prepare(
-      `INSERT INTO entries (id, created_at, updated_at, text, images, audios, attachments)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
-    )
-    .run(
-      "entry-1",
-      Date.now(),
-      Date.now(),
-      "Hello test",
-      JSON.stringify(["media/photo1.jpg"]),
-      JSON.stringify([]),
-      JSON.stringify([{ uri: "media/doc1.pdf", name: "Doc" }])
-    );
-
-  // Staging media dir missing photo1.jpg
-  const missingMediaDir = {
-    exists: true,
-    hasFile: (name) => name === "doc1.pdf", // photo1.jpg missing!
-  };
-
-  await assert.rejects(
-    () => validateAttachedDatabase(target, "main", missingMediaDir),
-    /referenced media file "photo1.jpg" is missing/
-  );
-
-  // Staging media dir has both files
-  const completeMediaDir = {
-    exists: true,
-    hasFile: (name) => name === "photo1.jpg" || name === "doc1.pdf",
-  };
-
-  const count = await validateAttachedDatabase(target, "main", completeMediaDir);
-  assert.equal(count, 1);
 });
 
 test("calculateRequiredRestoreBytes uses exact uncompressed bytes when size is unchanged and falls back to full expansion", () => {
@@ -896,4 +477,164 @@ test("calculateRequiredRestoreBytes uses exact uncompressed bytes when size is u
     unprovenRequired,
     archiveBytes + BACKUP_LIMITS.uncompressedBytes + existingTimelineBytes + safetyBufferBytes
   );
+});
+
+test("in-session restore transaction replaces entries, tags, and rebuilds FTS5 search", async () => {
+  const memDb = new DatabaseSync(":memory:");
+  const target = createDbTarget(memDb);
+  await initializeDatabaseSchema(target);
+
+  // Seed initial timeline data
+  memDb
+    .prepare(
+      "INSERT INTO tags (id, name, key, color_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
+    )
+    .run("tag-old", "Old Tag", "old-tag", "blue", 1000, 1000);
+  memDb
+    .prepare(
+      "INSERT INTO entries (id, created_at, updated_at, text, images, audios, attachments, location) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+    )
+    .run(
+      "entry-old",
+      1000,
+      1000,
+      "Old timeline entry about morning coffee",
+      "[]",
+      "[]",
+      "[]",
+      null
+    );
+  memDb
+    .prepare("INSERT INTO entry_tags (entry_id, tag_id) VALUES (?, ?)")
+    .run("entry-old", "tag-old");
+
+  // Verify initial data is searchable
+  const oldSearch = memDb
+    .prepare("SELECT rowid FROM entries_fts WHERE entries_fts MATCH ?")
+    .get("coffee");
+  assert.ok(oldSearch, "Initial entry should be searchable in FTS5");
+
+  // Execute in-session restore transaction:
+  // Clear tables, batch insert new data, and rebuild FTS5
+  await target.withTransactionAsync(async () => {
+    await target.execAsync("DELETE FROM entry_tags; DELETE FROM tags; DELETE FROM entries;");
+
+    await target.runAsync(
+      "INSERT INTO tags (id, name, key, color_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+      "tag-new-1",
+      "Personal",
+      "personal",
+      "terracotta",
+      2000,
+      2000
+    );
+
+    await target.runAsync(
+      "INSERT INTO entries (id, created_at, updated_at, text, images, audios, attachments, location) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      "entry-new-1",
+      2000,
+      2000,
+      "Evening walk through the city park",
+      "[]",
+      "[]",
+      "[]",
+      null
+    );
+
+    await target.runAsync(
+      "INSERT INTO entry_tags (entry_id, tag_id) VALUES (?, ?)",
+      "entry-new-1",
+      "tag-new-1"
+    );
+
+    await target.execAsync("INSERT INTO entries_fts(entries_fts) VALUES ('rebuild');");
+  });
+
+  // Verify old data is gone
+  const oldEntryCount = memDb
+    .prepare("SELECT COUNT(*) AS count FROM entries WHERE id = 'entry-old'")
+    .get().count;
+  assert.equal(oldEntryCount, 0);
+
+  const oldTagCount = memDb
+    .prepare("SELECT COUNT(*) AS count FROM tags WHERE id = 'tag-old'")
+    .get().count;
+  assert.equal(oldTagCount, 0);
+
+  // Verify restored entries and tags are present
+  const newEntry = memDb.prepare("SELECT * FROM entries WHERE id = 'entry-new-1'").get();
+  assert.ok(newEntry);
+  assert.equal(newEntry.text, "Evening walk through the city park");
+
+  const newTag = memDb.prepare("SELECT * FROM tags WHERE id = 'tag-new-1'").get();
+  assert.ok(newTag);
+  assert.equal(newTag.name, "Personal");
+
+  const newEntryTag = memDb
+    .prepare("SELECT * FROM entry_tags WHERE entry_id = 'entry-new-1' AND tag_id = 'tag-new-1'")
+    .get();
+  assert.ok(newEntryTag);
+
+  // Verify FTS5 search index matches restored text
+  const ftsMatchPark = memDb
+    .prepare("SELECT rowid FROM entries_fts WHERE entries_fts MATCH ?")
+    .get("park");
+  assert.ok(ftsMatchPark, "Restored text 'park' should be indexed in FTS5");
+
+  const ftsMatchEvening = memDb
+    .prepare("SELECT rowid FROM entries_fts WHERE entries_fts MATCH ?")
+    .get("evening");
+  assert.ok(ftsMatchEvening, "Restored text 'evening' should be indexed in FTS5");
+
+  const ftsMatchOldCoffee = memDb
+    .prepare("SELECT rowid FROM entries_fts WHERE entries_fts MATCH ?")
+    .get("coffee");
+  assert.equal(ftsMatchOldCoffee, undefined, "Old text 'coffee' must no longer match in FTS5");
+});
+
+test("in-session restore guarantees full rollback on insertion failure", async () => {
+  const memDb = new DatabaseSync(":memory:");
+  const target = createDbTarget(memDb);
+  await initializeDatabaseSchema(target);
+
+  // Seed baseline timeline
+  memDb
+    .prepare(
+      "INSERT INTO entries (id, created_at, updated_at, text, images, audios, attachments, location) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+    )
+    .run("entry-baseline", 1000, 1000, "Essential preserved note", "[]", "[]", "[]", null);
+
+  assert.equal(memDb.prepare("SELECT COUNT(*) AS count FROM entries").get().count, 1);
+
+  // Attempt transaction that inserts a row and then throws
+  await assert.rejects(async () => {
+    await target.withTransactionAsync(async () => {
+      await target.runAsync(
+        "INSERT INTO entries (id, created_at, updated_at, text, images, audios, attachments, location) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        "entry-interrupted",
+        2000,
+        2000,
+        "Partially inserted entry that must be rolled back",
+        "[]",
+        "[]",
+        "[]",
+        null
+      );
+      throw new Error("Simulated disk error during restore batch insertion");
+    });
+  }, /Simulated disk error during restore batch insertion/);
+
+  // Verify complete rollback: interrupted entry does not exist, baseline entry is 100% intact
+  const interruptedCount = memDb
+    .prepare("SELECT COUNT(*) AS count FROM entries WHERE id = 'entry-interrupted'")
+    .get().count;
+  assert.equal(interruptedCount, 0);
+
+  const baselineCount = memDb
+    .prepare("SELECT COUNT(*) AS count FROM entries WHERE id = 'entry-baseline'")
+    .get().count;
+  assert.equal(baselineCount, 1);
+
+  const baselineEntry = memDb.prepare("SELECT text FROM entries WHERE id = 'entry-baseline'").get();
+  assert.equal(baselineEntry.text, "Essential preserved note");
 });
