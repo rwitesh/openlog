@@ -4,6 +4,7 @@ import { StyleSheet, View } from "react-native";
 import { useProfile } from "@/modules/profile";
 import { SettingsGroup, SettingsRow, SettingsScreenScroll } from "@/modules/settings";
 import type { RootStackParamList } from "@/navigation/types";
+import { useBiometricLock } from "@/services/auth";
 import { AUTH_REQUIRED_FOR_ONBOARDING } from "@/shared/constants";
 import { APP_VERSION } from "@/shared/utils";
 import { ACCENT_OPTIONS, type ThemeMode, usePreferences, useTheme } from "@/theme";
@@ -26,13 +27,14 @@ export function SettingsScreen({ navigation }: Props) {
   const { theme, isDark } = useTheme();
   const { preferences } = usePreferences();
   const { name } = useProfile();
+  const { enabled: biometricLock } = useBiometricLock();
   const { isLoaded, isSignedIn } = useAuth();
   const { user } = useUser();
   const { colors } = theme;
   const email = user?.primaryEmailAddress?.emailAddress;
   const signedIn = isLoaded && isSignedIn;
 
-  const { appearance, security } = preferences;
+  const { appearance } = preferences;
 
   const accent = ACCENT_OPTIONS.find((a) => a.id === appearance.accent) ?? ACCENT_OPTIONS[0];
   const accentColor = isDark ? accent.colorDark : accent.colorLight;
@@ -82,7 +84,7 @@ export function SettingsScreen({ navigation }: Props) {
         <SettingsRow
           icon="lock"
           title="Privacy & Data"
-          subtitle={security.biometricLock ? "App lock on" : "App lock off"}
+          subtitle={biometricLock ? "App lock on" : "App lock off"}
           onPress={() => navigation.navigate("SettingsPrivacy")}
         />
 

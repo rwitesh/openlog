@@ -13,8 +13,6 @@ import {
   ENTRY_KEYS,
   type EntryPreferences,
   getAppearanceResetDbEntries,
-  SECURITY_KEYS,
-  type SecurityPreferences,
   type ThemeMode,
   toDbEntries,
   type UserPreferences,
@@ -66,7 +64,6 @@ export interface PreferencesContextValue {
   setEntry: (patch: Partial<EntryPreferences>) => void;
   setWriting: (patch: Partial<WritingPreferences>) => void;
   setAccessibility: (patch: Partial<AccessibilityPreferences>) => void;
-  setSecurity: (patch: Partial<SecurityPreferences>) => void;
   resetAppearanceDefaults: () => void;
 }
 
@@ -189,14 +186,6 @@ export function PreferencesProvider({
     persist(toDbEntries(patch, ACCESSIBILITY_KEYS));
   }, []);
 
-  const setSecurity = useCallback((patch: Partial<SecurityPreferences>) => {
-    setPreferences((prev) => ({
-      ...prev,
-      security: { ...prev.security, ...patch },
-    }));
-    persist(toDbEntries(patch, SECURITY_KEYS));
-  }, []);
-
   const resetAppearanceDefaults = useCallback(() => {
     setPreferences((prev) => ({
       ...prev,
@@ -213,18 +202,9 @@ export function PreferencesProvider({
       setEntry,
       setWriting,
       setAccessibility,
-      setSecurity,
       resetAppearanceDefaults,
     }),
-    [
-      preferences,
-      setAppearance,
-      setEntry,
-      setWriting,
-      setAccessibility,
-      setSecurity,
-      resetAppearanceDefaults,
-    ]
+    [preferences, setAppearance, setEntry, setWriting, setAccessibility, resetAppearanceDefaults]
   );
 
   return <PreferencesContext.Provider value={value}>{children}</PreferencesContext.Provider>;
@@ -299,14 +279,6 @@ export function useAccessibilityPreferences() {
   return useMemo(
     () => ({ ...preferences.accessibility, setAccessibility }),
     [preferences.accessibility, setAccessibility]
-  );
-}
-
-export function useSecurityPreferences() {
-  const { preferences, setSecurity } = usePreferencesContext();
-  return useMemo(
-    () => ({ ...preferences.security, setSecurity }),
-    [preferences.security, setSecurity]
   );
 }
 

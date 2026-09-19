@@ -1,10 +1,11 @@
 /**
  * AppLockGate — the biometric lock surface for the whole app.
  *
- * Mounted once at the root (inside AppProviders, so preferences and theme
- * are available). While `security.biometricLock` is enabled and the app is
- * locked it renders the themed lock screen as a full-screen overlay above
- * the app content.
+ * Mounted once at the root, after bootstrap has resolved the device-bound lock
+ * state, so it starts with the correct armed value. That state lives in secure
+ * device-local storage: restoring a backup on another device never arms or
+ * disarms this device's lock. While enabled and the app is locked it renders
+ * the themed lock screen as a full-screen overlay above the app content.
  *
  * Children are kept continuously mounted so in-progress compose drafts,
  * media selections, and navigation states are preserved across lock cycles.
@@ -13,8 +14,7 @@
 import type { ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 
-import { useAppLock } from "@/services/auth";
-import { usePreferences } from "@/theme";
+import { useAppLock, useBiometricLock } from "@/services/auth";
 import { LockScreen } from "./LockScreen";
 
 interface AppLockGateProps {
@@ -22,8 +22,8 @@ interface AppLockGateProps {
 }
 
 export function AppLockGate({ children }: AppLockGateProps) {
-  const { preferences } = usePreferences();
-  const { locked, prompting, unlock } = useAppLock(preferences.security.biometricLock);
+  const { enabled } = useBiometricLock();
+  const { locked, prompting, unlock } = useAppLock(enabled);
 
   return (
     <View style={styles.container}>
