@@ -91,7 +91,7 @@ export function AppearanceSettingsScreen({ navigation }: Props) {
 
         <SettingsRow
           icon="sliders"
-          title="Timeline / Editor"
+          title="Timeline"
           subtitle={timelineSummary}
           onPress={() => navigation.navigate("SettingsTimeline")}
         />
