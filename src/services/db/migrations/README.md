@@ -66,9 +66,10 @@ Update the row type, reads/writes, and `validation.ts` for the new final schema.
 ## What OpenLog does for you
 
 1. It reads SQLite’s `PRAGMA user_version`.
-2. It runs each missing migration in order inside a transaction.
+2. It runs each missing migration in order inside a transaction, with foreign keys off so table rebuilds stay possible (never toggle that pragma in a migration — SQLite ignores it inside a transaction).
 3. It writes the new version number only when that migration succeeds.
-4. On restore, this happens in the staged backup **before** validation and the safe database/media swap.
+4. It re-enables `PRAGMA foreign_keys = ON` after the last migration.
+5. On restore, this happens in the staged backup **before** validation and the safe database/media swap.
 
 So if v2 fails, the live timeline remains untouched. A backup made by a newer future version is rejected; OpenLog never tries to downgrade it.
 

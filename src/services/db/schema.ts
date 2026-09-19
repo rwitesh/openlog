@@ -57,10 +57,15 @@ export async function initializeDatabaseSchema(db: SchemaDatabase): Promise<void
     PRAGMA journal_mode = WAL;
     PRAGMA synchronous = NORMAL;
     PRAGMA busy_timeout = 5000;
-    PRAGMA foreign_keys = ON;
+    PRAGMA foreign_keys = OFF;
   `);
 
   await migrateDatabaseSchema(db);
+
+  // Foreign keys stay off until migrations finish: the pragma is a no-op
+  // inside a transaction, and enabled constraints block table rebuilds.
+  await db.execAsync("PRAGMA foreign_keys = ON;");
+
   await initializeSearchIndex(db);
 }
 
