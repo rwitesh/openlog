@@ -11,6 +11,18 @@ function isNonNegativeInteger(value: unknown): boolean {
   return typeof value === "number" && Number.isInteger(value) && value >= 0;
 }
 
+/** A restorable media reference: a non-empty bare filename with no path or traversal. */
+function isBareFilename(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.length > 0 &&
+    !value.includes("/") &&
+    !value.includes("\\") &&
+    value !== "." &&
+    value !== ".."
+  );
+}
+
 /** Validates the backup manifest metadata. */
 export function assertBackupManifest(data: unknown): asserts data is BackupManifest {
   if (!data || typeof data !== "object") {
@@ -91,14 +103,21 @@ export function assertBackupTimelineData(data: unknown): asserts data is BackupT
     if (e.text !== undefined && e.text !== null && typeof e.text !== "string") {
       throw new Error("Invalid backup entry: text must be a string or null.");
     }
-    if (e.images !== undefined && !Array.isArray(e.images)) {
-      throw new Error("Invalid backup entry: images must be an array.");
+    if (e.images !== undefined && (!Array.isArray(e.images) || !e.images.every(isBareFilename))) {
+      throw new Error("Invalid backup entry: images must be media filenames.");
     }
-    if (e.audios !== undefined && !Array.isArray(e.audios)) {
-      throw new Error("Invalid backup entry: audios must be an array.");
+    if (e.audios !== undefined && (!Array.isArray(e.audios) || !e.audios.every(isBareFilename))) {
+      throw new Error("Invalid backup entry: audios must be media filenames.");
     }
-    if (e.attachments !== undefined && !Array.isArray(e.attachments)) {
-      throw new Error("Invalid backup entry: attachments must be an array.");
+    if (e.attachments !== undefined) {
+      if (!Array.isArray(e.attachments)) {
+        throw new Error("Invalid backup entry: attachments must be an array.");
+      }
+      for (const attachment of e.attachments) {
+        if (!attachment || typeof attachment !== "object" || !isBareFilename(attachment.uri)) {
+          throw new Error("Invalid backup entry: attachment uris must be media filenames.");
+        }
+      }
     }
     if (e.tagIds !== undefined && !Array.isArray(e.tagIds)) {
       throw new Error("Invalid backup entry: tagIds must be an array.");
@@ -212,23 +231,6 @@ export function extractMediaFilename(path: string): string {
     throw new Error("Invalid media path in backup archive.");
   }
   return path.slice("media/".length);
-}
-
-/** Extracts a clean media filename from a raw media URI. */
-export function extractMediaFilenameFromUri(rawUri: string): string | null {
-  if (!rawUri || typeof rawUri !== "string") return null;
-  if (rawUri.startsWith("http://") || rawUri.startsWith("https://")) return null;
-  let path = rawUri;
-  if (path.startsWith("file://")) {
-    path = path.slice("file://".length);
-  }
-  const cleanPath = path.replace(/^media\//, "");
-  const parts = cleanPath.split("/");
-  const filename = parts[parts.length - 1];
-  if (!filename || filename === "." || filename === ".." || filename.includes("\\")) {
-    return null;
-  }
-  return filename;
 }
 
 let activeGatePromise: Promise<void> | null = null;

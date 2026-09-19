@@ -1,15 +1,15 @@
-import { Directory, File, FileMode, Paths } from "expo-file-system";
+import { File, FileMode, Paths } from "expo-file-system";
 import { strToU8, Zip, ZipDeflate, ZipPassThrough } from "fflate";
 
 import { runDb } from "@/services/db/database";
 import { parseAttachments, parseUris } from "@/services/db/uris";
+import { mediaDirectory } from "@/services/media/storage";
 import { APP_VERSION } from "@/shared/utils/appInfo";
 import { logDevWarning } from "@/shared/utils/devLog";
 import {
   ARCHIVE_EXTENSION,
   ARCHIVE_FORMAT,
   ARCHIVE_SCHEMA_VERSION,
-  type BackupAttachment,
   type BackupEntry,
   type BackupLocation,
   type BackupManifest,
@@ -20,23 +20,17 @@ import {
   MANIFEST_FILENAME,
   TIMELINE_DATA_FILENAME,
 } from "./types";
-import {
-  acquireExportGate,
-  DATABASE_SIZE_CEILING,
-  extractMediaFilenameFromUri,
-  releaseExportGate,
-} from "./utils";
+import { acquireExportGate, DATABASE_SIZE_CEILING, releaseExportGate } from "./utils";
 
 export { DATABASE_SIZE_CEILING };
 
 const CHUNK_SIZE = 256 * 1024;
 
 function listMediaFiles(): File[] {
-  const mediaDirectory = new Directory(Paths.document, "media");
-  if (!mediaDirectory.exists) return [];
-  const items = mediaDirectory.list();
+  const dir = mediaDirectory();
+  if (!dir.exists) return [];
   const files: File[] = [];
-  for (const item of items) {
+  for (const item of dir.list()) {
     if (item instanceof File && item.exists) {
       files.push(item);
     } else {
@@ -148,33 +142,14 @@ export async function exportBackupArchive(
       );
 
       const mappedEntries: BackupEntry[] = entryRows.map((row) => {
-        const parsedImages = parseUris(row.images);
-        const images: string[] = [];
-        for (const raw of parsedImages) {
-          const fn = extractMediaFilenameFromUri(raw);
-          if (fn) images.push(fn);
-        }
-
-        const parsedAudios = parseUris(row.audios);
-        const audios: string[] = [];
-        for (const raw of parsedAudios) {
-          const fn = extractMediaFilenameFromUri(raw);
-          if (fn) audios.push(fn);
-        }
-
-        const parsedAttachments = parseAttachments(row.attachments);
-        const attachments: BackupAttachment[] = [];
-        for (const att of parsedAttachments) {
-          const fn = extractMediaFilenameFromUri(att.uri);
-          if (fn) {
-            attachments.push({
-              uri: fn,
-              name: att.name,
-              size: att.size,
-              mimeType: att.mime,
-            });
-          }
-        }
+        const images = parseUris(row.images);
+        const audios = parseUris(row.audios);
+        const attachments = parseAttachments(row.attachments).map((att) => ({
+          uri: att.uri,
+          name: att.name,
+          size: att.size,
+          mimeType: att.mime,
+        }));
 
         const location: BackupLocation | null =
           row.latitude != null && row.longitude != null

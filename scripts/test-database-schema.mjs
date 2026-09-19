@@ -135,3 +135,59 @@ test("database initialization creates the current schema and maintains the FTS m
     );
   });
 });
+
+test("identifies unreferenced media without false matches on prefixes or shared references", async () => {
+  const database = new DatabaseSync(":memory:");
+  const db = createAdapter(database);
+  await initializeDatabaseSchema(db);
+
+  // Entries store bare filenames; "prefix_shared-photo.jpg" must not count as a
+  // reference to "shared-photo.jpg".
+  database
+    .prepare(
+      `INSERT INTO entries (id, created_at, updated_at, images, audios, attachments)
+       VALUES (?, ?, ?, ?, ?, ?)`
+    )
+    .run("entry-1", 1000, 1000, JSON.stringify(["shared-photo.jpg"]), null, null);
+
+  database
+    .prepare(
+      `INSERT INTO entries (id, created_at, updated_at, images, audios, attachments)
+       VALUES (?, ?, ?, ?, ?, ?)`
+    )
+    .run(
+      "entry-2",
+      2000,
+      2000,
+      JSON.stringify(["prefix_shared-photo.jpg"]),
+      JSON.stringify(["audio-note.m4a"]),
+      JSON.stringify([{ uri: "document.pdf", name: "Doc" }])
+    );
+
+  // Mirrors filterUnreferencedMedia: a quoted-filename instr match across media columns.
+  const checkReferenced = (filename) => {
+    const needle = `"${filename}"`;
+    return Boolean(
+      database
+        .prepare(
+          `SELECT 1 FROM entries
+            WHERE instr(images, ?) > 0
+               OR instr(audios, ?) > 0
+               OR instr(attachments, ?) > 0
+            LIMIT 1`
+        )
+        .get(needle, needle, needle)
+    );
+  };
+
+  assert.equal(checkReferenced("shared-photo.jpg"), true);
+  assert.equal(checkReferenced("prefix_shared-photo.jpg"), true);
+  assert.equal(checkReferenced("audio-note.m4a"), true);
+  assert.equal(checkReferenced("document.pdf"), true);
+  assert.equal(checkReferenced("deleted-photo.jpg"), false);
+
+  // When entry-1 is deleted, shared-photo.jpg becomes unreferenced while entry-2 media remains referenced
+  database.prepare("DELETE FROM entries WHERE id = ?").run("entry-1");
+  assert.equal(checkReferenced("shared-photo.jpg"), false);
+  assert.equal(checkReferenced("prefix_shared-photo.jpg"), true);
+});

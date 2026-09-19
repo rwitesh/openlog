@@ -272,7 +272,15 @@ test("schema & timeline JSON validation rejects malformed entry rows", () => {
         ...validTimelineData,
         entries: [{ ...validTimelineData.entries[0], images: "not-an-array" }],
       }),
-    /images must be an array/
+    /images must be media filenames/
+  );
+  assert.throws(
+    () =>
+      assertBackupTimelineData({
+        ...validTimelineData,
+        entries: [{ ...validTimelineData.entries[0], images: ["../escape.jpg"] }],
+      }),
+    /images must be media filenames/
   );
   assert.throws(
     () =>
@@ -280,7 +288,7 @@ test("schema & timeline JSON validation rejects malformed entry rows", () => {
         ...validTimelineData,
         entries: [{ ...validTimelineData.entries[0], audios: "not-an-array" }],
       }),
-    /audios must be an array/
+    /audios must be media filenames/
   );
   assert.throws(
     () =>
@@ -289,6 +297,19 @@ test("schema & timeline JSON validation rejects malformed entry rows", () => {
         entries: [{ ...validTimelineData.entries[0], attachments: "not-an-array" }],
       }),
     /attachments must be an array/
+  );
+  assert.throws(
+    () =>
+      assertBackupTimelineData({
+        ...validTimelineData,
+        entries: [
+          {
+            ...validTimelineData.entries[0],
+            attachments: [{ ...validTimelineData.entries[0].attachments[0], uri: "a/b.pdf" }],
+          },
+        ],
+      }),
+    /attachment uris must be media filenames/
   );
   assert.throws(
     () =>

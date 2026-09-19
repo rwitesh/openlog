@@ -4,7 +4,7 @@ import { open } from "react-native-file-viewer-turbo";
 
 import type { Attachment } from "@/shared/types";
 import { logDevWarning } from "@/shared/utils/devLog";
-import { persistMedia, resolveMediaUri } from "./storage";
+import { persistMedia } from "./storage";
 
 /** Derives a safe extension from a filename or mime type; `bin` as the last resort. */
 function fileExtension(name: string, mime?: string): string {
@@ -45,27 +45,18 @@ export async function pickDocuments(maxCount: number): Promise<Attachment[]> {
 }
 
 /**
- * Copies a picked attachment file into the app's durable media directory.
- * If already durable, returns existing reference as-is.
+ * Copies a picked attachment into the durable media directory; its stored
+ * filename replaces the ephemeral picker URI.
  */
 export async function persistAttachment(attachment: Attachment): Promise<Attachment> {
   const ext = fileExtension(attachment.name, attachment.mime);
-  const durableUri = await persistMedia(attachment.uri, ext);
-  return {
-    ...attachment,
-    uri: durableUri,
-  };
-}
-
-export async function persistAttachmentList(attachments: Attachment[]): Promise<Attachment[]> {
-  return Promise.all(attachments.map(persistAttachment));
+  return { ...attachment, uri: await persistMedia(attachment.uri, ext) };
 }
 
 /** Opens a kept file in the device's supported document viewer. */
 export async function openAttachment(file: Attachment): Promise<void> {
   try {
-    const uri = resolveMediaUri(file.uri);
-    await open(uri, {
+    await open(file.uri, {
       displayName: file.name,
       showOpenWithDialog: true,
       showAppsSuggestions: true,

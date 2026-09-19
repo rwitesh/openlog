@@ -1,4 +1,4 @@
-import { persistAttachmentList, persistMedia } from "@/services/media";
+import { persistAttachment, persistMedia } from "@/services/media";
 import type { NewEntryInput } from "@/shared/types";
 import type { Draft } from "../types";
 
@@ -24,7 +24,7 @@ export async function fromDraft(draft: Draft): Promise<NewEntryInput | null> {
 
   // Attachments are persisted when saving, keeping drafts ephemeral.
   const attachments = draft.attachments?.length
-    ? await persistAttachmentList(draft.attachments)
+    ? await Promise.all(draft.attachments.map(persistAttachment))
     : [];
 
   if (text || images.length || audios.length || attachments.length) {

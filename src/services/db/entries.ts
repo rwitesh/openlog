@@ -1,11 +1,12 @@
 import type * as SQLite from "expo-sqlite";
-import { resolveMediaUri, resolveMediaUriList } from "@/services/media/storage";
+import { mediaFileUri } from "@/services/media/storage";
 import type { Entry, EntryLocation, NewEntryInput, Tag, UpdateEntryInput } from "@/shared/types";
 import { addMonths, startOfDay, startOfMonth } from "@/shared/utils/dates";
 import { runDb } from "./database";
 import { buildPagedEntryQuery, type EntryCursor, type PagedEntriesOptions } from "./pagination";
 import { MAX_TAGS_PER_ENTRY } from "./tags";
 import { parseAttachments, parseUris } from "./uris";
+import { extractMediaFilenameFromUri } from "./validation";
 
 export interface EntryRecord {
   id: string;
@@ -32,19 +33,19 @@ function parseLocation(row: EntryRecord): EntryLocation | undefined {
   };
 }
 
-/** Maps a database row onto the app-side {@link Entry} shape with resolved media URIs. */
+/** Maps a database row onto the app-side {@link Entry} shape, resolving stored filenames to live file URIs. */
 export function toEntry(row: EntryRecord, tags: Tag[] = []): Entry {
   return {
     id: row.id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     text: row.text ?? undefined,
-    images: row.images ? resolveMediaUriList(parseUris(row.images)) : [],
-    audios: row.audios ? resolveMediaUriList(parseUris(row.audios)) : [],
+    images: row.images ? parseUris(row.images).map(mediaFileUri) : [],
+    audios: row.audios ? parseUris(row.audios).map(mediaFileUri) : [],
     attachments: row.attachments
       ? parseAttachments(row.attachments).map((attachment) => ({
           ...attachment,
-          uri: resolveMediaUri(attachment.uri),
+          uri: mediaFileUri(attachment.uri),
         }))
       : [],
     tags,
@@ -227,9 +228,12 @@ export async function createEntry(input: NewEntryInput): Promise<Entry> {
       createdAt,
       updatedAt,
       text: input.text,
-      images,
-      audios,
-      attachments: input.attachments ?? [],
+      images: images.map(mediaFileUri),
+      audios: audios.map(mediaFileUri),
+      attachments: (input.attachments ?? []).map((attachment) => ({
+        ...attachment,
+        uri: mediaFileUri(attachment.uri),
+      })),
       tags: tagsByEntryId.get(id) ?? [],
       location: input.location ?? undefined,
     };
@@ -369,5 +373,43 @@ export async function deleteAllEntries(): Promise<string[]> {
       mediaUris.push(...extractMediaUrisFromRow(row));
     }
     return mediaUris;
+  });
+}
+
+/**
+ * Normalizes media references to unreferenced filenames by checking that no entry
+ * column still contains the quoted filename. Protects media shared across
+ * entries, e.g. restored from a backup.
+ */
+export async function filterUnreferencedMedia(uris: string[]): Promise<string[]> {
+  if (!uris.length) return [];
+
+  return runDb(async (db) => {
+    const unreferenced: string[] = [];
+    const seen = new Set<string>();
+
+    for (const uri of uris) {
+      const filename = extractMediaFilenameFromUri(uri) ?? uri.trim();
+      if (!filename || seen.has(filename)) continue;
+      seen.add(filename);
+
+      const needle = `"${filename}"`;
+      const referenced = await db.getFirstAsync(
+        `SELECT 1 FROM entries
+          WHERE instr(images, ?) > 0
+             OR instr(audios, ?) > 0
+             OR instr(attachments, ?) > 0
+          LIMIT 1`,
+        needle,
+        needle,
+        needle
+      );
+
+      if (!referenced) {
+        unreferenced.push(filename);
+      }
+    }
+
+    return unreferenced;
   });
 }
