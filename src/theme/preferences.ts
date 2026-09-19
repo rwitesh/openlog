@@ -30,16 +30,11 @@ export interface AccessibilityPreferences {
   motionLevel: MotionLevel;
 }
 
-export interface SecurityPreferences {
-  biometricLock: boolean;
-}
-
 export interface UserPreferences {
   appearance: AppearancePreferences;
   entry: EntryPreferences;
   writing: WritingPreferences;
   accessibility: AccessibilityPreferences;
-  security: SecurityPreferences;
 }
 
 export const DEFAULT_PREFERENCES: UserPreferences = {
@@ -61,9 +56,6 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   accessibility: {
     motionLevel: "subtle",
   },
-  security: {
-    biometricLock: false,
-  },
 };
 
 // Database schema keys
@@ -77,7 +69,6 @@ export const SHOW_LOCATION_KEY = "show_location_timeline";
 export const SHOW_TIMESTAMP_KEY = "show_timestamp_timeline";
 export const EDITOR_TEXT_SIZE_KEY = "editor_text_size";
 export const MOTION_LEVEL_KEY = "motion_level";
-export const BIOMETRIC_LOCK_KEY = "biometric_lock";
 export const USER_NAME_KEY = "user_name";
 export const ONBOARDING_COMPLETED_KEY = "onboarding_completed";
 
@@ -102,10 +93,6 @@ export const WRITING_KEYS: Record<keyof WritingPreferences, string> = {
 
 export const ACCESSIBILITY_KEYS: Record<keyof AccessibilityPreferences, string> = {
   motionLevel: MOTION_LEVEL_KEY,
-};
-
-export const SECURITY_KEYS: Record<keyof SecurityPreferences, string> = {
-  biometricLock: BIOMETRIC_LOCK_KEY,
 };
 
 export function toDbEntries<T extends object>(
@@ -189,16 +176,11 @@ export function parseUserPreferences(
     ),
   };
 
-  const security: SecurityPreferences = {
-    biometricLock: get(BIOMETRIC_LOCK_KEY) === "true",
-  };
-
   return {
     appearance,
     entry,
     writing,
     accessibility,
-    security,
   };
 }
 

@@ -19,7 +19,12 @@ import {
   SettingsRow,
   SettingsScreenScroll,
 } from "@/modules/settings";
-import { authenticate, type BiometricSupport, getBiometricSupport } from "@/services/auth";
+import {
+  authenticate,
+  type BiometricSupport,
+  getBiometricSupport,
+  useBiometricLock,
+} from "@/services/auth";
 import {
   type ArchiveCounts,
   cancelActiveBackup,
@@ -44,7 +49,7 @@ import {
 } from "@/services/notifications";
 import { ThemedText } from "@/shared/components/ThemedText";
 import { logDevWarning } from "@/shared/utils";
-import { press, space, typography, usePreferences, useTheme } from "@/theme";
+import { press, space, typography, useTheme } from "@/theme";
 
 /**
  * Privacy & data category screen — everything about trust: the biometric
@@ -54,13 +59,11 @@ import { press, space, typography, usePreferences, useTheme } from "@/theme";
 export function PrivacySettingsScreen() {
   const { theme } = useTheme();
   const { colors } = theme;
-  const { preferences, setSecurity } = usePreferences();
+  const { enabled, setEnabled } = useBiometricLock();
   const { clearAll } = useEntries();
   const [support, setSupport] = useState<BiometricSupport | null>(null);
   const [verifying, setVerifying] = useState(false);
   const { isExporting, isImporting } = useBackupStatus();
-
-  const enabled = preferences.security.biometricLock;
 
   useEffect(() => {
     let active = true;
@@ -83,7 +86,7 @@ export function PrivacySettingsScreen() {
 
   const handleToggle = async (value: boolean) => {
     if (!value) {
-      setSecurity({ biometricLock: false });
+      setEnabled(false);
       analytics.capture("biometric_lock_disabled");
       return;
     }
@@ -96,7 +99,7 @@ export function PrivacySettingsScreen() {
     setVerifying(false);
 
     if (confirmed) {
-      setSecurity({ biometricLock: true });
+      setEnabled(true);
       analytics.capture("biometric_lock_enabled");
     }
   };

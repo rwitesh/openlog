@@ -1,6 +1,5 @@
 import {
   ACCENT_KEY,
-  BIOMETRIC_LOCK_KEY,
   EDITOR_TEXT_SIZE_KEY,
   FONT_KEY,
   MOTION_LEVEL_KEY,
@@ -109,7 +108,6 @@ export async function setUserName(name: string): Promise<void> {
 
 export {
   ACCENT_KEY,
-  BIOMETRIC_LOCK_KEY,
   EDITOR_TEXT_SIZE_KEY,
   FONT_KEY,
   MOTION_LEVEL_KEY,

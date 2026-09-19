@@ -6,6 +6,7 @@ import {
 } from "@expo-google-fonts/source-sans-3";
 import { useEffect, useState } from "react";
 import { useColorScheme } from "react-native";
+import { getBiometricLockEnabled } from "@/services/auth";
 import { getAllUserPreferences } from "@/services/db/settings";
 import { fontManager } from "@/services/fonts";
 import { logDevWarning } from "@/shared/utils/devLog";
@@ -20,7 +21,7 @@ export interface AppBootstrapState {
   onboardingCompleted: boolean;
 }
 
-/** Loads fonts, preferences, and profile before the first interactive screen. */
+/** Loads fonts, preferences, profile, and the device-bound lock state before the first interactive screen. */
 export function useAppBootstrap(): AppBootstrapState {
   const systemScheme = useColorScheme();
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
@@ -37,8 +38,9 @@ export function useAppBootstrap(): AppBootstrapState {
   useEffect(() => {
     let active = true;
 
-    getAllUserPreferences()
-      .then(async (data) => {
+    // The device-bound lock resolves here so the lock gate mounts with the correct armed state.
+    Promise.all([getAllUserPreferences(), getBiometricLockEnabled()])
+      .then(async ([data]) => {
         if (!active) return;
         setUserName(data.userName);
         setOnboardingCompleted(data.onboardingCompleted);
