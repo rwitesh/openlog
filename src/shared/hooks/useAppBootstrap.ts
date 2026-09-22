@@ -39,35 +39,38 @@ export function useAppBootstrap(): AppBootstrapState {
     let active = true;
 
     // The device-bound lock resolves here so the lock gate mounts with the correct armed state.
-    Promise.all([getAllUserPreferences(), getBiometricLockEnabled()])
-      .then(async ([data]) => {
-        if (!active) return;
-        setUserName(data.userName);
-        setOnboardingCompleted(data.onboardingCompleted);
-        setPreferences(data.preferences);
+    const loadPreferences = () =>
+      Promise.all([getAllUserPreferences(), getBiometricLockEnabled()])
+        .then(async ([data]) => {
+          if (!active) return;
+          setUserName(data.userName);
+          setOnboardingCompleted(data.onboardingCompleted);
+          setPreferences(data.preferences);
 
-        const selectedFont = data.preferences.appearance.fontFamily;
-        if (selectedFont && selectedFont !== "Source Sans 3") {
-          // Bounded load attempt on startup so app boots quickly even if offline or slow
-          try {
-            await Promise.race([
-              fontManager.load(selectedFont),
-              new Promise((resolve) => setTimeout(resolve, 2000)),
-            ]);
-          } catch (error) {
-            logDevWarning("bootstrap:fontLoad", error);
+          const selectedFont = data.preferences.appearance.fontFamily;
+          if (selectedFont && selectedFont !== "Source Sans 3") {
+            // Bounded load attempt on startup so app boots quickly even if offline or slow
+            try {
+              await Promise.race([
+                fontManager.load(selectedFont),
+                new Promise((resolve) => setTimeout(resolve, 2000)),
+              ]);
+            } catch (error) {
+              logDevWarning("bootstrap:fontLoad", error);
+            }
           }
-        }
-      })
-      .catch((error) => {
-        logDevWarning("bootstrap:getAllUserPreferences", error);
-        if (active) {
-          setPreferences(DEFAULT_PREFERENCES);
-        }
-      })
-      .finally(() => {
-        if (active) setProfileLoaded(true);
-      });
+        })
+        .catch((error) => {
+          logDevWarning("bootstrap:getAllUserPreferences", error);
+          if (active) {
+            setPreferences(DEFAULT_PREFERENCES);
+          }
+        })
+        .finally(() => {
+          if (active) setProfileLoaded(true);
+        });
+
+    void loadPreferences();
 
     return () => {
       active = false;
@@ -80,7 +83,7 @@ export function useAppBootstrap(): AppBootstrapState {
   const backgroundColor = theme.colors.background;
   const fontsReady = fontsLoaded || Boolean(fontError);
   // Splash hides from App's BootstrapGate, which also waits for Clerk when onboarding is pending.
-  const ready = fontsReady && preferences !== null && profileLoaded;
+  const ready = fontsReady && profileLoaded && preferences !== null;
 
   return {
     ready,

@@ -23,6 +23,7 @@ import {
   cancelActiveRestore,
   copyBackupToDirectory,
   exportBackupArchive,
+  hasLocalContentForRestore,
   type InspectBackupResult,
   importBackupArchive,
   inspectBackupArchive,
@@ -43,6 +44,9 @@ import {
 import { ThemedText } from "@/shared/components/ThemedText";
 import { logDevWarning } from "@/shared/utils";
 import { press, space, typography, useTheme } from "@/theme";
+
+const RESTORE_FAILURE_MESSAGE =
+  "Restore couldn’t complete. Check the backup file and available storage, then try again.";
 
 /**
  * Privacy & data category screen — everything about trust: the biometric
@@ -223,8 +227,6 @@ export function PrivacySettingsScreen() {
         expectedArchiveBytes,
       });
 
-      if (controller.signal.aborted) return;
-
       const importedCount = result?.importedCount ?? counts?.entry ?? 0;
       let byteSize = expectedArchiveBytes;
       if (byteSize === undefined) {
@@ -251,7 +253,11 @@ export function PrivacySettingsScreen() {
       );
     } catch (error) {
       if (controller.signal.aborted) {
+        analytics.capture("backup_import_cancelled", {
+          byte_size: expectedArchiveBytes ?? null,
+        });
         void dismissBackupProgressNotification();
+        Alert.alert("Restore cancelled", "Restore did not complete.");
         return;
       }
       logDevWarning("settings:importBackup", error);
@@ -265,10 +271,9 @@ export function PrivacySettingsScreen() {
         }
       }
       analytics.capture("backup_import_failed", {
-        error: error instanceof Error ? error.message : String(error),
         byte_size: byteSize ?? null,
       });
-      const message = "The backup couldn’t be restored. Your timeline was not changed.";
+      const message = RESTORE_FAILURE_MESSAGE;
       void notifyBackupError("Restore failed", message);
       Alert.alert("Can’t restore backup", message);
     } finally {
@@ -326,32 +331,27 @@ export function PrivacySettingsScreen() {
       dateStyle: "medium",
     });
     const entryLabel = `${preview.counts.entry.toLocaleString()} ${preview.counts.entry === 1 ? "entry" : "entries"}`;
+    const startRestore = () =>
+      void executeImport(fileUri, preview.counts, preview.uncompressedBytes, preview.archiveBytes);
+    const cancelRestore = () => {
+      try {
+        new File(fileUri).delete();
+      } catch {
+        // ignore
+      }
+    };
+    const alreadyHasContent = await hasLocalContentForRestore();
     Alert.alert(
-      "Restore timeline?",
-      `${entryLabel} from ${dateStr}.\n\nThis will replace all timeline data on this device. This cannot be undone.`,
+      alreadyHasContent ? "Replace all local content?" : "Restore timeline?",
+      alreadyHasContent
+        ? `${entryLabel} from ${dateStr}.\n\nThis permanently deletes all local entries and media before restoring this backup. This cannot be undone.`
+        : `${entryLabel} from ${dateStr}.`,
       [
+        { text: "Cancel", style: "cancel", onPress: cancelRestore },
         {
-          text: "Cancel",
-          style: "cancel",
-          onPress: () => {
-            try {
-              new File(fileUri).delete();
-            } catch {
-              // ignore
-            }
-          },
-        },
-        {
-          text: "Restore",
+          text: alreadyHasContent ? "Replace all local content" : "Restore",
           style: "destructive",
-          onPress: () => {
-            void executeImport(
-              fileUri,
-              preview.counts,
-              preview.uncompressedBytes,
-              preview.archiveBytes
-            );
-          },
+          onPress: startRestore,
         },
       ]
     );

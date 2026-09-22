@@ -7,6 +7,14 @@ import { mediaDirectory } from "@/services/media/storage";
 import { APP_VERSION } from "@/shared/utils/appInfo";
 import { logDevWarning } from "@/shared/utils/devLog";
 import {
+  acquireExportGate,
+  assertBackupArchiveSize,
+  assertBackupExportSizeLimits,
+  DATABASE_SIZE_CEILING,
+  releaseExportGate,
+  waitForRestoreGate,
+} from "../utils";
+import {
   ARCHIVE_EXTENSION,
   ARCHIVE_FORMAT,
   ARCHIVE_SCHEMA_VERSION,
@@ -19,8 +27,7 @@ import {
   type ExportBackupResult,
   MANIFEST_FILENAME,
   TIMELINE_DATA_FILENAME,
-} from "./types";
-import { acquireExportGate, DATABASE_SIZE_CEILING, releaseExportGate } from "./utils";
+} from "../utils/types";
 
 export { DATABASE_SIZE_CEILING };
 
@@ -86,6 +93,7 @@ export async function exportBackupArchive(
 ): Promise<ExportBackupResult> {
   if (options?.signal?.aborted) throw new Error("Backup cancelled");
 
+  await waitForRestoreGate();
   acquireExportGate();
   const createdAt = Date.now();
   const filename = `openlog-backup-${new Date(createdAt).toISOString().replace(/[:.]/g, "-")}${ARCHIVE_EXTENSION}`;
@@ -212,18 +220,39 @@ export async function exportBackupArchive(
       settings: Object.keys(settings).length > 0 ? settings : undefined,
     };
 
+    const manifestBytes = strToU8(JSON.stringify(manifest));
+    const timelineBytes = strToU8(JSON.stringify(timelineData));
+    assertBackupExportSizeLimits({
+      manifestBytes: manifestBytes.length,
+      timelineBytes: timelineBytes.length,
+      mediaBytes: mediaFiles.map((file) => file.info().size ?? 0),
+    });
+
+    let archiveBytes = 0;
+    let archiveError: Error | null = null;
     const zip = new Zip((error, chunk) => {
-      if (error) throw error;
+      if (error) {
+        archiveError = error;
+        return;
+      }
+      if (archiveError) return;
+      try {
+        assertBackupArchiveSize(archiveBytes + chunk.length);
+      } catch (sizeError) {
+        archiveError = sizeError instanceof Error ? sizeError : new Error(String(sizeError));
+        return;
+      }
       output.writeBytes(chunk);
+      archiveBytes += chunk.length;
     });
 
     const manifestFile = new ZipDeflate(MANIFEST_FILENAME, { level: 6 });
     zip.add(manifestFile);
-    manifestFile.push(strToU8(JSON.stringify(manifest)), true);
+    manifestFile.push(manifestBytes, true);
 
     const timelineJsonFile = new ZipDeflate(TIMELINE_DATA_FILENAME, { level: 6 });
     zip.add(timelineJsonFile);
-    timelineJsonFile.push(strToU8(JSON.stringify(timelineData)), true);
+    timelineJsonFile.push(timelineBytes, true);
 
     let exportedMediaCount = 0;
     for (let index = 0; index < mediaFiles.length; index++) {
@@ -235,6 +264,7 @@ export async function exportBackupArchive(
     }
 
     zip.end();
+    if (archiveError) throw archiveError;
     succeeded = true;
 
     return {
@@ -245,7 +275,7 @@ export async function exportBackupArchive(
         tag: tags.length,
         media: exportedMediaCount,
       },
-      byteSize: exportFile.info().size ?? 0,
+      byteSize: archiveBytes,
     };
   } finally {
     output.close();

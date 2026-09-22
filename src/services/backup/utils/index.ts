@@ -7,6 +7,25 @@ import {
   TIMELINE_DATA_FILENAME,
 } from "./types.ts";
 
+/** Rejects backups whose entries refer to media that was not actually archived. */
+export function assertBackupMediaReferences(
+  entries: BackupTimelineData["entries"],
+  mediaNames: ReadonlySet<string>
+): void {
+  for (const entry of entries) {
+    const references = [
+      ...(entry.images ?? []),
+      ...(entry.audios ?? []),
+      ...(entry.attachments?.map((attachment) => attachment.uri) ?? []),
+    ];
+    for (const filename of references) {
+      if (!mediaNames.has(filename)) {
+        throw new Error(`Invalid backup file: media file ${filename} is missing.`);
+      }
+    }
+  }
+}
+
 function isNonNegativeInteger(value: unknown): boolean {
   return typeof value === "number" && Number.isInteger(value) && value >= 0;
 }
@@ -157,6 +176,42 @@ export const BACKUP_LIMITS = {
 
 export const RESTORE_SAFETY_BUFFER_BYTES = 50 * 1024 * 1024;
 
+export interface ExportSizeLimitsInput {
+  manifestBytes: number;
+  timelineBytes: number;
+  mediaBytes: readonly number[];
+}
+
+/** Keeps successful exports within the limits enforced by restore. */
+export function assertBackupExportSizeLimits({
+  manifestBytes,
+  timelineBytes,
+  mediaBytes,
+}: ExportSizeLimitsInput): void {
+  if (manifestBytes > BACKUP_LIMITS.manifestBytes) {
+    throw new Error("Backup manifest is too large to restore.");
+  }
+  if (timelineBytes > BACKUP_LIMITS.timelineDataBytes) {
+    throw new Error("Backup data is too large to restore.");
+  }
+  if (mediaBytes.length > BACKUP_LIMITS.media) {
+    throw new Error("Backup contains too many media files to restore.");
+  }
+  const total = manifestBytes + timelineBytes + mediaBytes.reduce((sum, bytes) => sum + bytes, 0);
+  if (total > BACKUP_LIMITS.uncompressedBytes) {
+    throw new Error("Backup expands beyond the restore limit.");
+  }
+  if (mediaBytes.some((bytes) => bytes > BACKUP_LIMITS.memberBytes)) {
+    throw new Error("A media file is too large to include in a restorable backup.");
+  }
+}
+
+export function assertBackupArchiveSize(bytes: number): void {
+  if (bytes > BACKUP_LIMITS.archiveBytes) {
+    throw new Error("Backup is too large to restore.");
+  }
+}
+
 export interface StoragePreflightParams {
   archiveBytes: number;
   existingTimelineBytes: number;
@@ -261,4 +316,24 @@ export async function waitForExportGate(): Promise<void> {
 
 export function isExportGateActive(): boolean {
   return activeGatePromise !== null;
+}
+
+let activeRestoreGatePromise: Promise<void> | null = null;
+let resolveRestoreGate: (() => void) | null = null;
+
+export function acquireRestoreGate(): void {
+  if (resolveRestoreGate) throw new Error("A restore is already in progress.");
+  activeRestoreGatePromise = new Promise<void>((resolve) => {
+    resolveRestoreGate = resolve;
+  });
+}
+
+export function releaseRestoreGate(): void {
+  resolveRestoreGate?.();
+  resolveRestoreGate = null;
+  activeRestoreGatePromise = null;
+}
+
+export async function waitForRestoreGate(): Promise<void> {
+  if (activeRestoreGatePromise) await activeRestoreGatePromise;
 }
