@@ -33,7 +33,7 @@ export function subscribeBackupStatus(listener: () => void): () => void {
 }
 
 /**
- * Hook to reactively observe if a backup export or restore operation is in flight.
+ * Hook to reactively observe if a backup export or import operation is in flight.
  */
 export function useBackupStatus(): BackupStatus {
   return useSyncExternalStore(subscribeBackupStatus, getBackupStatus);
@@ -59,7 +59,7 @@ export function cancelActiveBackup(): boolean {
   return false;
 }
 
-export function cancelActiveRestore(): boolean {
+export function cancelActiveImport(): boolean {
   if (activeImportController) {
     activeImportController.abort();
     activeImportController = null;

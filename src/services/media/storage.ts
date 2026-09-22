@@ -1,6 +1,6 @@
 import { Directory, File, Paths } from "expo-file-system";
 
-import { waitForExportGate, waitForRestoreGate } from "@/services/backup/utils";
+import { waitForExportGate, waitForImportGate } from "@/services/backup/utils";
 import { logDevWarning } from "@/shared/utils/devLog";
 
 /** The app's single durable media directory; the database stores bare filenames relative to it. */
@@ -31,7 +31,7 @@ function createMediaFilename(ext: string): string {
  * its files.
  */
 export async function persistMedia(sourceUri: string, ext: string): Promise<string> {
-  await waitForRestoreGate();
+  await waitForImportGate();
   const dir = mediaDirectory();
   dir.create({ idempotent: true, intermediates: true });
 
@@ -49,7 +49,7 @@ export async function persistMedia(sourceUri: string, ext: string): Promise<stri
 export async function deleteMediaFiles(filenames: string[]): Promise<void> {
   if (!filenames.length) return;
   await waitForExportGate();
-  await waitForRestoreGate();
+  await waitForImportGate();
 
   const dir = mediaDirectory();
   await Promise.all(

@@ -20,10 +20,10 @@ import {
 import {
   type ArchiveCounts,
   cancelActiveBackup,
-  cancelActiveRestore,
+  cancelActiveImport,
   copyBackupToDirectory,
   exportBackupArchive,
-  hasLocalContentForRestore,
+  hasLocalContentForImport,
   type InspectBackupResult,
   importBackupArchive,
   inspectBackupArchive,
@@ -45,8 +45,8 @@ import { ThemedText } from "@/shared/components/ThemedText";
 import { logDevWarning } from "@/shared/utils";
 import { press, space, typography, useTheme } from "@/theme";
 
-const RESTORE_FAILURE_MESSAGE =
-  "Restore couldn’t complete. Check the backup file and available storage, then try again.";
+const IMPORT_FAILURE_MESSAGE =
+  "Import couldn’t complete. Check the backup file and available storage, then try again.";
 
 /**
  * Privacy & data category screen — everything about trust: the biometric
@@ -192,9 +192,7 @@ export function PrivacySettingsScreen() {
         return;
       }
       logDevWarning("settings:exportBackup", error);
-      analytics.capture("backup_export_failed", {
-        error: error instanceof Error ? error.message : String(error),
-      });
+      analytics.capture("backup_export_failed");
       const message = "Couldn’t save your backup. Check your storage and try again.";
       void notifyBackupError("Backup failed", message);
       Alert.alert("Backup failed", message);
@@ -217,7 +215,7 @@ export function PrivacySettingsScreen() {
     const controller = new AbortController();
     setImportController(controller);
 
-    void notifyBackupProgress("Restoring backup", "Extracting files...");
+    void notifyBackupProgress("Importing backup", "Extracting files...");
 
     try {
       const result = await importBackupArchive(fileUri, {
@@ -247,8 +245,8 @@ export function PrivacySettingsScreen() {
       void notifyBackupImportComplete(importedCount);
 
       Alert.alert(
-        "Restore complete",
-        `${importedCount.toLocaleString()} ${importedCount === 1 ? "entry" : "entries"} restored.`,
+        "Import complete",
+        `${importedCount.toLocaleString()} ${importedCount === 1 ? "entry" : "entries"} imported.`,
         [{ text: "Done" }]
       );
     } catch (error) {
@@ -257,7 +255,7 @@ export function PrivacySettingsScreen() {
           byte_size: expectedArchiveBytes ?? null,
         });
         void dismissBackupProgressNotification();
-        Alert.alert("Restore cancelled", "Restore did not complete.");
+        Alert.alert("Import cancelled", "Import did not complete.");
         return;
       }
       logDevWarning("settings:importBackup", error);
@@ -273,9 +271,9 @@ export function PrivacySettingsScreen() {
       analytics.capture("backup_import_failed", {
         byte_size: byteSize ?? null,
       });
-      const message = RESTORE_FAILURE_MESSAGE;
-      void notifyBackupError("Restore failed", message);
-      Alert.alert("Can’t restore backup", message);
+      const message = IMPORT_FAILURE_MESSAGE;
+      void notifyBackupError("Import failed", message);
+      Alert.alert("Can’t import backup", message);
     } finally {
       setImportController(null);
       try {
@@ -314,10 +312,7 @@ export function PrivacySettingsScreen() {
       } catch {
         // ignore
       }
-      analytics.capture("backup_inspect_failed", {
-        error: error instanceof Error ? error.message : String(error),
-        byte_size: byteSize ?? null,
-      });
+      analytics.capture("backup_inspect_failed", { byte_size: byteSize ?? null });
       Alert.alert("Can’t open backup", "This backup file appears to be corrupted or incomplete.");
       try {
         new File(fileUri).delete();
@@ -331,34 +326,34 @@ export function PrivacySettingsScreen() {
       dateStyle: "medium",
     });
     const entryLabel = `${preview.counts.entry.toLocaleString()} ${preview.counts.entry === 1 ? "entry" : "entries"}`;
-    const startRestore = () =>
+    const startImport = () =>
       void executeImport(fileUri, preview.counts, preview.uncompressedBytes, preview.archiveBytes);
-    const cancelRestore = () => {
+    const cancelImport = () => {
       try {
         new File(fileUri).delete();
       } catch {
         // ignore
       }
     };
-    const alreadyHasContent = await hasLocalContentForRestore();
+    const alreadyHasContent = await hasLocalContentForImport();
     Alert.alert(
-      alreadyHasContent ? "Replace all local content?" : "Restore timeline?",
+      alreadyHasContent ? "Replace all local content?" : "Import timeline?",
       alreadyHasContent
-        ? `${entryLabel} from ${dateStr}.\n\nThis permanently deletes all local entries and media before restoring this backup. This cannot be undone.`
+        ? `${entryLabel} from ${dateStr}.\n\nThis permanently deletes all local entries and media before importing this backup. This cannot be undone.`
         : `${entryLabel} from ${dateStr}.`,
       [
-        { text: "Cancel", style: "cancel", onPress: cancelRestore },
+        { text: "Cancel", style: "cancel", onPress: cancelImport },
         {
-          text: alreadyHasContent ? "Replace all local content" : "Restore",
+          text: alreadyHasContent ? "Replace all local content" : "Import",
           style: "destructive",
-          onPress: startRestore,
+          onPress: startImport,
         },
       ]
     );
   };
 
   const handleCancelImport = () => {
-    cancelActiveRestore();
+    cancelActiveImport();
     void dismissBackupProgressNotification();
   };
 
@@ -430,7 +425,7 @@ export function PrivacySettingsScreen() {
           icon="download"
           title="Import"
           subtitle={
-            isImporting ? "Restoring backup" : "Replace your current timeline with a backup"
+            isImporting ? "Importing backup" : "Replace your current timeline with a backup"
           }
           badge={
             isImporting ? (

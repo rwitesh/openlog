@@ -10,11 +10,9 @@ import {
   assertBackupMediaReferences,
   assertBackupTimelineData,
   BACKUP_LIMITS,
-  calculateRequiredRestoreBytes,
-  DATABASE_SIZE_CEILING,
+  calculateRequiredImportBytes,
   extractMediaFilename,
-  isExportGateActive,
-  RESTORE_SAFETY_BUFFER_BYTES,
+  IMPORT_SAFETY_BUFFER_BYTES,
   releaseExportGate,
   validateArchivePath,
   waitForExportGate,
@@ -434,8 +432,7 @@ test("archive path validation enforces expected members and rejects traversal", 
   assert.throws(() => validateArchivePath("database.sqlite3"), /unexpected archive path/);
 });
 
-test("backup limits and database ceiling match conservative safety bounds", () => {
-  assert.equal(DATABASE_SIZE_CEILING, 256 * 1024 * 1024);
+test("backup limits match conservative safety bounds", () => {
   assert.equal(BACKUP_LIMITS.memberBytes, 256 * 1024 * 1024);
   assert.equal(BACKUP_LIMITS.archiveBytes, 512 * 1024 * 1024);
   assert.equal(BACKUP_LIMITS.uncompressedBytes, 2 * 1024 * 1024 * 1024);
@@ -444,7 +441,7 @@ test("backup limits and database ceiling match conservative safety bounds", () =
   assert.equal(BACKUP_LIMITS.media, 100_000);
 });
 
-test("export limits never permit an archive restore will reject", () => {
+test("export limits never permit an archive import will reject", () => {
   assert.doesNotThrow(() =>
     assertBackupExportSizeLimits({
       manifestBytes: BACKUP_LIMITS.manifestBytes,
@@ -475,14 +472,11 @@ test("export limits never permit an archive restore will reject", () => {
 });
 
 test("export gate serializes media cleanup and unblocks when released", async () => {
-  assert.equal(isExportGateActive(), false);
-
   // When inactive, waitForExportGate resolves immediately
   await waitForExportGate();
 
   // Acquire gate
   acquireExportGate();
-  assert.equal(isExportGateActive(), true);
 
   const events = [];
   let cleanupDone = false;
@@ -501,20 +495,19 @@ test("export gate serializes media cleanup and unblocks when released", async ()
 
   // Release gate
   releaseExportGate();
-  assert.equal(isExportGateActive(), false);
 
   await cleanupPromise;
   assert.deepEqual(events, ["cleanup-waiting", "cleanup-executed"]);
   assert.equal(cleanupDone, true);
 });
 
-test("calculateRequiredRestoreBytes uses exact uncompressed bytes when size is unchanged and falls back to full expansion", () => {
+test("calculateRequiredImportBytes uses exact uncompressed bytes when size is unchanged and falls back to full expansion", () => {
   const archiveBytes = 512 * 1024 * 1024;
   const existingTimelineBytes = 10 * 1024 * 1024;
-  const safetyBufferBytes = RESTORE_SAFETY_BUFFER_BYTES;
+  const safetyBufferBytes = IMPORT_SAFETY_BUFFER_BYTES;
 
   // Case 1: size matches expectedArchiveBytes -> uses exact uncompressedBytes
-  const matchedRequired = calculateRequiredRestoreBytes({
+  const matchedRequired = calculateRequiredImportBytes({
     archiveBytes,
     existingTimelineBytes,
     uncompressedBytes: 600 * 1024 * 1024,
@@ -527,7 +520,7 @@ test("calculateRequiredRestoreBytes uses exact uncompressed bytes when size is u
   );
 
   // Case 2: size mismatched (archive modified after inspection) -> falls back to full 2 GiB expansion cap
-  const mismatchedRequired = calculateRequiredRestoreBytes({
+  const mismatchedRequired = calculateRequiredImportBytes({
     archiveBytes,
     existingTimelineBytes,
     uncompressedBytes: 600 * 1024 * 1024,
@@ -540,7 +533,7 @@ test("calculateRequiredRestoreBytes uses exact uncompressed bytes when size is u
   );
 
   // Case 3: expectedArchiveBytes omitted (unproven) -> also falls back to conservative full expansion
-  const unprovenRequired = calculateRequiredRestoreBytes({
+  const unprovenRequired = calculateRequiredImportBytes({
     archiveBytes,
     existingTimelineBytes,
     uncompressedBytes: 600 * 1024 * 1024,
@@ -552,7 +545,7 @@ test("calculateRequiredRestoreBytes uses exact uncompressed bytes when size is u
   );
 });
 
-test("in-session restore transaction replaces entries, tags, and rebuilds FTS5 search", async () => {
+test("in-session import transaction replaces entries, tags, and rebuilds FTS5 search", async () => {
   const memDb = new DatabaseSync(":memory:");
   const target = createDbTarget(memDb);
   await initializeDatabaseSchema(target);
@@ -587,7 +580,7 @@ test("in-session restore transaction replaces entries, tags, and rebuilds FTS5 s
     .get("coffee");
   assert.ok(oldSearch, "Initial entry should be searchable in FTS5");
 
-  // Execute in-session restore transaction:
+  // Execute in-session import transaction:
   // Clear tables, batch insert new data, and rebuild FTS5
   await target.withTransactionAsync(async () => {
     await target.execAsync("DELETE FROM entry_tags; DELETE FROM tags; DELETE FROM entries;");
@@ -634,7 +627,7 @@ test("in-session restore transaction replaces entries, tags, and rebuilds FTS5 s
     .get().count;
   assert.equal(oldTagCount, 0);
 
-  // Verify restored entries and tags are present
+  // Verify imported entries and tags are present
   const newEntry = memDb.prepare("SELECT * FROM entries WHERE id = 'entry-new-1'").get();
   assert.ok(newEntry);
   assert.equal(newEntry.text, "Evening walk through the city park");
@@ -648,16 +641,16 @@ test("in-session restore transaction replaces entries, tags, and rebuilds FTS5 s
     .get();
   assert.ok(newEntryTag);
 
-  // Verify FTS5 search index matches restored text
+  // Verify FTS5 search index matches imported text
   const ftsMatchPark = memDb
     .prepare("SELECT rowid FROM entries_fts WHERE entries_fts MATCH ?")
     .get("park");
-  assert.ok(ftsMatchPark, "Restored text 'park' should be indexed in FTS5");
+  assert.ok(ftsMatchPark, "Imported text 'park' should be indexed in FTS5");
 
   const ftsMatchEvening = memDb
     .prepare("SELECT rowid FROM entries_fts WHERE entries_fts MATCH ?")
     .get("evening");
-  assert.ok(ftsMatchEvening, "Restored text 'evening' should be indexed in FTS5");
+  assert.ok(ftsMatchEvening, "Imported text 'evening' should be indexed in FTS5");
 
   const ftsMatchOldCoffee = memDb
     .prepare("SELECT rowid FROM entries_fts WHERE entries_fts MATCH ?")
@@ -665,7 +658,7 @@ test("in-session restore transaction replaces entries, tags, and rebuilds FTS5 s
   assert.equal(ftsMatchOldCoffee, undefined, "Old text 'coffee' must no longer match in FTS5");
 });
 
-test("in-session restore guarantees full rollback on insertion failure", async () => {
+test("in-session import guarantees full rollback on insertion failure", async () => {
   const memDb = new DatabaseSync(":memory:");
   const target = createDbTarget(memDb);
   await initializeDatabaseSchema(target);
@@ -693,9 +686,9 @@ test("in-session restore guarantees full rollback on insertion failure", async (
         "[]",
         null
       );
-      throw new Error("Simulated disk error during restore batch insertion");
+      throw new Error("Simulated disk error during import batch insertion");
     });
-  }, /Simulated disk error during restore batch insertion/);
+  }, /Simulated disk error during import batch insertion/);
 
   // Verify complete rollback: interrupted entry does not exist, baseline entry is 100% intact
   const interruptedCount = memDb
@@ -755,14 +748,14 @@ test("backup insertion rolls back without reintroducing removed local rows", asy
     ...target,
     runAsync: async (source, ...params) => {
       writes += 1;
-      if (writes === 3) throw new Error("Simulated restore write failure");
+      if (writes === 3) throw new Error("Simulated import write failure");
       return target.runAsync(source, ...params);
     },
   };
 
   await assert.rejects(
     () => insertTimelineData(failingTarget, validTimelineData),
-    /Simulated restore write failure/
+    /Simulated import write failure/
   );
 
   assert.equal(

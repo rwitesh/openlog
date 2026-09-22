@@ -1,6 +1,5 @@
 import { getDocumentAsync } from "expo-document-picker";
 import { Directory, File } from "expo-file-system";
-import * as Sharing from "expo-sharing";
 
 import { logDevWarning } from "@/shared/utils/devLog";
 
@@ -64,49 +63,4 @@ export async function copyBackupToDirectory(
   } catch (err) {
     logDevWarning("copyBackupToDirectory:deleteSource", err);
   }
-}
-
-/**
- * Stores the archive directly to a picked or provided folder.
- * Returns false when cancelled; falls back to the share sheet if folder picker is unavailable.
- */
-export async function saveBackupArchive(
-  fileUri: string,
-  filename: string,
-  targetDir?: Directory
-): Promise<boolean> {
-  const sourceFile = new File(fileUri);
-  if (!sourceFile.exists) throw new Error("Backup file could not be found.");
-
-  if (targetDir?.uri) {
-    await copyBackupToDirectory(fileUri, filename, targetDir);
-    return true;
-  }
-
-  try {
-    const pickedDir = await pickBackupDestinationDirectory();
-    if (pickedDir) {
-      await copyBackupToDirectory(fileUri, filename, pickedDir);
-      return true;
-    }
-    return false;
-  } catch (pickerErr) {
-    logDevWarning("saveBackupArchive:pickDirectory", pickerErr);
-  }
-
-  const isAvailable = await Sharing.isAvailableAsync();
-  if (isAvailable) {
-    await Sharing.shareAsync(fileUri, {
-      mimeType: "application/octet-stream",
-      UTI: "public.archive",
-    });
-    try {
-      sourceFile.delete();
-    } catch {
-      // ignore
-    }
-    return true;
-  }
-
-  throw new Error("No storage destination available on this device.");
 }

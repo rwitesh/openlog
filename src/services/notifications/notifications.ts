@@ -45,13 +45,13 @@ async function ensureBackupChannels(Notifications: NotificationsModule): Promise
 
   try {
     await Notifications.setNotificationChannelAsync("backup", {
-      name: "Backup & Restore",
+      name: "Backup & Import",
       importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: "#8B5CF6",
     });
     await Notifications.setNotificationChannelAsync("backup-progress", {
-      name: "Backup & Restore Progress",
+      name: "Backup & Import Progress",
       importance: Notifications.AndroidImportance.LOW,
       enableVibrate: false,
       sound: null,
@@ -126,7 +126,7 @@ export async function sendLocalNotification(
 const BACKUP_NOTIFICATION_ID = "openlog-backup-progress";
 
 /**
- * Shows or updates an ongoing notification in the notification bar while backup/restore is in progress.
+ * Shows or updates an ongoing notification in the notification bar while backup/import is in progress.
  */
 export async function notifyBackupProgress(title: string, body: string): Promise<void> {
   const Notifications = getNotifications();
@@ -152,7 +152,7 @@ export async function notifyBackupProgress(title: string, body: string): Promise
 }
 
 /**
- * Dismisses the ongoing backup/restore notification (e.g. on cancellation).
+ * Dismisses the ongoing backup/import notification (e.g. on cancellation).
  */
 export async function dismissBackupProgressNotification(): Promise<void> {
   const Notifications = getNotifications();
@@ -196,7 +196,7 @@ export async function notifyBackupExportComplete(
 }
 
 /**
- * Notifies the user when an archive restore has completed.
+ * Notifies the user when an archive import has completed.
  */
 export async function notifyBackupImportComplete(importedCount: number): Promise<void> {
   const Notifications = getNotifications();
@@ -208,8 +208,8 @@ export async function notifyBackupImportComplete(importedCount: number): Promise
     await Notifications.scheduleNotificationAsync({
       identifier: BACKUP_NOTIFICATION_ID,
       content: {
-        title: "Backup restored",
-        body: `${importedCount.toLocaleString()} ${importedCount === 1 ? "entry" : "entries"} restored.`,
+        title: "Backup imported",
+        body: `${importedCount.toLocaleString()} ${importedCount === 1 ? "entry" : "entries"} imported.`,
         sound: true,
         sticky: false,
         autoDismiss: true,
@@ -222,7 +222,7 @@ export async function notifyBackupImportComplete(importedCount: number): Promise
 }
 
 /**
- * Notifies the user when an archive export or restore operation fails.
+ * Notifies the user when an archive export or import operation fails.
  */
 export async function notifyBackupError(title: string, body: string): Promise<void> {
   const Notifications = getNotifications();
