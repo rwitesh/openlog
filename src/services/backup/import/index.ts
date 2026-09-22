@@ -8,14 +8,14 @@ import { runDb } from "@/services/db/database";
 import { mediaDirectory } from "@/services/media/storage";
 import { logDevWarning } from "@/shared/utils/devLog";
 import {
-  acquireRestoreGate,
+  acquireImportGate,
   assertBackupManifest,
   assertBackupMediaReferences,
   assertBackupTimelineData,
   BACKUP_LIMITS,
-  calculateRequiredRestoreBytes,
+  calculateRequiredImportBytes,
   extractMediaFilename,
-  releaseRestoreGate,
+  releaseImportGate,
   validateArchivePath,
   waitForExportGate,
 } from "../utils";
@@ -72,13 +72,13 @@ function assertPublishedMedia(mediaNames: ReadonlySet<string>): void {
   const directory = mediaDirectory();
   for (const filename of mediaNames) {
     if (!new File(directory, filename).exists) {
-      throw new Error("Restore media verification failed.");
+      throw new Error("Import media verification failed.");
     }
   }
 }
 
-/** True when Restore needs the explicit destructive confirmation. */
-export async function hasLocalContentForRestore(): Promise<boolean> {
+/** True when Import needs the explicit destructive confirmation. */
+export async function hasLocalContentForImport(): Promise<boolean> {
   const hasEntries = await runDb(async (db) => {
     const row = await db.getFirstAsync<{ count: number }>("SELECT COUNT(*) AS count FROM entries");
     return (row?.count ?? 0) > 0;
@@ -99,7 +99,7 @@ export async function importBackupArchive(
   if (!sourceFile.exists) throw new Error("Selected backup file does not exist.");
   const archiveBytes = sourceFile.info().size ?? 0;
   if (archiveBytes > BACKUP_LIMITS.archiveBytes) {
-    throw new Error("Backup file is too large to restore.");
+    throw new Error("Backup file is too large to import.");
   }
   if (options?.signal?.aborted) throw new Error("Import cancelled");
   if (
@@ -112,7 +112,7 @@ export async function importBackupArchive(
   }
 
   const existingTimelineBytes = getExistingTimelineDiskBytes();
-  const requiredBytes = calculateRequiredRestoreBytes({
+  const requiredBytes = calculateRequiredImportBytes({
     archiveBytes,
     existingTimelineBytes,
     uncompressedBytes: options?.uncompressedBytes,
@@ -130,13 +130,13 @@ export async function importBackupArchive(
   if (typeof freeBytes === "number" && freeBytes > 0) {
     if (freeBytes < requiredBytes) {
       throw new Error(
-        "Insufficient storage to restore backup. OpenLog requires free space for staging."
+        "Insufficient storage to import backup. OpenLog requires free space for staging."
       );
     }
   }
 
   await waitForExportGate();
-  acquireRestoreGate();
+  acquireImportGate();
 
   const manifestChunks: Uint8Array[] = [];
   const timelineChunks: Uint8Array[] = [];
@@ -151,7 +151,7 @@ export async function importBackupArchive(
   const normalizedMediaNames = new Set<string>();
 
   try {
-    stagingDir = new Directory(Paths.cache, `openlog-restore-${Date.now()}`);
+    stagingDir = new Directory(Paths.cache, `openlog-import-${Date.now()}`);
     stagingDir.create({ idempotent: true, intermediates: true });
     const stagingMediaDir = new Directory(stagingDir, "incoming-media");
     stagingMediaDir.create({ intermediates: true });
@@ -222,7 +222,7 @@ export async function importBackupArchive(
           memberBytes > BACKUP_LIMITS.memberBytes ||
           totalUncompressed > BACKUP_LIMITS.uncompressedBytes
         ) {
-          failure = new Error("Invalid backup file: archive expands beyond the restore limit.");
+          failure = new Error("Invalid backup file: archive expands beyond the import limit.");
           mediaHandle?.close();
           return;
         }
@@ -327,7 +327,7 @@ export async function importBackupArchive(
     await runDb((db) => clearTimelineData(db));
 
     const stagedMedia = new Directory(stagingDir, "incoming-media");
-    if (!stagedMedia.exists) throw new Error("Restore staging media is missing.");
+    if (!stagedMedia.exists) throw new Error("Import staging media is missing.");
     await stagedMedia.move(Paths.document);
     stagedMedia.rename("media");
     assertPublishedMedia(mediaNames);
@@ -336,20 +336,20 @@ export async function importBackupArchive(
     try {
       notifyStoreReload();
     } catch (error) {
-      logDevWarning("backup:restoreReload", error);
+      logDevWarning("backup:importReload", error);
     }
 
     return { importedCount: rawTimeline.entries.length };
   } catch (error) {
-    throw error instanceof Error ? error : new Error("The restore could not be completed.");
+    throw error instanceof Error ? error : new Error("The import could not be completed.");
   } finally {
     if (stagingDir?.exists) {
       try {
         stagingDir.delete();
       } catch (error) {
-        logDevWarning("backup:restoreStagingCleanup", error);
+        logDevWarning("backup:importStagingCleanup", error);
       }
     }
-    releaseRestoreGate();
+    releaseImportGate();
   }
 }

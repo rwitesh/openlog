@@ -163,8 +163,6 @@ export function assertBackupTimelineData(data: unknown): asserts data is BackupT
   }
 }
 
-export const DATABASE_SIZE_CEILING = 256 * 1024 * 1024;
-
 export const BACKUP_LIMITS = {
   archiveBytes: 512 * 1024 * 1024,
   uncompressedBytes: 2 * 1024 * 1024 * 1024,
@@ -174,7 +172,7 @@ export const BACKUP_LIMITS = {
   media: 100_000,
 } as const;
 
-export const RESTORE_SAFETY_BUFFER_BYTES = 50 * 1024 * 1024;
+export const IMPORT_SAFETY_BUFFER_BYTES = 50 * 1024 * 1024;
 
 export interface ExportSizeLimitsInput {
   manifestBytes: number;
@@ -182,24 +180,24 @@ export interface ExportSizeLimitsInput {
   mediaBytes: readonly number[];
 }
 
-/** Keeps successful exports within the limits enforced by restore. */
+/** Keeps successful exports within the limits enforced by import. */
 export function assertBackupExportSizeLimits({
   manifestBytes,
   timelineBytes,
   mediaBytes,
 }: ExportSizeLimitsInput): void {
   if (manifestBytes > BACKUP_LIMITS.manifestBytes) {
-    throw new Error("Backup manifest is too large to restore.");
+    throw new Error("Backup manifest is too large to import.");
   }
   if (timelineBytes > BACKUP_LIMITS.timelineDataBytes) {
-    throw new Error("Backup data is too large to restore.");
+    throw new Error("Backup data is too large to import.");
   }
   if (mediaBytes.length > BACKUP_LIMITS.media) {
-    throw new Error("Backup contains too many media files to restore.");
+    throw new Error("Backup contains too many media files to import.");
   }
   const total = manifestBytes + timelineBytes + mediaBytes.reduce((sum, bytes) => sum + bytes, 0);
   if (total > BACKUP_LIMITS.uncompressedBytes) {
-    throw new Error("Backup expands beyond the restore limit.");
+    throw new Error("Backup expands beyond the import limit.");
   }
   if (mediaBytes.some((bytes) => bytes > BACKUP_LIMITS.memberBytes)) {
     throw new Error("A media file is too large to include in a restorable backup.");
@@ -208,7 +206,7 @@ export function assertBackupExportSizeLimits({
 
 export function assertBackupArchiveSize(bytes: number): void {
   if (bytes > BACKUP_LIMITS.archiveBytes) {
-    throw new Error("Backup is too large to restore.");
+    throw new Error("Backup is too large to import.");
   }
 }
 
@@ -221,16 +219,16 @@ export interface StoragePreflightParams {
 }
 
 /**
- * Calculates the required free disk storage before beginning a restore.
+ * Calculates the required free disk storage before beginning a import.
  * Uses exact uncompressedBytes when the archive size matches expectedArchiveBytes;
  * otherwise conservatively reserves the full allowed expansion capacity up to BACKUP_LIMITS.uncompressedBytes.
  */
-export function calculateRequiredRestoreBytes({
+export function calculateRequiredImportBytes({
   archiveBytes,
   existingTimelineBytes,
   uncompressedBytes,
   expectedArchiveBytes,
-  safetyBufferBytes = RESTORE_SAFETY_BUFFER_BYTES,
+  safetyBufferBytes = IMPORT_SAFETY_BUFFER_BYTES,
 }: StoragePreflightParams): number {
   const isSizeUnchanged =
     expectedArchiveBytes !== undefined && expectedArchiveBytes === archiveBytes;
@@ -314,26 +312,22 @@ export async function waitForExportGate(): Promise<void> {
   }
 }
 
-export function isExportGateActive(): boolean {
-  return activeGatePromise !== null;
-}
+let activeImportGatePromise: Promise<void> | null = null;
+let resolveImportGate: (() => void) | null = null;
 
-let activeRestoreGatePromise: Promise<void> | null = null;
-let resolveRestoreGate: (() => void) | null = null;
-
-export function acquireRestoreGate(): void {
-  if (resolveRestoreGate) throw new Error("A restore is already in progress.");
-  activeRestoreGatePromise = new Promise<void>((resolve) => {
-    resolveRestoreGate = resolve;
+export function acquireImportGate(): void {
+  if (resolveImportGate) throw new Error("An import is already in progress.");
+  activeImportGatePromise = new Promise<void>((resolve) => {
+    resolveImportGate = resolve;
   });
 }
 
-export function releaseRestoreGate(): void {
-  resolveRestoreGate?.();
-  resolveRestoreGate = null;
-  activeRestoreGatePromise = null;
+export function releaseImportGate(): void {
+  resolveImportGate?.();
+  resolveImportGate = null;
+  activeImportGatePromise = null;
 }
 
-export async function waitForRestoreGate(): Promise<void> {
-  if (activeRestoreGatePromise) await activeRestoreGatePromise;
+export async function waitForImportGate(): Promise<void> {
+  if (activeImportGatePromise) await activeImportGatePromise;
 }

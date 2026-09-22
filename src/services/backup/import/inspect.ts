@@ -34,7 +34,7 @@ export async function inspectBackupArchive(
 
   const archiveBytes = sourceFile.info().size ?? 0;
   if (archiveBytes > BACKUP_LIMITS.archiveBytes) {
-    throw new Error("Backup file is too large to restore.");
+    throw new Error("Backup file is too large to import.");
   }
   if (options?.signal?.aborted) throw new Error("Inspection cancelled");
 
@@ -71,7 +71,7 @@ export async function inspectBackupArchive(
       }
       totalUncompressed += member.originalSize;
       if (totalUncompressed > BACKUP_LIMITS.uncompressedBytes) {
-        failure = new Error("Invalid backup file: archive expands beyond the restore limit.");
+        failure = new Error("Invalid backup file: archive expands beyond the import limit.");
         return;
       }
     }
@@ -103,7 +103,7 @@ export async function inspectBackupArchive(
           return;
         }
         if (totalUncompressed > BACKUP_LIMITS.uncompressedBytes) {
-          failure = new Error("Invalid backup file: archive expands beyond the restore limit.");
+          failure = new Error("Invalid backup file: archive expands beyond the import limit.");
           return;
         }
         chunks.push(chunk);

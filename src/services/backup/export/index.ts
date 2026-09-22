@@ -10,9 +10,8 @@ import {
   acquireExportGate,
   assertBackupArchiveSize,
   assertBackupExportSizeLimits,
-  DATABASE_SIZE_CEILING,
   releaseExportGate,
-  waitForRestoreGate,
+  waitForImportGate,
 } from "../utils";
 import {
   ARCHIVE_EXTENSION,
@@ -28,8 +27,6 @@ import {
   MANIFEST_FILENAME,
   TIMELINE_DATA_FILENAME,
 } from "../utils/types";
-
-export { DATABASE_SIZE_CEILING };
 
 const CHUNK_SIZE = 256 * 1024;
 
@@ -93,7 +90,7 @@ export async function exportBackupArchive(
 ): Promise<ExportBackupResult> {
   if (options?.signal?.aborted) throw new Error("Backup cancelled");
 
-  await waitForRestoreGate();
+  await waitForImportGate();
   acquireExportGate();
   const createdAt = Date.now();
   const filename = `openlog-backup-${new Date(createdAt).toISOString().replace(/[:.]/g, "-")}${ARCHIVE_EXTENSION}`;
