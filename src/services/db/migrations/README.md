@@ -42,7 +42,7 @@ export async function migrateToV2(db: SchemaDatabase, schema: string): Promise<v
 }
 ```
 
-The `schema` argument is normally `main` when OpenLog starts. During a restore it names the staged backup database instead. That is why migrations must use `${schema}.entries` rather than assuming the live database.
+The `schema` argument is normally `main` when OpenLog starts. Use it rather than assuming `main`, so migrations remain reusable and testable.
 
 ### 2. Register it once
 
@@ -69,16 +69,15 @@ Update the row type, reads/writes, and `validation.ts` for the new final schema.
 2. It runs each missing migration in order inside a transaction, with foreign keys off so table rebuilds stay possible (never toggle that pragma in a migration — SQLite ignores it inside a transaction).
 3. It writes the new version number only when that migration succeeds.
 4. It re-enables `PRAGMA foreign_keys = ON` after the last migration.
-5. On restore, this happens in the staged backup **before** validation and the safe database/media swap.
+5. Restore validates its archive before replacing local rows.
 
-So if v2 fails, the live timeline remains untouched. A backup made by a newer future version is rejected; OpenLog never tries to downgrade it.
+So if v2 fails, the database stays at its prior schema version. A backup made by a newer future version is rejected; OpenLog never tries to downgrade it.
 
 ## Safety rules
 
 - **Never edit, delete, or renumber** a released `vN.ts` file.
 - **Never put two unrelated schema changes** into the same migration if they could be reviewed separately.
 - **Never make a migration depend on app state or the network.** It must work from the database alone.
-- **Never change the live database during restore.** The runner already targets staging; keep using the provided `schema` argument.
-- **Always test upgrade paths**: fresh install → current, v1 → current, and backup restore → current.
+- **Always test upgrade paths**: fresh install → current and v1 → current.
 
 This keeps the folder boring on purpose: one file per irreversible step, a visible order, and no hidden version number to synchronize.

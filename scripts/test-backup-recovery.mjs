@@ -1,15 +1,13 @@
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
-import {
-  ARCHIVE_FORMAT,
-  ARCHIVE_SCHEMA_VERSION,
-  MANIFEST_FILENAME,
-  TIMELINE_DATA_FILENAME,
-} from "../src/services/backup/types.ts";
+import { clearTimelineData, insertTimelineData } from "../src/services/backup/import/timeline.ts";
 import {
   acquireExportGate,
+  assertBackupArchiveSize,
+  assertBackupExportSizeLimits,
   assertBackupManifest,
+  assertBackupMediaReferences,
   assertBackupTimelineData,
   BACKUP_LIMITS,
   calculateRequiredRestoreBytes,
@@ -20,7 +18,13 @@ import {
   releaseExportGate,
   validateArchivePath,
   waitForExportGate,
-} from "../src/services/backup/utils.ts";
+} from "../src/services/backup/utils/index.ts";
+import {
+  ARCHIVE_FORMAT,
+  ARCHIVE_SCHEMA_VERSION,
+  MANIFEST_FILENAME,
+  TIMELINE_DATA_FILENAME,
+} from "../src/services/backup/utils/types.ts";
 import { initializeDatabaseSchema } from "../src/services/db/schema.ts";
 
 function createDbTarget(database) {
@@ -171,6 +175,24 @@ test("schema & manifest JSON validation rejects negative counts", () => {
 
 test("timeline JSON validation accepts valid timeline payload", () => {
   assert.doesNotThrow(() => assertBackupTimelineData(validTimelineData));
+});
+
+test("backup media references must be present in the archive", () => {
+  const entry = validTimelineData.entries[0];
+  assert.doesNotThrow(() => assertBackupMediaReferences([entry], new Set()));
+  const withMedia = {
+    ...entry,
+    images: ["image.jpg"],
+    audios: ["audio.m4a"],
+    attachments: [{ uri: "document.pdf", name: "Document" }],
+  };
+  assert.doesNotThrow(() =>
+    assertBackupMediaReferences([withMedia], new Set(["image.jpg", "audio.m4a", "document.pdf"]))
+  );
+  assert.throws(
+    () => assertBackupMediaReferences([withMedia], new Set(["image.jpg", "unexpected.bin"])),
+    /audio\.m4a is missing/
+  );
 });
 
 test("manifest and timeline cross-validation rejects count mismatches", () => {
@@ -422,6 +444,36 @@ test("backup limits and database ceiling match conservative safety bounds", () =
   assert.equal(BACKUP_LIMITS.media, 100_000);
 });
 
+test("export limits never permit an archive restore will reject", () => {
+  assert.doesNotThrow(() =>
+    assertBackupExportSizeLimits({
+      manifestBytes: BACKUP_LIMITS.manifestBytes,
+      timelineBytes: BACKUP_LIMITS.timelineDataBytes,
+      mediaBytes: [BACKUP_LIMITS.memberBytes],
+    })
+  );
+  assert.throws(
+    () =>
+      assertBackupExportSizeLimits({
+        manifestBytes: BACKUP_LIMITS.manifestBytes + 1,
+        timelineBytes: 0,
+        mediaBytes: [],
+      }),
+    /manifest is too large/
+  );
+  assert.throws(
+    () =>
+      assertBackupExportSizeLimits({
+        manifestBytes: 0,
+        timelineBytes: 0,
+        mediaBytes: [BACKUP_LIMITS.memberBytes + 1],
+      }),
+    /media file is too large/
+  );
+  assert.doesNotThrow(() => assertBackupArchiveSize(BACKUP_LIMITS.archiveBytes));
+  assert.throws(() => assertBackupArchiveSize(BACKUP_LIMITS.archiveBytes + 1), /too large/);
+});
+
 test("export gate serializes media cleanup and unblocks when released", async () => {
   assert.equal(isExportGateActive(), false);
 
@@ -658,4 +710,64 @@ test("in-session restore guarantees full rollback on insertion failure", async (
 
   const baselineEntry = memDb.prepare("SELECT text FROM entries WHERE id = 'entry-baseline'").get();
   assert.equal(baselineEntry.text, "Essential preserved note");
+});
+
+test("confirmed replacement clears old local rows before inserting backup rows", async () => {
+  const memDb = new DatabaseSync(":memory:");
+  const target = createDbTarget(memDb);
+  await initializeDatabaseSchema(target);
+  await target.runAsync(
+    "INSERT INTO entries (id, created_at, updated_at, text) VALUES (?, ?, ?, ?)",
+    "old-entry",
+    1,
+    1,
+    "Old content"
+  );
+
+  await clearTimelineData(target);
+  await insertTimelineData(target, validTimelineData);
+
+  assert.equal(
+    memDb.prepare("SELECT COUNT(*) AS count FROM entries WHERE id = 'old-entry'").get().count,
+    0
+  );
+  assert.equal(
+    memDb.prepare("SELECT COUNT(*) AS count FROM entries WHERE id = 'entry-uuid-1'").get().count,
+    1
+  );
+  assert.equal(memDb.prepare("SELECT COUNT(*) AS count FROM settings").get().count, 0);
+});
+
+test("backup insertion rolls back without reintroducing removed local rows", async () => {
+  const memDb = new DatabaseSync(":memory:");
+  const target = createDbTarget(memDb);
+  await initializeDatabaseSchema(target);
+  await target.runAsync(
+    "INSERT INTO entries (id, created_at, updated_at, text) VALUES (?, ?, ?, ?)",
+    "old-entry",
+    1,
+    1,
+    "Old content"
+  );
+  await clearTimelineData(target);
+  let writes = 0;
+  const failingTarget = {
+    ...target,
+    runAsync: async (source, ...params) => {
+      writes += 1;
+      if (writes === 3) throw new Error("Simulated restore write failure");
+      return target.runAsync(source, ...params);
+    },
+  };
+
+  await assert.rejects(
+    () => insertTimelineData(failingTarget, validTimelineData),
+    /Simulated restore write failure/
+  );
+
+  assert.equal(
+    memDb.prepare("SELECT COUNT(*) AS count FROM entries WHERE id = 'old-entry'").get().count,
+    0
+  );
+  assert.equal(memDb.prepare("SELECT COUNT(*) AS count FROM entries").get().count, 0);
 });

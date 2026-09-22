@@ -6,20 +6,26 @@ import { strFromU8, Unzip, UnzipInflate, UnzipPassThrough } from "fflate";
 import { notifyStoreReload } from "@/modules/entry/store/EntryStore";
 import { runDb } from "@/services/db/database";
 import { mediaDirectory } from "@/services/media/storage";
+import { logDevWarning } from "@/shared/utils/devLog";
+import {
+  acquireRestoreGate,
+  assertBackupManifest,
+  assertBackupMediaReferences,
+  assertBackupTimelineData,
+  BACKUP_LIMITS,
+  calculateRequiredRestoreBytes,
+  extractMediaFilename,
+  releaseRestoreGate,
+  validateArchivePath,
+  waitForExportGate,
+} from "../utils";
 import {
   type ImportBackupOptions,
   type ImportBackupResult,
   MANIFEST_FILENAME,
   TIMELINE_DATA_FILENAME,
-} from "./types";
-import {
-  assertBackupManifest,
-  assertBackupTimelineData,
-  BACKUP_LIMITS,
-  calculateRequiredRestoreBytes,
-  extractMediaFilename,
-  validateArchivePath,
-} from "./utils";
+} from "../utils/types";
+import { clearTimelineData, insertTimelineData } from "./timeline";
 
 function getExistingTimelineDiskBytes(): number {
   let bytes = 0;
@@ -62,8 +68,28 @@ function concat(chunks: Uint8Array[]): Uint8Array {
   return result;
 }
 
+function assertPublishedMedia(mediaNames: ReadonlySet<string>): void {
+  const directory = mediaDirectory();
+  for (const filename of mediaNames) {
+    if (!new File(directory, filename).exists) {
+      throw new Error("Restore media verification failed.");
+    }
+  }
+}
+
+/** True when Restore needs the explicit destructive confirmation. */
+export async function hasLocalContentForRestore(): Promise<boolean> {
+  const hasEntries = await runDb(async (db) => {
+    const row = await db.getFirstAsync<{ count: number }>("SELECT COUNT(*) AS count FROM entries");
+    return (row?.count ?? 0) > 0;
+  });
+  if (hasEntries) return true;
+  const media = mediaDirectory();
+  return media.exists && media.list().some((item) => item instanceof File && item.exists);
+}
+
 /**
- * Restores a structured JSON backup archive in-session with ACID transactional safety.
+ * Validates and stages a structured backup before replacing local content in-session.
  */
 export async function importBackupArchive(
   fileUri: string,
@@ -109,13 +135,8 @@ export async function importBackupArchive(
     }
   }
 
-  const stagingDir = new Directory(
-    Paths.cache,
-    `openlog-restore-${Date.now()}-${Math.random().toString(36).slice(2)}`
-  );
-  stagingDir.create({ idempotent: true, intermediates: true });
-  const stagingMediaDir = new Directory(stagingDir, "media");
-  stagingMediaDir.create({ idempotent: true, intermediates: true });
+  await waitForExportGate();
+  acquireRestoreGate();
 
   const manifestChunks: Uint8Array[] = [];
   const timelineChunks: Uint8Array[] = [];
@@ -124,10 +145,17 @@ export async function importBackupArchive(
   let manifestBytes = 0;
   let timelineBytes = 0;
   let mediaCount = 0;
+  let stagingDir: Directory | null = null;
   const paths = new Set<string>();
   const mediaNames = new Set<string>();
+  const normalizedMediaNames = new Set<string>();
 
   try {
+    stagingDir = new Directory(Paths.cache, `openlog-restore-${Date.now()}`);
+    stagingDir.create({ idempotent: true, intermediates: true });
+    const stagingMediaDir = new Directory(stagingDir, "incoming-media");
+    stagingMediaDir.create({ intermediates: true });
+
     const unzipper = new Unzip();
     unzipper.register(UnzipInflate);
     unzipper.register(UnzipPassThrough);
@@ -159,10 +187,11 @@ export async function importBackupArchive(
         if (member.name.startsWith("media/")) {
           const filename = extractMediaFilename(member.name);
           const filenameKey = filename.normalize("NFC").toLocaleLowerCase("en-US");
-          if (mediaNames.has(filenameKey)) {
+          if (normalizedMediaNames.has(filenameKey)) {
             throw new Error("Invalid backup file: duplicate media filename.");
           }
-          mediaNames.add(filenameKey);
+          normalizedMediaNames.add(filenameKey);
+          mediaNames.add(filename);
           mediaCount++;
           if (mediaCount > BACKUP_LIMITS.media) {
             throw new Error("Invalid backup file: too many media files.");
@@ -281,6 +310,7 @@ export async function importBackupArchive(
         `Backup media count mismatch (${mediaCount} media files, manifest specifies ${rawManifest.counts.media}).`
       );
     }
+    assertBackupMediaReferences(rawTimeline.entries, mediaNames);
     if (options?.counts) {
       if (
         options.counts.entry !== rawManifest.counts.entry ||
@@ -291,106 +321,35 @@ export async function importBackupArchive(
     }
     if (options?.signal?.aborted) throw new Error("Import cancelled");
 
-    // Execute single ACID SQLite transaction
-    await runDb(async (db) => {
-      await db.withTransactionAsync(async () => {
-        await db.runAsync("DELETE FROM entry_tags");
-        await db.runAsync("DELETE FROM tags");
-        await db.runAsync("DELETE FROM entries");
+    // Validation and extraction finish before confirmed replacement touches local content.
+    const liveMedia = mediaDirectory();
+    if (liveMedia.exists) liveMedia.delete();
+    await runDb((db) => clearTimelineData(db));
 
-        // 1. Insert tags
-        for (const tag of rawTimeline.tags) {
-          await db.runAsync(
-            `INSERT INTO tags (id, name, key, color_id, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?)`,
-            tag.id,
-            tag.name,
-            tag.key,
-            tag.colorId,
-            tag.createdAt,
-            tag.updatedAt
-          );
-        }
+    const stagedMedia = new Directory(stagingDir, "incoming-media");
+    if (!stagedMedia.exists) throw new Error("Restore staging media is missing.");
+    await stagedMedia.move(Paths.document);
+    stagedMedia.rename("media");
+    assertPublishedMedia(mediaNames);
+    await runDb((db) => insertTimelineData(db, rawTimeline));
 
-        // 2. Insert entries & entry_tags
-        for (const entry of rawTimeline.entries) {
-          const imagesJson = entry.images?.length ? JSON.stringify(entry.images) : null;
-          const audiosJson = entry.audios?.length ? JSON.stringify(entry.audios) : null;
-          const attachmentsJson = entry.attachments?.length
-            ? JSON.stringify(entry.attachments)
-            : null;
-          const lat = entry.location?.latitude ?? null;
-          const lng = entry.location?.longitude ?? null;
-          const locationName = entry.location?.name ?? null;
-
-          await db.runAsync(
-            `INSERT INTO entries (
-               id, created_at, updated_at, text, images, audios, attachments,
-               latitude, longitude, location
-             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            entry.id,
-            entry.createdAt,
-            entry.updatedAt,
-            entry.text ?? null,
-            imagesJson,
-            audiosJson,
-            attachmentsJson,
-            lat,
-            lng,
-            locationName
-          );
-
-          if (entry.tagIds && entry.tagIds.length > 0) {
-            for (const tagId of entry.tagIds) {
-              await db.runAsync(
-                "INSERT INTO entry_tags (entry_id, tag_id) VALUES (?, ?)",
-                entry.id,
-                tagId
-              );
-            }
-          }
-        }
-
-        // 3. Update settings if present
-        if (rawTimeline.settings) {
-          for (const [key, value] of Object.entries(rawTimeline.settings)) {
-            await db.runAsync(
-              "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
-              key,
-              value
-            );
-          }
-        }
-
-        // 4. Rebuild FTS5 search index
-        await db.runAsync("INSERT INTO entries_fts(entries_fts) VALUES ('rebuild')");
-      });
-    });
-
-    // Copy media files to live media directory
-    const liveMediaDir = mediaDirectory();
-    liveMediaDir.create({ idempotent: true, intermediates: true });
-
-    if (stagingMediaDir.exists) {
-      const stagedItems = stagingMediaDir.list();
-      for (const item of stagedItems) {
-        if (item instanceof File && item.exists) {
-          const target = new File(liveMediaDir, item.name);
-          await item.copy(target, { overwrite: true });
-        }
-      }
+    try {
+      notifyStoreReload();
+    } catch (error) {
+      logDevWarning("backup:restoreReload", error);
     }
-
-    notifyStoreReload();
 
     return { importedCount: rawTimeline.entries.length };
+  } catch (error) {
+    throw error instanceof Error ? error : new Error("The restore could not be completed.");
   } finally {
-    if (stagingDir.exists) {
+    if (stagingDir?.exists) {
       try {
         stagingDir.delete();
-      } catch {
-        // ignore
+      } catch (error) {
+        logDevWarning("backup:restoreStagingCleanup", error);
       }
     }
+    releaseRestoreGate();
   }
 }

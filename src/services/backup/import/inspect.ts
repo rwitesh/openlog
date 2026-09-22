@@ -1,13 +1,13 @@
 import { File, FileMode } from "expo-file-system";
 import { strFromU8, Unzip, UnzipInflate, UnzipPassThrough } from "fflate";
+import { assertBackupManifest, BACKUP_LIMITS, validateArchivePath } from "../utils";
 import {
   ARCHIVE_EXTENSION,
   type InspectBackupOptions,
   type InspectBackupResult,
   MANIFEST_FILENAME,
   TIMELINE_DATA_FILENAME,
-} from "./types";
-import { assertBackupManifest, BACKUP_LIMITS, validateArchivePath } from "./utils";
+} from "../utils/types";
 
 function concatChunks(chunks: Uint8Array[]): Uint8Array {
   const length = chunks.reduce((total, chunk) => total + chunk.length, 0);
@@ -97,7 +97,7 @@ export async function inspectBackupArchive(
           return;
         }
         manifestBytes += chunk.length;
-        totalUncompressed += chunk.length;
+        if (member.originalSize === undefined) totalUncompressed += chunk.length;
         if (manifestBytes > BACKUP_LIMITS.manifestBytes) {
           failure = new Error("Invalid backup manifest: manifest data too large.");
           return;
