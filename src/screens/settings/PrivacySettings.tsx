@@ -13,8 +13,8 @@ import {
 } from "@/modules/settings";
 import {
   authenticate,
-  type BiometricSupport,
-  getBiometricSupport,
+  type EnrolledAuthLevel,
+  getEnrolledAuthLevel,
   useBiometricLock,
 } from "@/services/auth";
 import {
@@ -58,15 +58,15 @@ export function PrivacySettingsScreen() {
   const { colors } = theme;
   const { enabled, setEnabled } = useBiometricLock();
   const { clearAll } = useEntries();
-  const [support, setSupport] = useState<BiometricSupport | null>(null);
+  const [authLevel, setAuthLevel] = useState<EnrolledAuthLevel | null>(null);
   const [verifying, setVerifying] = useState(false);
   const { isExporting, isImporting } = useBackupStatus();
 
   useEffect(() => {
     let active = true;
 
-    getBiometricSupport().then((result) => {
-      if (active) setSupport(result);
+    getEnrolledAuthLevel().then((result) => {
+      if (active) setAuthLevel(result);
     });
 
     return () => {
@@ -75,9 +75,9 @@ export function PrivacySettingsScreen() {
   }, []);
 
   const caption = (() => {
-    if (!support) return "Checking device support";
-    if (!support.hasHardware) return "Not supported on this device.";
-    if (!support.isEnrolled) return "Set up biometrics in device settings.";
+    if (!authLevel) return "Checking device support";
+    if (authLevel === "none") return "Set up biometrics or a device passcode to use the app lock.";
+    if (authLevel === "passcode") return "Require your device passcode to open the app.";
     return "Require Face ID or fingerprint to open the app.";
   })();
 
@@ -88,11 +88,12 @@ export function PrivacySettingsScreen() {
       return;
     }
 
-    if (!support?.available || verifying) return;
+    if (verifying || !authLevel || authLevel === "none") return;
 
-    // Confirm with a live scan before arming the lock.
+    // Confirm with a live OS prompt (biometrics, or the device passcode on
+    // passcode-only devices) before arming the lock.
     setVerifying(true);
-    const confirmed = await authenticate("Enable biometric unlock");
+    const confirmed = await authenticate("Enable app lock");
     setVerifying(false);
 
     if (confirmed) {
@@ -372,7 +373,7 @@ export function PrivacySettingsScreen() {
           <View style={styles.row}>
             <View style={styles.labelGroup}>
               <ThemedText style={[typography.settingLabel, { color: colors.text }]}>
-                Require Biometric Unlock
+                App Lock
               </ThemedText>
               <ThemedText style={[styles.caption, { color: colors.textSecondary }]}>
                 {caption}
@@ -381,10 +382,10 @@ export function PrivacySettingsScreen() {
             <Switch
               value={enabled}
               onValueChange={(value) => void handleToggle(value)}
-              disabled={!support?.available || verifying}
+              disabled={!authLevel || authLevel === "none" || verifying}
               trackColor={{ false: colors.line, true: colors.marker }}
               thumbColor={colors.surface}
-              accessibilityLabel="Require biometric unlock setting"
+              accessibilityLabel="App lock setting"
             />
           </View>
         </View>

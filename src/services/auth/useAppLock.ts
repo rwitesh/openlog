@@ -1,16 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, type AppStateStatus } from "react-native";
 
-import { authenticate } from "./auth";
+import { analytics } from "@/config/analytics";
+import { authenticate, getEnrolledAuthLevel } from "./auth";
 
 const UNLOCK_REASON = "Unlock your entries";
 const BACKGROUND_LOCK_THRESHOLD_MS = 60 * 1000; // 1 minute in background before re-locking
 
 /**
  * Owns the app-lock gate:
- *   - App opens with the lock on: locked, prompt once
- *   - App backgrounded for > 60 seconds: re-locks upon resume
- *   - Disabled from Settings: gate opens immediately
+ *   - opens locked and prompts while the lock is enabled
+ *   - re-locks after > 60 seconds in background
+ *   - opens directly when the device has no unlock method left, so the user
+ *     is never trapped outside their data (the enabled preference is kept and
+ *     the lock resumes once a screen lock exists again)
  */
 export function useAppLock(enabled: boolean) {
   const [locked, setLocked] = useState(enabled);
@@ -30,12 +33,21 @@ export function useAppLock(enabled: boolean) {
     promptingRef.current = true;
     setPrompting(true);
 
-    const success = await authenticate(UNLOCK_REASON);
+    try {
+      if ((await getEnrolledAuthLevel()) === "none") {
+        // Nothing on the device can verify the owner; prompting could never
+        // succeed and reinstalling would destroy the local timeline.
+        analytics.capture("app_lock_bypassed");
+        setLocked(false);
+        return;
+      }
 
-    promptingRef.current = false;
-    setPrompting(false);
-    if (success) {
-      setLocked(false);
+      if (await authenticate(UNLOCK_REASON)) {
+        setLocked(false);
+      }
+    } finally {
+      promptingRef.current = false;
+      setPrompting(false);
     }
   }, []);
 

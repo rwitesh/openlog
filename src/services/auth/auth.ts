@@ -1,46 +1,30 @@
 import * as LocalAuthentication from "expo-local-authentication";
 import { Platform } from "react-native";
 
+/** What the device can verify the owner with right now. */
+export type EnrolledAuthLevel = "none" | "passcode" | "biometrics";
+
 /**
- * Hardware capability snapshot for the biometric lock feature.
- * `available` is the single gate the UI should care about.
+ * The device's owner-verification level: enrolled biometrics, a passcode-only
+ * screen lock, or nothing the OS could verify against. A failed probe reports
+ * "none" so the lock gate opens rather than trapping the user.
  */
-export interface BiometricSupport {
-  /** Hardware present AND biometrics (or a passcode) enrolled. */
-  available: boolean;
-  hasHardware: boolean;
-  isEnrolled: boolean;
-}
-
-const UNSUPPORTED: BiometricSupport = {
-  available: false,
-  hasHardware: false,
-  isEnrolled: false,
-};
-
-/** Probes the device once (web is never lockable). Cheap enough to call per settings mount. */
-export async function getBiometricSupport(): Promise<BiometricSupport> {
-  if (Platform.OS === "web") return UNSUPPORTED;
+export async function getEnrolledAuthLevel(): Promise<EnrolledAuthLevel> {
+  if (Platform.OS === "web") return "none";
 
   try {
-    const [hasHardware, isEnrolled] = await Promise.all([
-      LocalAuthentication.hasHardwareAsync(),
-      LocalAuthentication.isEnrolledAsync(),
-    ]);
-
-    return {
-      available: hasHardware && isEnrolled,
-      hasHardware,
-      isEnrolled,
-    };
+    const level = await LocalAuthentication.getEnrolledLevelAsync();
+    if (level === LocalAuthentication.SecurityLevel.NONE) return "none";
+    if (level === LocalAuthentication.SecurityLevel.SECRET) return "passcode";
+    return "biometrics";
   } catch {
-    return UNSUPPORTED;
+    return "none";
   }
 }
 
 /**
- * Runs the OS biometric prompt. Falls back to the device passcode,
- * so your entries are never locked out by a failed sensor read.
+ * Runs the OS unlock prompt: biometrics when enrolled, with the device
+ * passcode as fallback, so a failed sensor read never locks the user out.
  * @see https://docs.expo.dev/versions/latest/sdk/local-authentication/
  */
 export async function authenticate(reason: string): Promise<boolean> {
