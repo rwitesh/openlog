@@ -549,58 +549,60 @@ export function TypographySettingsScreen() {
           ) : null}
         </View>
 
-        {downloadedFonts.length > 0 ? (
-          <View style={typoStyles.sectionBlock}>
-            <View style={typoStyles.sectionHeaderRow}>
-              <ThemedText
-                weight="medium"
-                style={[typoStyles.sectionTitle, { color: colors.textSecondary }]}
-              >
-                DOWNLOADED
-              </ThemedText>
-              <ThemedText style={[typoStyles.sectionCount, { color: colors.textTertiary }]}>
-                {downloadedFonts.length}
+        <ScrollView
+          style={typoStyles.listScroll}
+          contentContainerStyle={typoStyles.listScrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {downloadedFonts.length > 0 ? (
+            <View style={typoStyles.sectionBlock}>
+              <View style={typoStyles.sectionHeaderRow}>
+                <ThemedText
+                  weight="medium"
+                  style={[typoStyles.sectionTitle, { color: colors.textSecondary }]}
+                >
+                  DOWNLOADED
+                </ThemedText>
+                <ThemedText style={[typoStyles.sectionCount, { color: colors.textTertiary }]}>
+                  {downloadedFonts.length}
+                </ThemedText>
+              </View>
+
+              <View style={typoStyles.list}>
+                {downloadedFonts.map((fontName) => renderFontRow(fontName, true))}
+              </View>
+            </View>
+          ) : null}
+
+          {availableFonts.length > 0 ? (
+            <View style={typoStyles.sectionBlock}>
+              <View style={typoStyles.sectionHeaderRow}>
+                <ThemedText
+                  weight="medium"
+                  style={[typoStyles.sectionTitle, { color: colors.textSecondary }]}
+                >
+                  AVAILABLE
+                </ThemedText>
+                <ThemedText style={[typoStyles.sectionCount, { color: colors.textTertiary }]}>
+                  {availableFonts.length}
+                </ThemedText>
+              </View>
+
+              <View style={typoStyles.list}>
+                {availableFonts.map((fontName) => renderFontRow(fontName, false))}
+              </View>
+            </View>
+          ) : null}
+
+          {!downloadedFonts.length && !availableFonts.length ? (
+            <View style={typoStyles.emptyState}>
+              <ThemedText style={[typoStyles.emptyText, { color: colors.textSecondary }]}>
+                No fonts matching &quot;{searchQuery}&quot;
               </ThemedText>
             </View>
-
-            <View style={typoStyles.list}>
-              {downloadedFonts.map((fontName) => renderFontRow(fontName, true))}
-            </View>
-          </View>
-        ) : null}
-
-        {availableFonts.length > 0 ? (
-          <View style={typoStyles.availableSection}>
-            <View style={typoStyles.sectionHeaderRow}>
-              <ThemedText
-                weight="medium"
-                style={[typoStyles.sectionTitle, { color: colors.textSecondary }]}
-              >
-                AVAILABLE
-              </ThemedText>
-              <ThemedText style={[typoStyles.sectionCount, { color: colors.textTertiary }]}>
-                {availableFonts.length}
-              </ThemedText>
-            </View>
-
-            <ScrollView
-              style={typoStyles.availableScroll}
-              contentContainerStyle={typoStyles.availableList}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-            >
-              {availableFonts.map((fontName) => renderFontRow(fontName, false))}
-            </ScrollView>
-          </View>
-        ) : null}
-
-        {!downloadedFonts.length && !availableFonts.length ? (
-          <View style={typoStyles.emptyState}>
-            <ThemedText style={[typoStyles.emptyText, { color: colors.textSecondary }]}>
-              No fonts matching &quot;{searchQuery}&quot;
-            </ThemedText>
-          </View>
-        ) : null}
+          ) : null}
+        </ScrollView>
       </View>
     </SettingsEditorScreen>
   );
@@ -628,16 +630,11 @@ const typoStyles = StyleSheet.create({
   sectionBlock: {
     gap: space.xs + 2,
   },
-  availableSection: {
-    flex: 1,
-    gap: space.xs + 2,
-    minHeight: 0,
-  },
-  availableScroll: {
+  listScroll: {
     flex: 1,
   },
-  availableList: {
-    gap: 6,
+  listScrollContent: {
+    gap: space.md - 2,
     paddingBottom: space.md,
   },
   sectionHeaderRow: {
@@ -718,9 +715,7 @@ const typoStyles = StyleSheet.create({
     justifyContent: "center",
   },
   emptyState: {
-    flex: 1,
     alignItems: "center",
-    justifyContent: "center",
     paddingVertical: space.xxl,
   },
   emptyText: {
