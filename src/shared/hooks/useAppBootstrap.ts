@@ -82,7 +82,7 @@ export function useAppBootstrap(): AppBootstrapState {
   const theme = resolveTheme(effectivePreferences, systemScheme);
   const backgroundColor = theme.colors.background;
   const fontsReady = fontsLoaded || Boolean(fontError);
-  // Splash hides from App's BootstrapGate, which also waits for Clerk when onboarding is pending.
+  // Splash hides from App's BootstrapGate once local bootstrap finishes.
   const ready = fontsReady && profileLoaded && preferences !== null;
 
   return {

@@ -96,7 +96,7 @@
             "enableMinifyInReleaseBuilds": true,
             "enableShrinkResourcesInReleaseBuilds": true,
             "enablePngCrunchInReleaseBuilds": true,
-            "extraProguardRules": "-dontwarn kotlin.MustUseReturnValues\n-dontwarn kotlinx.io.**\n-dontwarn kotlin.**\n-dontwarn com.clerk.**\n-keep class com.clerk.** { *; }"
+            "extraProguardRules": "-dontwarn kotlin.MustUseReturnValues\n-dontwarn kotlinx.io.**\n-dontwarn kotlin.**"
           },
           "ios": {
             "ccacheEnabled": true
@@ -105,7 +105,6 @@
       ],
       "expo-sqlite",
       "expo-secure-store",
-      "@clerk/expo",
       "expo-localization"
     ],
     "extra": {

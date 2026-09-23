@@ -1,5 +1,3 @@
-import { ClerkProvider, useUser } from "@clerk/expo";
-import { tokenCache } from "@clerk/expo/token-cache";
 import { NavigationContainer, useNavigationContainerRef } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import * as SplashScreen from "expo-splash-screen";
@@ -9,10 +7,9 @@ import { type ReactNode, useEffect, useRef } from "react";
 import { View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { analytics } from "@/config/analytics";
-import { clerkPublishableKey } from "@/config/clerk";
 import { posthog } from "@/config/posthog";
 import { AppLockGate } from "@/modules/auth";
-import { ProfileProvider, useProfile } from "@/modules/profile";
+import { ProfileProvider } from "@/modules/profile";
 import type { RootStackParamList } from "@/navigation";
 import { Compose } from "@/screens/compose";
 import { Day } from "@/screens/day";
@@ -36,8 +33,7 @@ import { useAppBootstrap } from "@/shared/hooks";
 import { logDevWarning } from "@/shared/utils";
 import { AppProviders, useNavigationTheme, useTheme } from "@/theme";
 
-/** Holds the splash screen until local bootstrap (fonts + preferences) finishes;
-    Clerk connects in the background and Welcome handles its readiness itself. */
+/** Holds the splash screen until local bootstrap (fonts + preferences) finishes. */
 function BootstrapGate({
   ready,
   backgroundColor,
@@ -54,23 +50,6 @@ function BootstrapGate({
 
   if (!ready) return <View style={{ flex: 1, backgroundColor }} />;
   return <>{children}</>;
-}
-
-/** Mirrors the Clerk first name into the local profile when none is set yet. */
-function ClerkNameSync() {
-  const { user, isLoaded } = useUser();
-  const { name, setName } = useProfile();
-  const clerkName =
-    [user?.firstName, user?.lastName]
-      .map((part) => part?.trim())
-      .filter(Boolean)
-      .join(" ") || null;
-
-  useEffect(() => {
-    if (isLoaded && clerkName && !name?.trim()) setName(clerkName);
-  }, [isLoaded, clerkName, name, setName]);
-
-  return null;
 }
 
 SplashScreen.setOptions({ duration: 400, fade: true });
@@ -106,7 +85,6 @@ function AppContent({ showWelcome }: { showWelcome: boolean }) {
         onReady={trackCurrentScreen}
         onStateChange={trackCurrentScreen}
       >
-        <ClerkNameSync />
         <StatusBar style={mode === "dark" ? "light" : "dark"} />
         {posthog ? (
           <PostHogProvider client={posthog} autocapture={false}>
@@ -210,21 +188,19 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <ClerkProvider publishableKey={clerkPublishableKey} tokenCache={tokenCache}>
-        <BootstrapGate ready={ready} backgroundColor={backgroundColor}>
-          <Layout>
-            <AppProviders initialPreferences={preferences}>
-              <ProfileProvider initialName={userName}>
-                <AudioProvider>
-                  <AppLockGate>
-                    <AppContent showWelcome={showWelcome} />
-                  </AppLockGate>
-                </AudioProvider>
-              </ProfileProvider>
-            </AppProviders>
-          </Layout>
-        </BootstrapGate>
-      </ClerkProvider>
+      <BootstrapGate ready={ready} backgroundColor={backgroundColor}>
+        <Layout>
+          <AppProviders initialPreferences={preferences}>
+            <ProfileProvider initialName={userName}>
+              <AudioProvider>
+                <AppLockGate>
+                  <AppContent showWelcome={showWelcome} />
+                </AppLockGate>
+              </AudioProvider>
+            </ProfileProvider>
+          </AppProviders>
+        </Layout>
+      </BootstrapGate>
     </SafeAreaProvider>
   );
 }

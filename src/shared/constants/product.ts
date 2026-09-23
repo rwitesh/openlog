@@ -6,6 +6,3 @@ export const WEBSITE_URL = "https://rwitesh.github.io/openlog/";
 export const CHANGELOG_URL = "https://rwitesh.github.io/openlog/changelog.html";
 export const PRIVACY_POLICY_URL = "https://rwitesh.github.io/openlog/privacy-policy.html";
 export const TERMS_URL = "https://rwitesh.github.io/openlog/terms.html";
-
-// Beta switch: false = local-only onboarding with optional login; true restores the Clerk-gated flow.
-export const AUTH_REQUIRED_FOR_ONBOARDING = false;
