@@ -4,7 +4,6 @@
   "author": "Rwitesh Bera",
   "main": "index.ts",
   "dependencies": {
-    "@clerk/expo": "^4.6.2",
     "@expo-google-fonts/source-sans-3": "^0.4.1",
     "@expo/vector-icons": "^15.0.2",
     "@react-native-community/slider": "5.2.0",

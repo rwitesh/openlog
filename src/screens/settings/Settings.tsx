@@ -1,11 +1,9 @@
-import { useAuth, useUser } from "@clerk/expo";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { StyleSheet, View } from "react-native";
 import { useProfile } from "@/modules/profile";
 import { SettingsGroup, SettingsRow, SettingsScreenScroll } from "@/modules/settings";
 import type { RootStackParamList } from "@/navigation/types";
 import { useBiometricLock } from "@/services/auth";
-import { AUTH_REQUIRED_FOR_ONBOARDING } from "@/shared/constants";
 import { APP_VERSION } from "@/shared/utils";
 import { ACCENT_OPTIONS, type ThemeMode, usePreferences, useTheme } from "@/theme";
 
@@ -28,11 +26,7 @@ export function SettingsScreen({ navigation }: Props) {
   const { preferences } = usePreferences();
   const { name } = useProfile();
   const { enabled: biometricLock } = useBiometricLock();
-  const { isLoaded, isSignedIn } = useAuth();
-  const { user } = useUser();
   const { colors } = theme;
-  const email = user?.primaryEmailAddress?.emailAddress;
-  const signedIn = isLoaded && isSignedIn;
 
   const { appearance } = preferences;
 
@@ -45,18 +39,8 @@ export function SettingsScreen({ navigation }: Props) {
         <SettingsRow
           icon="user"
           title="Profile"
-          subtitle={
-            signedIn
-              ? name?.trim() || email || "Account"
-              : AUTH_REQUIRED_FOR_ONBOARDING
-                ? "Log in or create an account"
-                : name?.trim() || "Your local profile"
-          }
-          onPress={() =>
-            navigation.navigate(
-              signedIn || !AUTH_REQUIRED_FOR_ONBOARDING ? "SettingsProfile" : "Welcome"
-            )
-          }
+          subtitle={name?.trim() || "Your local profile"}
+          onPress={() => navigation.navigate("SettingsProfile")}
         />
 
         <SettingsRow
