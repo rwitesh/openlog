@@ -338,15 +338,15 @@ export function PrivacySettingsScreen() {
     };
     const alreadyHasContent = await hasLocalContentForImport();
     Alert.alert(
-      alreadyHasContent ? "Replace all local content?" : "Import timeline?",
+      "Import backup?",
       alreadyHasContent
-        ? `${entryLabel} from ${dateStr}.\n\nThis permanently deletes all local entries and media before importing this backup. This cannot be undone.`
+        ? `${entryLabel} from ${dateStr}.\n\nImporting will permanently delete your current entries and media, then add the backup. This cannot be undone.`
         : `${entryLabel} from ${dateStr}.`,
       [
         { text: "Cancel", style: "cancel", onPress: cancelImport },
         {
-          text: alreadyHasContent ? "Replace all local content" : "Import",
-          style: "destructive",
+          text: "Import",
+          style: alreadyHasContent ? "destructive" : "default",
           onPress: startImport,
         },
       ]

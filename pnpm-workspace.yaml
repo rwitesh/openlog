@@ -7,7 +7,7 @@ allowBuilds:
   utf-8-validate: false
 
 minimumReleaseAgeExclude:
-  - '@expo/cli@57.0.24 || 57.0.25 || 57.0.26'
+  - '@expo/cli@57.0.24 || 57.0.25 || 57.0.26 || 57.0.27'
   - '@expo/fingerprint@0.20.13'
   - '@expo/prebuild-config@57.0.16'
   - expo-application@57.0.3
@@ -20,26 +20,27 @@ minimumReleaseAgeExclude:
   - expo-document-picker@57.0.2
   - expo-file-system@57.0.7
   - expo-font@57.0.4
-  - expo-image-manipulator@57.0.17 || 57.0.18 || 57.0.19
-  - expo-image-picker@57.0.17 || 57.0.18 || 57.0.19
+  - expo-image-manipulator@57.0.17 || 57.0.18 || 57.0.19 || 57.0.20
+  - expo-image-picker@57.0.17 || 57.0.18 || 57.0.19 || 57.0.20
   - expo-image@57.0.5
   - expo-json-utils@57.0.2
   - expo-keep-awake@57.0.2
   - expo-linear-gradient@57.0.2
   - expo-local-authentication@57.0.3
   - expo-localization@57.0.2
-  - expo-location@57.0.17 || 57.0.18 || 57.0.19
+  - expo-location@57.0.17 || 57.0.18 || 57.0.19 || 57.0.20
   - expo-manifests@57.0.2
   - expo-modules-autolinking@57.0.13
-  - expo-modules-core@57.0.18
-  - expo-notifications@57.0.18 || 57.0.19 || 57.0.20
+  - expo-modules-core@57.0.18 || 57.0.19
+  - expo-notifications@57.0.18 || 57.0.19 || 57.0.20 || 57.0.21
   - expo-secure-store@57.0.4
-  - expo-sharing@57.0.19 || 57.0.20 || 57.0.21
+  - expo-sharing@57.0.19 || 57.0.20 || 57.0.21 || 57.0.22
   - expo-splash-screen@57.0.9
   - expo-sqlite@57.0.3
   - expo-system-ui@57.0.4
   - expo-updates-interface@57.0.2
-  - expo@57.0.22 || 57.0.23 || 57.0.24
-  - '@expo/router-server@57.0.10'
-  - babel-preset-expo@57.0.12
-  - expo-build-properties@57.0.19 || 57.0.21
+  - expo@57.0.22 || 57.0.23 || 57.0.24 || 57.0.25
+  - '@expo/router-server@57.0.10 || 57.0.11'
+  - babel-preset-expo@57.0.12 || 57.0.13
+  - expo-build-properties@57.0.19 || 57.0.21 || 57.0.22
+  - expo-modules-jsi@57.1.1
