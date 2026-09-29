@@ -1,17 +1,16 @@
-# OpenLog
+# <img src="assets/icon.png" width="40" height="40" align="absmiddle" alt="" /> OpenLog
 
-A local-first personal timeline for Android. Keep notes, plans, tasks, goals, photos, recordings, and files together in one calm place.
+A private personal timeline for your life, on Android.
+
+OpenLog is one quiet place for everything on your mind. A place to keep the passing details and the things that matter, without pressure to turn them into anything more.
+
+## What it believes
+
+Your attention is the scarcest thing you own, so OpenLog spends it carefully. There are no streaks, no badges, no notification guilt, and no algorithmic feed. Writing about your life should feel like thinking, not performing.
+
+Your timeline belongs to you. Your content stays on your device, never uploaded to us or sold. It is yours to keep, revisit, and carry with you.
 
 [Get OpenLog on Google Play](https://play.google.com/store/apps/details?id=share.openlog.mobile)
-
-## Your timeline, your way
-
-- Capture text, media, or both. Every attachment belongs to an entry.
-- Find the same entries through search, tags, and calendar views.
-- Work offline, protect access with app lock, and export or restore portable backups.
-- Keep your attention: no streaks, badges, ads, or algorithmic feed.
-
-Your content stays on your device. Product analytics exclude entry text, attachment names, locations, media, and profile values. Read the [Privacy Policy](webpage/privacy-policy.html) for details.
 
 ## Development
 
