@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useEffect, useRef, useState } from "react";
-import { Pressable, StyleSheet, type TextInput, View } from "react-native";
+import { Alert, Pressable, StyleSheet, type TextInput, View } from "react-native";
 import { analytics } from "@/config/analytics";
 import {
   ComposeAttachments,
@@ -19,6 +19,7 @@ import { Layout, useKeepFocus } from "@/shared/components/Layout";
 import { CalendarPicker, TimePicker } from "@/shared/pickers";
 import type { Entry } from "@/shared/types";
 import { withTimeOfDay } from "@/shared/utils/dates";
+import { reportError } from "@/shared/utils/devLog";
 import { metrics, press, space, useTheme } from "@/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Compose">;
@@ -319,7 +320,13 @@ function ComposeContent({ navigation, route, existing }: ComposeContentProps) {
           onClose={() => setDetailsOpen(false)}
           onEdit={() => setMode("edit")}
           onDelete={async () => {
-            await removeEntry(existing.id);
+            try {
+              await removeEntry(existing.id);
+            } catch (error) {
+              reportError("entry:delete", error);
+              Alert.alert("Could not delete", "Please try again.");
+              return;
+            }
             analytics.capture("entry_deleted", {
               has_text: Boolean(existing.text?.trim()),
               image_count: existing.images.length,

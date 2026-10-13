@@ -210,7 +210,7 @@ export async function createEntry(input: NewEntryInput): Promise<Entry> {
         id,
         createdAt,
         updatedAt,
-        input.text ?? null,
+        input.text || null,
         images.length ? JSON.stringify(images) : null,
         audios.length ? JSON.stringify(audios) : null,
         input.attachments?.length ? JSON.stringify(input.attachments) : null,
@@ -227,7 +227,7 @@ export async function createEntry(input: NewEntryInput): Promise<Entry> {
       id,
       createdAt,
       updatedAt,
-      text: input.text,
+      text: input.text || undefined,
       images: images.map(mediaFileUri),
       audios: audios.map(mediaFileUri),
       attachments: (input.attachments ?? []).map((attachment) => ({

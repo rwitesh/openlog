@@ -4,7 +4,7 @@ import { analytics } from "@/config/analytics";
 import { useProfile } from "@/modules/profile";
 import type { RootStackParamList } from "@/navigation/types";
 import { ONBOARDING_COMPLETED_KEY, setSetting } from "@/services/db/settings";
-import { logDevWarning } from "@/shared/utils";
+import { reportError } from "@/shared/utils";
 
 type Navigation = NativeStackNavigationProp<RootStackParamList, "Welcome">;
 
@@ -13,7 +13,7 @@ export type Step = "showcase" | "name";
 /** Marks onboarding done and leaves the Welcome screen. */
 export function completeOnboarding(navigation: Navigation) {
   setSetting(ONBOARDING_COMPLETED_KEY, "1").catch((error) =>
-    logDevWarning("welcome:markDone", error)
+    reportError("welcome:markDone", error)
   );
   if (navigation.canGoBack()) navigation.goBack();
   else navigation.replace("Timeline");

@@ -26,6 +26,31 @@ export function assertBackupMediaReferences(
   }
 }
 
+export interface BackupCountsInput {
+  manifest: BackupManifest;
+  timeline: BackupTimelineData;
+  mediaCount: number;
+}
+
+/** Rejects archives whose contents disagree with the counts their manifest declares. */
+export function assertBackupCounts({ manifest, timeline, mediaCount }: BackupCountsInput): void {
+  if (timeline.entries.length !== manifest.counts.entry) {
+    throw new Error(
+      `Backup entry count mismatch (${timeline.entries.length} entries, manifest specifies ${manifest.counts.entry}).`
+    );
+  }
+  if (timeline.tags.length !== manifest.counts.tag) {
+    throw new Error(
+      `Backup tag count mismatch (${timeline.tags.length} tags, manifest specifies ${manifest.counts.tag}).`
+    );
+  }
+  if (mediaCount !== manifest.counts.media) {
+    throw new Error(
+      `Backup media count mismatch (${mediaCount} media files, manifest specifies ${manifest.counts.media}).`
+    );
+  }
+}
+
 function isNonNegativeInteger(value: unknown): boolean {
   return typeof value === "number" && Number.isInteger(value) && value >= 0;
 }
@@ -76,7 +101,7 @@ export function assertBackupManifest(data: unknown): asserts data is BackupManif
   }
 }
 
-/** Validates the structured JSON timeline archive data. */
+/** Validates timeline data, including the uniqueness and reference rules the database enforces. */
 export function assertBackupTimelineData(data: unknown): asserts data is BackupTimelineData {
   if (!data || typeof data !== "object") {
     throw new Error("Invalid backup timeline: not an object.");
@@ -86,6 +111,8 @@ export function assertBackupTimelineData(data: unknown): asserts data is BackupT
   if (!Array.isArray(obj.tags)) {
     throw new Error("Invalid backup timeline: tags must be an array.");
   }
+  const tagIds = new Set<string>();
+  const tagKeys = new Set<string>();
   for (const tag of obj.tags) {
     if (!tag || typeof tag !== "object") {
       throw new Error("Invalid backup tag: malformed item.");
@@ -102,17 +129,24 @@ export function assertBackupTimelineData(data: unknown): asserts data is BackupT
     if (typeof t.updatedAt !== "number" || !Number.isFinite(t.updatedAt)) {
       throw new Error("Invalid backup tag: updatedAt is required.");
     }
+    if (tagIds.has(t.id)) throw new Error("Invalid backup tag: duplicate id.");
+    if (tagKeys.has(t.key)) throw new Error("Invalid backup tag: duplicate name.");
+    tagIds.add(t.id);
+    tagKeys.add(t.key);
   }
 
   if (!Array.isArray(obj.entries)) {
     throw new Error("Invalid backup timeline: entries must be an array.");
   }
+  const entryIds = new Set<string>();
   for (const entry of obj.entries) {
     if (!entry || typeof entry !== "object") {
       throw new Error("Invalid backup entry: malformed item.");
     }
     const e = entry as Record<string, unknown>;
     if (typeof e.id !== "string" || !e.id) throw new Error("Invalid backup entry: missing id.");
+    if (entryIds.has(e.id)) throw new Error("Invalid backup entry: duplicate id.");
+    entryIds.add(e.id);
     if (typeof e.createdAt !== "number" || !Number.isFinite(e.createdAt)) {
       throw new Error("Invalid backup entry: createdAt is required.");
     }
@@ -136,10 +170,23 @@ export function assertBackupTimelineData(data: unknown): asserts data is BackupT
         if (!attachment || typeof attachment !== "object" || !isBareFilename(attachment.uri)) {
           throw new Error("Invalid backup entry: attachment uris must be media filenames.");
         }
+        if (typeof attachment.name !== "string") {
+          throw new Error("Invalid backup entry: attachment names must be strings.");
+        }
       }
     }
-    if (e.tagIds !== undefined && !Array.isArray(e.tagIds)) {
-      throw new Error("Invalid backup entry: tagIds must be an array.");
+    if (e.tagIds !== undefined) {
+      if (!Array.isArray(e.tagIds)) {
+        throw new Error("Invalid backup entry: tagIds must be an array.");
+      }
+      const entryTagIds = new Set<string>();
+      for (const tagId of e.tagIds) {
+        if (typeof tagId !== "string" || !tagIds.has(tagId)) {
+          throw new Error("Invalid backup entry: tagIds must reference backup tags.");
+        }
+        if (entryTagIds.has(tagId)) throw new Error("Invalid backup entry: duplicate tag.");
+        entryTagIds.add(tagId);
+      }
     }
     if (e.location !== undefined && e.location !== null) {
       if (typeof e.location !== "object") {
@@ -149,11 +196,19 @@ export function assertBackupTimelineData(data: unknown): asserts data is BackupT
       if (typeof loc.latitude !== "number" || typeof loc.longitude !== "number") {
         throw new Error("Invalid backup entry: location coordinates must be numbers.");
       }
+      if (loc.name !== undefined && loc.name !== null && typeof loc.name !== "string") {
+        throw new Error("Invalid backup entry: location name must be a string.");
+      }
     }
   }
 
-  if (obj.settings !== undefined && (typeof obj.settings !== "object" || obj.settings === null)) {
-    throw new Error("Invalid backup timeline: settings must be an object.");
+  if (obj.settings !== undefined) {
+    if (typeof obj.settings !== "object" || obj.settings === null || Array.isArray(obj.settings)) {
+      throw new Error("Invalid backup timeline: settings must be an object.");
+    }
+    if (!Object.values(obj.settings).every((value) => typeof value === "string")) {
+      throw new Error("Invalid backup timeline: settings values must be strings.");
+    }
   }
   if (
     obj.preferences !== undefined &&

@@ -42,11 +42,11 @@ import {
   notifyBackupProgress,
 } from "@/services/notifications";
 import { ThemedText } from "@/shared/components/ThemedText";
-import { logDevWarning } from "@/shared/utils";
+import { logDevWarning, reportError } from "@/shared/utils";
 import { press, space, typography, useTheme } from "@/theme";
 
 const IMPORT_FAILURE_MESSAGE =
-  "Import couldn’t complete. Check the backup file and available storage, then try again.";
+  "Import couldn’t complete, and your current timeline was not changed. Check the backup file and available storage, then try again.";
 
 /**
  * Privacy & data category screen — everything about trust: the biometric
@@ -141,7 +141,7 @@ export function PrivacySettingsScreen() {
         try {
           await copyBackupToDirectory(result.fileUri, result.filename, targetDir);
         } catch (copyErr) {
-          logDevWarning("settings:copyBackupToDir", copyErr);
+          reportError("backup:copyToDirectory", copyErr);
           const isAvailable = await Sharing.isAvailableAsync();
           if (isAvailable) {
             await Sharing.shareAsync(result.fileUri, {
@@ -192,7 +192,7 @@ export function PrivacySettingsScreen() {
         void dismissBackupProgressNotification();
         return;
       }
-      logDevWarning("settings:exportBackup", error);
+      reportError("backup:export", error);
       analytics.capture("backup_export_failed");
       const message = "Couldn’t save your backup. Check your storage and try again.";
       void notifyBackupError("Backup failed", message);
@@ -259,7 +259,7 @@ export function PrivacySettingsScreen() {
         Alert.alert("Import cancelled", "Import did not complete.");
         return;
       }
-      logDevWarning("settings:importBackup", error);
+      reportError("backup:import", error);
       let byteSize = expectedArchiveBytes;
       if (byteSize === undefined) {
         try {
@@ -305,7 +305,7 @@ export function PrivacySettingsScreen() {
     try {
       preview = await inspectBackupArchive(fileUri);
     } catch (error) {
-      logDevWarning("settings:inspectBackup", error);
+      reportError("backup:inspect", error);
       let byteSize: number | undefined;
       try {
         const temp = new File(fileUri);

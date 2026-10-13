@@ -133,10 +133,7 @@ export function makeNavTheme(mode: ResolvedThemeMode, colors: ThemeColors): NavT
 function persist(entries: Record<string, string>): void {
   if (Object.keys(entries).length > 0) {
     void setSettingsBatch(entries).catch((error) => {
-      reportError("settings_persist_failed", {
-        keys: Object.keys(entries).join(","),
-        detail: error instanceof Error ? error.message : String(error),
-      });
+      reportError("settings:persist", error, { keys: Object.keys(entries).join(",") });
     });
   }
 }

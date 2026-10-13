@@ -10,7 +10,7 @@ export function canSaveDraft(draft: Draft): boolean {
 
 /** Turn write-screen draft into a database entry, persisting media when needed. */
 export async function fromDraft(draft: Draft): Promise<NewEntryInput | null> {
-  const text = draft.text?.trim() || undefined;
+  const text = draft.text?.trim() || null;
   const createdAt = draft.createdAt;
   const location = draft.location;
 

@@ -17,6 +17,7 @@ import {
 } from "@/modules/settings";
 import { fontManager, getFonts } from "@/services/fonts";
 import { ThemedText } from "@/shared/components/ThemedText";
+import { reportError } from "@/shared/utils/devLog";
 import {
   ACCENT_OPTIONS,
   DEFAULT_DARK_THEME,
@@ -356,6 +357,10 @@ const accentStyles = StyleSheet.create({
   },
 });
 
+function fontDownloadFailedMessage(fontName: FontName): string {
+  return `Unable to download "${fontName}". Please check your internet connection and try again.`;
+}
+
 export function TypographySettingsScreen() {
   const { theme } = useTheme();
   const { colors } = theme;
@@ -406,15 +411,11 @@ export function TypographySettingsScreen() {
           setAppearance({ fontFamily: fontName });
           setCacheVersion((v) => v + 1);
         } else {
-          Alert.alert(
-            "Font Download Failed",
-            result.error ||
-              `Unable to download "${fontName}". Please check your internet connection and try again.`
-          );
+          Alert.alert("Font Download Failed", fontDownloadFailedMessage(fontName));
         }
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Unexpected error loading font.";
-        Alert.alert("Font Download Failed", message);
+        reportError("fonts:load", error);
+        Alert.alert("Font Download Failed", fontDownloadFailedMessage(fontName));
       } finally {
         setLoadingFont(null);
       }

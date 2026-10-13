@@ -18,6 +18,7 @@ import { locationPlaceTitle } from "@/services/location/location";
 import { ThemedText } from "@/shared/components/ThemedText";
 import type { Entry } from "@/shared/types";
 import { formatTime } from "@/shared/utils/dates";
+import { reportError } from "@/shared/utils/devLog";
 import { press, radius, space, typography, useEntryPreferences, useTheme } from "@/theme";
 import { useEntries } from "../store/EntryStore";
 import { AttachmentChip } from "./AttachmentChip";
@@ -76,7 +77,8 @@ function EntryRowBase({ entry, animate }: EntryRowProps) {
   };
 
   const handleDelete = () => {
-    removeEntry(entry.id).catch(() => {
+    removeEntry(entry.id).catch((error) => {
+      reportError("entry:delete", error);
       Alert.alert("Could not delete", "Please try again.");
     });
   };
@@ -127,7 +129,8 @@ function EntryRowBase({ entry, animate }: EntryRowProps) {
           setImageViewerIndex(updated.images.length - 1);
         }
       })
-      .catch(() => {
+      .catch((error) => {
+        reportError("entry:deleteImage", error);
         Alert.alert("Could not delete", "Please try again.");
       });
   };

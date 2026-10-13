@@ -49,9 +49,7 @@ export async function setBiometricLockEnabled(value: boolean): Promise<void> {
       await SecureStore.deleteItemAsync(BIOMETRIC_LOCK_KEY);
     }
   } catch (error) {
-    reportError("app_lock_persist_failed", {
-      detail: error instanceof Error ? error.message : String(error),
-    });
+    reportError("appLock:persist", error);
   }
 }
 
