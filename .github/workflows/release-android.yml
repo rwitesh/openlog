@@ -71,6 +71,9 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "version_code=$version_code" >> "$GITHUB_OUTPUT"
 
+      - name: Expo doctor
+        run: pnpm expo:doctor
+
       - name: Check
         run: |
           pnpm test
