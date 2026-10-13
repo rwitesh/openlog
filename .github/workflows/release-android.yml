@@ -35,16 +35,16 @@ env:
 jobs:
   release:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 180
     steps:
       - name: Checkout
         uses: actions/checkout@v7
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
@@ -84,7 +84,7 @@ jobs:
         run: node scripts/play-release-notes.mjs "${{ steps.version.outputs.version }}" play-whatsnew
 
       - name: Setup EAS
-        uses: expo/expo-github-action@v8
+        uses: expo/expo-github-action@v9
         with:
           eas-version: latest
           # pnpm refuses eas-cli's unapproved build scripts (dtrace-provider, protobufjs).
@@ -104,7 +104,7 @@ jobs:
 
       - name: Authenticate to Google Cloud
         id: gcp
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ vars.GCP_PLAY_SERVICE_ACCOUNT }}
@@ -116,6 +116,6 @@ jobs:
           packageName: ${{ env.PLAY_PACKAGE_NAME }}
           releaseFiles: app-release.aab
           releaseName: ${{ steps.version.outputs.version }} (${{ steps.version.outputs.version_code }})
-          track: ${{ env.PLAY_TRACK }}
+          tracks: ${{ env.PLAY_TRACK }}
           status: ${{ env.PLAY_STATUS }}
           whatsNewDirectory: play-whatsnew
