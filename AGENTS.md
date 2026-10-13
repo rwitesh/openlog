@@ -33,14 +33,29 @@ Do not describe, name, or design OpenLog as only a journal, task manager, social
 - Do not add dependencies or new architecture when a clear local solution exists. For Expo packages, use `npx expo install` so versions match the SDK.
 - Do not claim a device-only behavior was verified without running it on a device or emulator.
 
-## Release versioning
+## Release
 
-This project uses local EAS app versions (`eas.json` sets `appVersionSource` to `local`). Treat `app.json` as the release ledger; no store access is required to choose the next identifiers. Public versions and native upload identifiers are separate values.
+This project uses local EAS app versions (`eas.json` sets `appVersionSource` to `local`). Treat the committed `app.json` as the release ledger; never query the stores to choose identifiers. Public versions and native upload identifiers are separate values.
 
-- For every patch release, increment `expo.version` in `app.json` and `version` in `package.json` together, add the matching release notes to `webpage/changelog.html`, increment `expo.ios.buildNumber` by 1, and increment `expo.android.versionCode` by 1. Do all four updates in the same change.
-- For every subsequent store-bound rebuild of that same public version, increment `expo.ios.buildNumber` and `expo.android.versionCode` by 1 again before building. Never decrement either value after a failed, cancelled, or rejected build.
-- Commit the new version values before triggering EAS. The committed `app.json` values are the source of truth for the next release or rebuild; do not query the stores or wait for store access.
-- Immediately before an EAS production build, run `pnpm exec expo config --type public --json` and verify the resolved `version`, `ios.buildNumber`, and `android.versionCode`. State those exact values in the handoff before triggering the build. Android `versionCode` can never be reused after an upload.
+### Preparing a release
+
+- In one change: increment `expo.version` in `app.json` and `version` in `package.json` together, increment `expo.ios.buildNumber` and `expo.android.versionCode` by 1, and add a `<h2>X.Y.Z</h2>` section to `webpage/changelog.html`.
+- That changelog section is also the Google Play "What's new" text. Keep it to two or three short, user-facing items in plain language; do not list internal refactors. `scripts/play-release-notes.mjs` converts it and keeps whole items within Play's 500-character limit.
+- Run `pnpm expo:doctor` alongside the usual checks and resolve any mismatch before release.
+
+### Publishing Android
+
+`.github/workflows/release-android.yml` publishes to Google Play. After the release change is merged to `main`, pushing a matching tag (`git tag vX.Y.Z && git push origin vX.Y.Z`) runs it. The workflow checks that the tag, `app.json`, and `package.json` agree, runs Expo doctor, tests, typecheck, and Biome, builds the app bundle on EAS, and submits it to the production track for review as release `X.Y.Z (versionCode)`.
+
+- Pushing a release tag submits to production review. Agents push one only when the user asks for it.
+- If the run fails before the "Upload to Google Play" step, nothing reached Play and the versionCode is unused: fix on `main`, then move the tag with `git tag -f vX.Y.Z && git push -f origin vX.Y.Z`.
+- Once a build is uploaded, its versionCode is spent. Any further store-bound build of the same public version needs `buildNumber` and `versionCode` incremented again first. Never decrement either value.
+- A manual run (Actions → Release Android → Run workflow) must start from `main` and defaults to an internal-track draft; it still spends a versionCode.
+- Credentials never live in the repo. GitHub holds the `EXPO_TOKEN` secret and the `GCP_WORKLOAD_IDENTITY_PROVIDER` and `GCP_PLAY_SERVICE_ACCOUNT` variables; Google access uses keyless Workload Identity Federation in the `rwiteshbera-personal` project, limited to this repository's `main` branch and `v*` tags.
+
+### Manual EAS builds
+
+iOS and any manual production build still go through EAS directly (`pnpm eas:prod` for Android). Commit the version values first, run `pnpm exec expo config --type public --json` immediately before building, and state the resolved `version`, `ios.buildNumber`, and `android.versionCode` before triggering it.
 
 ## Verification
 
@@ -52,7 +67,7 @@ pnpm typecheck
 pnpm exec biome check src scripts
 ```
 
-Also inspect both light and dark themes for UI changes. For native filesystem, permissions, media, or interruption behavior, test on a relevant Android/iOS target when one is available and state clearly when that validation could not be run.
+After dependency or Expo config changes, also run `pnpm expo:doctor`. Also inspect both light and dark themes for UI changes. For native filesystem, permissions, media, or interruption behavior, test on a relevant Android/iOS target when one is available and state clearly when that validation could not be run.
 
 ## Commit attribution
 

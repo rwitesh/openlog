@@ -60,6 +60,8 @@ pnpm expo:doctor
 
 Check UI changes in light and dark themes. Validate native behavior on an Android device or emulator and report anything that could not be tested.
 
-## Production builds
+## Releases
 
-EAS build profiles live in `eas.json`. Before using `pnpm eas:prod`, follow the release versioning and commit rules in [AGENTS.md](AGENTS.md). Verify the resolved release identifiers with `pnpm exec expo config --type public --json` before starting a production build.
+Android releases are published by GitHub Actions. Merge the version bump and changelog entry to `main`, then push a matching tag such as `v1.3.12`; the workflow builds on EAS and submits to Google Play. The full release rules are in [AGENTS.md](AGENTS.md#release).
+
+EAS build profiles live in `eas.json`. For a manual build with `pnpm eas:prod`, verify the resolved release identifiers with `pnpm exec expo config --type public --json` first.
