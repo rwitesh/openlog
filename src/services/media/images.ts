@@ -1,6 +1,6 @@
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 
-import { logDevWarning } from "@/shared/utils/devLog";
+import { reportError } from "@/shared/utils/devLog";
 
 /** Longest allowed edge for stored photos — raw camera resolution would bloat storage. */
 export const IMAGE_MAX_DIMENSION = 1920;
@@ -44,7 +44,7 @@ export async function downscaleImage(
     });
     return saved.uri;
   } catch (error) {
-    logDevWarning("media:downscaleImage", error);
+    reportError("media:downscaleImage", error);
     return uri;
   }
 }

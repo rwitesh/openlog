@@ -24,9 +24,7 @@ export function ProfileProvider({ children, initialName }: ProfileProviderProps)
 
   const debouncedPersist = useDebouncedCallback((next: string) => {
     void persistUserName(next).catch((error) => {
-      reportError("profile_name_persist_failed", {
-        detail: error instanceof Error ? error.message : String(error),
-      });
+      reportError("profile:persistName", error);
     });
   }, 400);
 

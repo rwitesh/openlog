@@ -14,7 +14,7 @@ import {
 import { deleteMediaFiles } from "@/services/media";
 import type { Entry } from "@/shared/types";
 import { addDays, addMonths, startOfDay, startOfMonth } from "@/shared/utils/dates";
-import { logDevWarning } from "@/shared/utils/devLog";
+import { reportError } from "@/shared/utils/devLog";
 import { removedMedia } from "./mediaDiff";
 
 export type EntryMutation =
@@ -70,7 +70,7 @@ export async function patchEntry(id: string, input: UpdateEntryInput): Promise<E
   // File cleanup starts only after the row committed; failures there must not fail the save.
   if (existing) {
     void cleanupMedia(removedMedia(existing, input)).catch((error) =>
-      logDevWarning("entry:cleanupMedia", error)
+      reportError("entry:cleanupMedia", error)
     );
   }
   return entry;

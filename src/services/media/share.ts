@@ -1,7 +1,7 @@
 import * as Sharing from "expo-sharing";
 import { Alert } from "react-native";
 
-import { logDevWarning } from "@/shared/utils/devLog";
+import { reportError } from "@/shared/utils/devLog";
 
 function mimeTypeForUri(uri: string): string {
   const lower = uri.split("?")[0].toLowerCase();
@@ -22,7 +22,7 @@ export async function shareImage(uri: string): Promise<void> {
 
     await Sharing.shareAsync(uri, { mimeType: mimeTypeForUri(uri) });
   } catch (error) {
-    logDevWarning("share:shareImage", error);
+    reportError("media:shareImage", error);
     Alert.alert("Could not share", "Please try again.");
   }
 }

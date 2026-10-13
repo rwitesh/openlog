@@ -9,10 +9,12 @@ import {
   getTags,
   MAX_TAG_NAME_LENGTH,
   MAX_TAGS_PER_ENTRY,
+  normalizeTagName,
   updateTag,
 } from "@/services/db/tags";
 import { Sheet, ThemedText } from "@/shared/components";
 import { TAG_COLOR_IDS, type Tag, type TagColorId } from "@/shared/types";
+import { reportError } from "@/shared/utils/devLog";
 import { fontFamily, metrics, press, radius, space, useTheme } from "@/theme";
 
 interface TagPickerProps {
@@ -41,7 +43,10 @@ export function TagPicker({ visible, selected, onChange, onClose }: TagPickerPro
     setEditingColorId(TAG_COLOR_IDS[0]);
     getTags()
       .then(setTags)
-      .catch(() => Alert.alert("Couldn't load tags", "Try again."));
+      .catch((error) => {
+        reportError("tags:load", error);
+        Alert.alert("Couldn't load tags", "Try again.");
+      });
   }, [visible]);
 
   const normalized = query.normalize("NFKC").trim().replace(/\s+/g, " ");
@@ -87,7 +92,8 @@ export function TagPicker({ visible, selected, onChange, onClose }: TagPickerPro
       setQuery("");
       if (!selectedIds.has(tag.id)) toggleTag(tag);
     } catch (error) {
-      Alert.alert("Couldn't create tag", error instanceof Error ? error.message : "Try again.");
+      reportError("tags:create", error);
+      Alert.alert("Couldn't create tag", "Try again.");
     }
   };
 
@@ -99,6 +105,18 @@ export function TagPicker({ visible, selected, onChange, onClose }: TagPickerPro
 
   const saveEdit = async () => {
     if (!editing) return;
+    const name = normalizeTagName(editingName);
+    if (!name) {
+      Alert.alert("Couldn't update tag", `Use 1 to ${MAX_TAG_NAME_LENGTH} characters.`);
+      return;
+    }
+    const duplicate = tags.some(
+      (tag) => tag.id !== editing.id && normalizeTagName(tag.name)?.key === name.key
+    );
+    if (duplicate) {
+      Alert.alert("Couldn't update tag", "A tag with this name already exists.");
+      return;
+    }
     try {
       const updated = await updateTag(editing.id, { name: editingName, colorId: editingColorId });
       setTags((current) => current.map((tag) => (tag.id === updated.id ? updated : tag)));
@@ -106,7 +124,8 @@ export function TagPicker({ visible, selected, onChange, onClose }: TagPickerPro
       notifyStoreReload();
       setEditing(null);
     } catch (error) {
-      Alert.alert("Couldn't update tag", error instanceof Error ? error.message : "Try again.");
+      reportError("tags:update", error);
+      Alert.alert("Couldn't update tag", "Try again.");
     }
   };
 
@@ -125,7 +144,10 @@ export function TagPicker({ visible, selected, onChange, onClose }: TagPickerPro
               notifyStoreReload();
               setEditing(null);
             })
-            .catch(() => Alert.alert("Couldn't delete tag", "Try again."));
+            .catch((error) => {
+              reportError("tags:delete", error);
+              Alert.alert("Couldn't delete tag", "Try again.");
+            });
         },
       },
     ]);

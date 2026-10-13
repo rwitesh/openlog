@@ -1,5 +1,5 @@
 import type { EntrySearchResult } from "@/shared/types";
-import { logDevWarning } from "@/shared/utils/devLog";
+import { reportError } from "@/shared/utils/devLog";
 import { runDb } from "./database";
 import { type EntryRecord, getTagsByEntryIds, toEntry } from "./entries";
 
@@ -59,7 +59,7 @@ export async function searchEntries(
       );
     } catch (error) {
       // A failed FTS query must not hide otherwise valid tag matches.
-      logDevWarning("db:searchEntries:fts", error);
+      reportError("search:text", error);
     }
 
     let tagMatches: SearchRecord[] = [];
@@ -77,7 +77,7 @@ export async function searchEntries(
         limit
       );
     } catch (error) {
-      logDevWarning("db:searchEntries:tags", error);
+      reportError("search:tags", error);
     }
 
     try {
@@ -109,7 +109,7 @@ export async function searchEntries(
         locationSnippet: row.location ? (row.location_snippet ?? "") : "",
       }));
     } catch (error) {
-      logDevWarning("db:searchEntries", error);
+      reportError("search:results", error);
       return [];
     }
   });
