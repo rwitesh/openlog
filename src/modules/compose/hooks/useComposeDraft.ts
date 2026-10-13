@@ -6,7 +6,7 @@ import { getTags } from "@/services/db/tags";
 import { getCachedPlace, useLocation } from "@/services/location";
 import type { Attachment, Entry, Tag } from "@/shared/types";
 import { getInitialWhen } from "@/shared/utils/dates";
-import { logDevWarning } from "@/shared/utils/devLog";
+import { reportError } from "@/shared/utils/devLog";
 import { canSaveDraft, fromDraft } from "../utils/DraftTransform";
 
 /** What `save` did, so the screen can navigate accordingly. */
@@ -48,7 +48,7 @@ export function useComposeDraft(
           })
         );
       })
-      .catch((error) => logDevWarning("compose:refreshTags", error));
+      .catch((error) => reportError("compose:refreshTags", error));
     return () => {
       active = false;
     };
@@ -88,7 +88,7 @@ export function useComposeDraft(
       await addEntry(input);
       return "created";
     } catch (error) {
-      logDevWarning("compose:save", error);
+      reportError("compose:save", error);
       Alert.alert("Couldn't save", "Something went wrong. Try again.");
       return "aborted";
     } finally {

@@ -5,7 +5,7 @@ import { runDb } from "@/services/db/database";
 import { parseAttachments, parseUris } from "@/services/db/uris";
 import { mediaDirectory } from "@/services/media/storage";
 import { APP_VERSION } from "@/shared/utils/appInfo";
-import { logDevWarning } from "@/shared/utils/devLog";
+import { reportError } from "@/shared/utils/devLog";
 import {
   acquireExportGate,
   assertBackupArchiveSize,
@@ -30,18 +30,24 @@ import {
 
 const CHUNK_SIZE = 256 * 1024;
 
-function listMediaFiles(): File[] {
+/** Media files the timeline references; unreferenced files on disk are never exported. */
+function referencedMediaFiles(entries: readonly BackupEntry[]): File[] {
   const dir = mediaDirectory();
-  if (!dir.exists) return [];
-  const files: File[] = [];
-  for (const item of dir.list()) {
-    if (item instanceof File && item.exists) {
-      files.push(item);
-    } else {
-      logDevWarning("backup:export", `Skipping non-file media item: ${item.name}`);
-    }
+  const filenames = new Set(
+    entries.flatMap((entry) => [
+      ...(entry.images ?? []),
+      ...(entry.audios ?? []),
+      ...(entry.attachments ?? []).map((attachment) => attachment.uri),
+    ])
+  );
+  const files = [...filenames].map((filename) => new File(dir, filename));
+  const present = files.filter((file) => file.exists);
+  if (present.length < files.length) {
+    reportError("backup:exportMissingMedia", new Error("Referenced media is missing."), {
+      missing_count: files.length - present.length,
+    });
   }
-  return files;
+  return present;
 }
 
 function addFileToArchive(
@@ -51,10 +57,7 @@ function addFileToArchive(
   signal?: AbortSignal
 ): boolean {
   if (!sourceFile.exists) {
-    logDevWarning(
-      "backup:export",
-      `Cannot back up file: ${sourceFile.name} is no longer available.`
-    );
+    reportError("backup:exportMissingMedia", new Error("Media disappeared during backup."));
     return false;
   }
   const archiveFile = new ZipPassThrough(archivePath);
@@ -197,7 +200,7 @@ export async function exportBackupArchive(
     options?.onProgress?.(entries.length, entries.length, "entries");
     if (options?.signal?.aborted) throw new Error("Backup cancelled");
 
-    const mediaFiles = listMediaFiles().filter((f) => f.exists);
+    const mediaFiles = referencedMediaFiles(entries);
 
     const manifest: BackupManifest = {
       format: ARCHIVE_FORMAT,

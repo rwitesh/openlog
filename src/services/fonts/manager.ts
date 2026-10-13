@@ -65,11 +65,8 @@ class FontManager {
   async load(fontName: FontName): Promise<FontLoadResult> {
     // 1. Validation against catalog
     if (!hasFont(fontName)) {
-      return {
-        success: false,
-        fontFamily: DEFAULT_FONT,
-        error: `Font "${fontName}" does not exist in catalog.`,
-      };
+      logDevWarning("fontManager:load", `Font "${fontName}" does not exist in catalog.`);
+      return { success: false, fontFamily: DEFAULT_FONT };
     }
 
     // 2. Default font is bundled
@@ -140,13 +137,8 @@ class FontManager {
       await Font.loadAsync({ [fontName]: savedFile.uri });
       return { success: true, fontFamily: fontName };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
       logDevWarning(`fontManager:downloadOrLoadFailed (${fontName})`, error);
-      return {
-        success: false,
-        fontFamily: DEFAULT_FONT,
-        error: errorMessage,
-      };
+      return { success: false, fontFamily: DEFAULT_FONT };
     }
   }
 }
