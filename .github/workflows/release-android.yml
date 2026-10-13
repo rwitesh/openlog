@@ -1,0 +1,117 @@
+name: Release Android
+
+# Push a tag matching app.json's version (e.g. `v1.3.11`) to build on EAS and publish to Google Play.
+# Run manually from the Actions tab to pick a different track, e.g. `internal` for a dry run.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      track:
+        description: Google Play track
+        type: choice
+        options: [production, beta, alpha, internal]
+        default: internal
+      status:
+        description: "completed = send for review / roll out, draft = upload only"
+        type: choice
+        options: [completed, draft]
+        default: draft
+
+permissions:
+  contents: read
+  # Lets Google verify this run through Workload Identity Federation instead of a stored key.
+  id-token: write
+
+concurrency:
+  group: release-android
+  cancel-in-progress: false
+
+env:
+  PLAY_PACKAGE_NAME: share.openlog.mobile
+  PLAY_TRACK: ${{ inputs.track || 'production' }}
+  PLAY_STATUS: ${{ inputs.status || 'completed' }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify release version
+        id: version
+        run: |
+          config=$(pnpm exec expo config --type public --json)
+          version=$(echo "$config" | jq -r '.version')
+          version_code=$(echo "$config" | jq -r '.android.versionCode')
+          package_version=$(jq -r '.version' package.json)
+          echo "Resolved version=$version android.versionCode=$version_code"
+          if [ "$version" != "$package_version" ]; then
+            echo "::error::app.json version $version does not match package.json version $package_version"
+            exit 1
+          fi
+          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match app.json version $version"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "version_code=$version_code" >> "$GITHUB_OUTPUT"
+
+      - name: Check
+        run: |
+          pnpm test
+          pnpm typecheck
+          pnpm exec biome check src scripts
+
+      - name: Prepare release notes
+        run: node scripts/play-release-notes.mjs "${{ steps.version.outputs.version }}" play-whatsnew
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          packager: pnpm
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build on EAS
+        id: build
+        run: |
+          eas build --platform android --profile production --non-interactive --wait --json > build.json
+          url=$(jq -r '.[0].artifacts.applicationArchiveUrl // .[0].artifacts.buildUrl' build.json)
+          if [ -z "$url" ] || [ "$url" = "null" ]; then
+            echo "::error::EAS build finished without an app bundle URL"
+            exit 1
+          fi
+          curl --fail --silent --show-error --location "$url" --output app-release.aab
+
+      - name: Authenticate to Google Cloud
+        id: gcp
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_PLAY_SERVICE_ACCOUNT }}
+
+      - name: Upload to Google Play
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJson: ${{ steps.gcp.outputs.credentials_file_path }}
+          packageName: ${{ env.PLAY_PACKAGE_NAME }}
+          releaseFiles: app-release.aab
+          releaseName: ${{ steps.version.outputs.version }} (${{ steps.version.outputs.version_code }})
+          track: ${{ env.PLAY_TRACK }}
+          status: ${{ env.PLAY_STATUS }}
+          whatsNewDirectory: play-whatsnew
