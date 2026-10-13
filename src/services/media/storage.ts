@@ -1,7 +1,7 @@
 import { Directory, File, Paths } from "expo-file-system";
 
 import { waitForExportGate, waitForImportGate } from "@/services/backup/utils";
-import { logDevWarning } from "@/shared/utils/devLog";
+import { reportError } from "@/shared/utils/devLog";
 
 /** The app's single durable media directory; the database stores bare filenames relative to it. */
 export function mediaDirectory(): Directory {
@@ -58,7 +58,7 @@ export async function deleteMediaFiles(filenames: string[]): Promise<void> {
         const file = new File(dir, filename);
         if (file.exists) file.delete();
       } catch (error) {
-        logDevWarning("media:deleteMediaFiles", error);
+        reportError("media:deleteFiles", error);
       }
     })
   );

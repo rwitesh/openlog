@@ -38,7 +38,7 @@ export interface Entry {
 }
 
 export interface NewEntryInput {
-  text?: string;
+  text?: string | null;
   images?: string[];
   audios?: string[];
   attachments?: Attachment[];
@@ -48,7 +48,8 @@ export interface NewEntryInput {
 }
 
 export interface UpdateEntryInput {
-  text?: string;
+  /** `undefined` keeps the stored text; `null` clears it. */
+  text?: string | null;
   images?: string[];
   audios?: string[];
   attachments?: Attachment[];

@@ -14,5 +14,4 @@ export interface FontSource {
 export interface FontLoadResult {
   readonly success: boolean;
   readonly fontFamily: FontName;
-  readonly error?: string;
 }

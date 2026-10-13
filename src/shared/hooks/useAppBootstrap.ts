@@ -9,7 +9,7 @@ import { useColorScheme } from "react-native";
 import { getBiometricLockEnabled } from "@/services/auth";
 import { getAllUserPreferences } from "@/services/db/settings";
 import { fontManager } from "@/services/fonts";
-import { logDevWarning } from "@/shared/utils/devLog";
+import { logDevWarning, reportError } from "@/shared/utils/devLog";
 import { DEFAULT_PREFERENCES, resolveTheme, resolveThemeMode, type UserPreferences } from "@/theme";
 
 export interface AppBootstrapState {
@@ -61,7 +61,7 @@ export function useAppBootstrap(): AppBootstrapState {
           }
         })
         .catch((error) => {
-          logDevWarning("bootstrap:getAllUserPreferences", error);
+          reportError("bootstrap:loadPreferences", error);
           if (active) {
             setPreferences(DEFAULT_PREFERENCES);
           }

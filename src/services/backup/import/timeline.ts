@@ -5,23 +5,17 @@ export interface ImportDatabase {
   withTransactionAsync(task: () => Promise<void>): Promise<void>;
 }
 
-/** Clears all locally stored timeline rows after the user confirms replacement. */
-export async function clearTimelineData(db: ImportDatabase): Promise<void> {
+/** Replaces all timeline rows in one transaction; on failure the existing rows remain. */
+export async function replaceTimelineData(
+  db: ImportDatabase,
+  timeline: BackupTimelineData
+): Promise<void> {
   await db.withTransactionAsync(async () => {
     await db.runAsync("DELETE FROM entry_tags");
     await db.runAsync("DELETE FROM tags");
     await db.runAsync("DELETE FROM entries");
     await db.runAsync("DELETE FROM settings");
-    await db.runAsync("INSERT INTO entries_fts(entries_fts) VALUES ('rebuild')");
-  });
-}
 
-/** Inserts validated backup data into a timeline already cleared for replacement. */
-export async function insertTimelineData(
-  db: ImportDatabase,
-  timeline: BackupTimelineData
-): Promise<void> {
-  await db.withTransactionAsync(async () => {
     for (const tag of timeline.tags) {
       await db.runAsync(
         `INSERT INTO tags (id, name, key, color_id, created_at, updated_at)

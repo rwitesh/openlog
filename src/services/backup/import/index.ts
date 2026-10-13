@@ -6,9 +6,10 @@ import { strFromU8, Unzip, UnzipInflate, UnzipPassThrough } from "fflate";
 import { notifyStoreReload } from "@/modules/entry/store/EntryStore";
 import { runDb } from "@/services/db/database";
 import { mediaDirectory } from "@/services/media/storage";
-import { logDevWarning } from "@/shared/utils/devLog";
+import { logDevWarning, reportError } from "@/shared/utils/devLog";
 import {
   acquireImportGate,
+  assertBackupCounts,
   assertBackupManifest,
   assertBackupMediaReferences,
   assertBackupTimelineData,
@@ -25,7 +26,7 @@ import {
   MANIFEST_FILENAME,
   TIMELINE_DATA_FILENAME,
 } from "../utils/types";
-import { clearTimelineData, insertTimelineData } from "./timeline";
+import { replaceTimelineData } from "./timeline";
 
 function getExistingTimelineDiskBytes(): number {
   let bytes = 0;
@@ -68,12 +69,66 @@ function concat(chunks: Uint8Array[]): Uint8Array {
   return result;
 }
 
-function assertPublishedMedia(mediaNames: ReadonlySet<string>): void {
+/** Names that a case-insensitive filesystem treats as one file share a key. */
+function mediaNameKey(filename: string): string {
+  return filename.normalize("NFC").toLocaleLowerCase("en-US");
+}
+
+function deleteLiveMedia(filenames: readonly string[]): void {
   const directory = mediaDirectory();
-  for (const filename of mediaNames) {
-    if (!new File(directory, filename).exists) {
-      throw new Error("Import media verification failed.");
+  for (const filename of filenames) {
+    try {
+      const file = new File(directory, filename);
+      if (file.exists) file.delete();
+    } catch (error) {
+      reportError("backup:deleteLiveMedia", error);
     }
+  }
+}
+
+/**
+ * Moves staged media beside the live files and returns the names it added.
+ * Media files are immutable and UUID-named, so an existing name already holds that file.
+ */
+async function publishStagedMedia(
+  stagedMedia: Directory,
+  mediaNames: ReadonlySet<string>
+): Promise<string[]> {
+  const live = mediaDirectory();
+  live.create({ idempotent: true, intermediates: true });
+  const added: string[] = [];
+  try {
+    for (const filename of mediaNames) {
+      const destination = new File(live, filename);
+      if (destination.exists) continue;
+      await new File(stagedMedia, filename).move(destination);
+      added.push(filename);
+    }
+    for (const filename of mediaNames) {
+      if (!new File(live, filename).exists) {
+        throw new Error("Import media verification failed.");
+      }
+    }
+  } catch (error) {
+    deleteLiveMedia(added);
+    throw error;
+  }
+  return added;
+}
+
+/** Removes media the restored timeline does not use. Best effort: leftovers are only unreferenced files. */
+function pruneReplacedMedia(mediaNames: ReadonlySet<string>): void {
+  try {
+    const live = mediaDirectory();
+    if (!live.exists) return;
+    const kept = new Set([...mediaNames].map(mediaNameKey));
+    const replaced = live
+      .list()
+      .filter((item) => item instanceof File && !kept.has(mediaNameKey(item.name)))
+      .map((item) => item.name);
+    deleteLiveMedia(replaced);
+  } catch (error) {
+    reportError("backup:pruneReplacedMedia", error);
   }
 }
 
@@ -186,7 +241,7 @@ export async function importBackupArchive(
       try {
         if (member.name.startsWith("media/")) {
           const filename = extractMediaFilename(member.name);
-          const filenameKey = filename.normalize("NFC").toLocaleLowerCase("en-US");
+          const filenameKey = mediaNameKey(filename);
           if (normalizedMediaNames.has(filenameKey)) {
             throw new Error("Invalid backup file: duplicate media filename.");
           }
@@ -295,21 +350,7 @@ export async function importBackupArchive(
     }
     assertBackupTimelineData(rawTimeline);
 
-    if (rawTimeline.entries.length !== rawManifest.counts.entry) {
-      throw new Error(
-        `Backup entry count mismatch (${rawTimeline.entries.length} entries, manifest specifies ${rawManifest.counts.entry}).`
-      );
-    }
-    if (rawTimeline.tags.length !== rawManifest.counts.tag) {
-      throw new Error(
-        `Backup tag count mismatch (${rawTimeline.tags.length} tags, manifest specifies ${rawManifest.counts.tag}).`
-      );
-    }
-    if (mediaCount !== rawManifest.counts.media) {
-      throw new Error(
-        `Backup media count mismatch (${mediaCount} media files, manifest specifies ${rawManifest.counts.media}).`
-      );
-    }
+    assertBackupCounts({ manifest: rawManifest, timeline: rawTimeline, mediaCount });
     assertBackupMediaReferences(rawTimeline.entries, mediaNames);
     if (options?.counts) {
       if (
@@ -321,22 +362,20 @@ export async function importBackupArchive(
     }
     if (options?.signal?.aborted) throw new Error("Import cancelled");
 
-    // Validation and extraction finish before confirmed replacement touches local content.
-    const liveMedia = mediaDirectory();
-    if (liveMedia.exists) liveMedia.delete();
-    await runDb((db) => clearTimelineData(db));
-
-    const stagedMedia = new Directory(stagingDir, "incoming-media");
-    if (!stagedMedia.exists) throw new Error("Import staging media is missing.");
-    await stagedMedia.move(Paths.document);
-    stagedMedia.rename("media");
-    assertPublishedMedia(mediaNames);
-    await runDb((db) => insertTimelineData(db, rawTimeline));
+    // Existing content is only removed after the new rows commit.
+    const addedMedia = await publishStagedMedia(stagingMediaDir, mediaNames);
+    try {
+      await runDb((db) => replaceTimelineData(db, rawTimeline));
+    } catch (error) {
+      deleteLiveMedia(addedMedia);
+      throw error;
+    }
+    pruneReplacedMedia(mediaNames);
 
     try {
       notifyStoreReload();
     } catch (error) {
-      logDevWarning("backup:importReload", error);
+      reportError("backup:importReload", error);
     }
 
     return { importedCount: rawTimeline.entries.length };
