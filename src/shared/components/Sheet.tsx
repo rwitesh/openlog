@@ -51,7 +51,9 @@ export function Sheet({
   const bottomPad = paddingBottom ?? (docksToKeyboard ? 0 : insets.bottom + space.lg);
   // A docked card must fit in the viewport above the keyboard, rather than retain a
   // height calculated for the full screen and shift its header out of view.
-  const dockedMaxHeight = Math.max(0, window.height - keyboard.offset - insets.top - DOCKED_PEEK);
+  const dockedSpace = Math.max(0, window.height - keyboard.offset - insets.top);
+  // The peek gives way on short screens so fixed sheet content still fits above the keyboard.
+  const dockedMaxHeight = dockedSpace - Math.min(DOCKED_PEEK, dockedSpace * 0.2);
 
   return (
     <Modal

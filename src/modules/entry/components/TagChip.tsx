@@ -69,7 +69,8 @@ export function TagChip({ tag, onPress, onRemove, count, size = "regular" }: Tag
   return (
     <Pressable
       onPress={onPress}
-      hitSlop={compact ? space.sm : 0}
+      // Vertical only: horizontal slop would reach into the neighbouring chip across the gap.
+      hitSlop={compact ? { top: space.sm, bottom: space.sm } : 0}
       style={({ pressed }) => [chipStyle, pressed && press]}
       accessibilityRole="button"
       accessibilityLabel={
@@ -85,11 +86,11 @@ export function TagChip({ tag, onPress, onRemove, count, size = "regular" }: Tag
 
 interface TagChipListProps {
   tags: Tag[];
-  /** Shows at most this many chips, then a quiet "+N" that leads to the full list. */
-  max?: number;
+  /** Shows at most this many chips, then a quiet "+N" that opens the full list. */
+  max: number;
   size?: "regular" | "compact";
-  onPressTag?: (tag: Tag) => void;
-  onPressMore?: () => void;
+  onPressTag: (tag: Tag) => void;
+  onPressMore: () => void;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -103,46 +104,32 @@ export function TagChipList({
   style,
 }: TagChipListProps) {
   const { colors } = useTheme();
-  const shown = max === undefined ? tags : tags.slice(0, max);
-  const hidden = tags.length - shown.length;
   if (!tags.length) return null;
-  const moreLabel = `${hidden} more ${hidden === 1 ? "tag" : "tags"}`;
-  const moreText = (
-    <ThemedText
-      style={[
-        size === "compact" ? styles.nameCompact : styles.name,
-        { color: colors.textTertiary },
-      ]}
-    >
-      {`+${hidden}`}
-    </ThemedText>
-  );
+  const hidden = Math.max(0, tags.length - max);
 
   return (
     <View style={[styles.list, style]}>
-      {shown.map((tag) => (
-        <TagChip
-          key={tag.id}
-          tag={tag}
-          size={size}
-          onPress={onPressTag ? () => onPressTag(tag) : undefined}
-        />
+      {tags.slice(0, max).map((tag) => (
+        <TagChip key={tag.id} tag={tag} size={size} onPress={() => onPressTag(tag)} />
       ))}
-      {hidden > 0 && onPressMore ? (
+      {hidden ? (
         <Pressable
           onPress={onPressMore}
           hitSlop={space.sm}
           style={({ pressed }) => pressed && press}
           accessibilityRole="button"
-          accessibilityLabel={moreLabel}
+          accessibilityLabel={`${hidden} more ${hidden === 1 ? "tag" : "tags"}`}
           accessibilityHint="Shows all tags."
         >
-          {moreText}
+          <ThemedText
+            style={[
+              size === "compact" ? styles.nameCompact : styles.name,
+              { color: colors.textTertiary },
+            ]}
+          >
+            {`+${hidden}`}
+          </ThemedText>
         </Pressable>
-      ) : hidden > 0 ? (
-        <View accessible accessibilityLabel={moreLabel}>
-          {moreText}
-        </View>
       ) : null}
     </View>
   );

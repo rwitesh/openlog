@@ -1,5 +1,6 @@
 import { FlatList, ScrollView, StyleSheet, View } from "react-native";
 import { TagChip } from "@/modules/entry";
+import { normalizeTagName } from "@/services/db/tags";
 import { ThemedText } from "@/shared/components/ThemedText";
 import type { EntrySearchResult, TagSummary } from "@/shared/types";
 import { space, useTheme } from "@/theme";
@@ -105,8 +106,12 @@ export function SearchResultsFeed({
     );
   }
 
-  const needle = trimmed.toLocaleLowerCase();
-  const matchingTags = tags.filter((tag) => tag.name.toLocaleLowerCase().includes(needle));
+  // The same key-prefix rule searchEntries applies, so these are exactly the tags behind tag hits.
+  const queryKey = normalizeTagName(trimmed)?.key;
+  const matchingTags =
+    queryKey === undefined
+      ? []
+      : tags.filter((tag) => normalizeTagName(tag.name)?.key.startsWith(queryKey));
 
   if (!results.length && !searching && !matchingTags.length) {
     return (
