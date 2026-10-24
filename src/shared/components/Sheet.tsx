@@ -12,6 +12,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { radius, space, useTheme } from "@/theme";
 import { useKeyboardInset } from "./Layout";
 
+/** Page left visible above a keyboard-docked sheet, so the context it belongs to never disappears. */
+const DOCKED_PEEK = space.xxxl * 3;
+
 interface SheetProps {
   visible: boolean;
   onClose: () => void;
@@ -48,7 +51,7 @@ export function Sheet({
   const bottomPad = paddingBottom ?? (docksToKeyboard ? 0 : insets.bottom + space.lg);
   // A docked card must fit in the viewport above the keyboard, rather than retain a
   // height calculated for the full screen and shift its header out of view.
-  const dockedMaxHeight = Math.max(0, window.height - keyboard.offset - insets.top);
+  const dockedMaxHeight = Math.max(0, window.height - keyboard.offset - insets.top - DOCKED_PEEK);
 
   return (
     <Modal

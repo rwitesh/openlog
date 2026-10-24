@@ -1,5 +1,5 @@
 import { Feather } from "@expo/vector-icons";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from "react-native";
 import { ThemedText } from "@/shared/components";
 import type { Tag } from "@/shared/types";
 import { metrics, press, radius, space, useTheme } from "@/theme";
@@ -82,7 +82,78 @@ export function TagChip({ tag, onPress, onRemove, count, size = "regular" }: Tag
   );
 }
 
+interface TagChipListProps {
+  tags: Tag[];
+  /** Shows at most this many chips, then a quiet "+N" that leads to the full list. */
+  max?: number;
+  size?: "regular" | "compact";
+  onPressTag?: (tag: Tag) => void;
+  onPressMore?: () => void;
+  style?: StyleProp<ViewStyle>;
+}
+
+/** Wrapped tag chips for an entry; long lists stay brief so tags never outweigh the content. */
+export function TagChipList({
+  tags,
+  max,
+  size = "regular",
+  onPressTag,
+  onPressMore,
+  style,
+}: TagChipListProps) {
+  const { colors } = useTheme();
+  const shown = max === undefined ? tags : tags.slice(0, max);
+  const hidden = tags.length - shown.length;
+  if (!tags.length) return null;
+  const moreLabel = `${hidden} more ${hidden === 1 ? "tag" : "tags"}`;
+  const moreText = (
+    <ThemedText
+      style={[
+        size === "compact" ? styles.nameCompact : styles.name,
+        { color: colors.textTertiary },
+      ]}
+    >
+      {`+${hidden}`}
+    </ThemedText>
+  );
+
+  return (
+    <View style={[styles.list, style]}>
+      {shown.map((tag) => (
+        <TagChip
+          key={tag.id}
+          tag={tag}
+          size={size}
+          onPress={onPressTag ? () => onPressTag(tag) : undefined}
+        />
+      ))}
+      {hidden > 0 && onPressMore ? (
+        <Pressable
+          onPress={onPressMore}
+          hitSlop={space.sm}
+          style={({ pressed }) => pressed && press}
+          accessibilityRole="button"
+          accessibilityLabel={moreLabel}
+          accessibilityHint="Shows all tags."
+        >
+          {moreText}
+        </Pressable>
+      ) : hidden > 0 ? (
+        <View accessible accessibilityLabel={moreLabel}>
+          {moreText}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  list: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: space.xs + 2,
+  },
   chip: {
     flexDirection: "row",
     alignItems: "center",

@@ -26,7 +26,7 @@ interface TimelineProps {
   emptyTitle: string;
   emptyBody: string;
   animateFirst?: boolean;
-  /** The tag this feed is filtered to; its chips stay inert so they don't reopen the same lens. */
+  /** The tag this feed is filtered to; rows leave it out because the header names it. */
   activeTagId?: string;
   onOpenDay?: (dayTs: number) => void;
   onEndReached?: () => void;
