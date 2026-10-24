@@ -12,9 +12,10 @@ import { SearchHighlight } from "./SearchHighlight";
 interface SearchResultRowProps {
   result: EntrySearchResult;
   onOpen: (entryId: string) => void;
+  onOpenTag: (tagId: string) => void;
 }
 
-function SearchResultRowBase({ result, onOpen }: SearchResultRowProps) {
+function SearchResultRowBase({ result, onOpen, onOpenTag }: SearchResultRowProps) {
   const { theme } = useTheme();
   const { showLocation: locationPref } = useEntryPreferences();
   const { colors } = theme;
@@ -66,7 +67,7 @@ function SearchResultRowBase({ result, onOpen }: SearchResultRowProps) {
       {entry.tags.length ? (
         <View style={styles.tags}>
           {entry.tags.map((tag) => (
-            <TagChip key={tag.id} tag={tag} size="compact" />
+            <TagChip key={tag.id} tag={tag} size="compact" onPress={() => onOpenTag(tag.id)} />
           ))}
         </View>
       ) : null}

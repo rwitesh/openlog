@@ -7,39 +7,42 @@ import { tagColors } from "../utils/TagColors";
 
 interface TagChipProps {
   tag: Tag;
+  /** Opens the tag; the chip becomes a button. */
+  onPress?: () => void;
   onRemove?: () => void;
+  /** Entries carrying the tag, shown quietly after the name when browsing tags. */
+  count?: number;
   size?: "regular" | "compact";
 }
 
-export function TagChip({ tag, onRemove, size = "regular" }: TagChipProps) {
+export function TagChip({ tag, onPress, onRemove, count, size = "regular" }: TagChipProps) {
   const { isDark } = useTheme();
   const colors = tagColors(tag.colorId, isDark);
+  const compact = size === "compact";
 
-  return (
-    <View
-      style={[
-        styles.chip,
-        size === "compact" && styles.chipCompact,
-        { backgroundColor: colors.background },
-      ]}
-    >
+  const content = (
+    <>
       <View
-        style={[
-          styles.dot,
-          size === "compact" && styles.dotCompact,
-          { backgroundColor: colors.foreground },
-        ]}
+        style={[styles.dot, compact && styles.dotCompact, { backgroundColor: colors.foreground }]}
       />
       <ThemedText
         weight="medium"
-        style={[
-          styles.name,
-          size === "compact" && styles.nameCompact,
-          { color: colors.foreground },
-        ]}
+        style={[styles.name, compact && styles.nameCompact, { color: colors.foreground }]}
       >
         {tag.name}
       </ThemedText>
+      {count !== undefined ? (
+        <ThemedText
+          style={[
+            styles.name,
+            compact && styles.nameCompact,
+            styles.count,
+            { color: colors.foreground },
+          ]}
+        >
+          {count}
+        </ThemedText>
+      ) : null}
       {onRemove ? (
         <Pressable
           onPress={onRemove}
@@ -51,7 +54,31 @@ export function TagChip({ tag, onRemove, size = "regular" }: TagChipProps) {
           <Feather name="x" size={metrics.iconXs} color={colors.foreground} />
         </Pressable>
       ) : null}
-    </View>
+    </>
+  );
+  const chipStyle = [
+    styles.chip,
+    compact && styles.chipCompact,
+    { backgroundColor: colors.background },
+  ];
+
+  // A plain View keeps a non-interactive chip from capturing taps meant for its row.
+  if (!onPress) return <View style={chipStyle}>{content}</View>;
+
+  return (
+    <Pressable
+      onPress={onPress}
+      hitSlop={compact ? space.xs : 0}
+      style={({ pressed }) => [chipStyle, pressed && press]}
+      accessibilityRole="button"
+      accessibilityLabel={
+        count === undefined
+          ? `Show entries tagged ${tag.name}`
+          : `Show ${count} ${count === 1 ? "entry" : "entries"} tagged ${tag.name}`
+      }
+    >
+      {content}
+    </Pressable>
   );
 }
 
@@ -69,5 +96,6 @@ const styles = StyleSheet.create({
   dotCompact: { width: 4, height: 4, borderRadius: 2 },
   name: { fontSize: 13, lineHeight: 18 },
   nameCompact: { fontSize: 12, lineHeight: 16 },
+  count: { opacity: 0.7, fontVariant: ["tabular-nums"] },
   remove: { marginRight: -space.xs, padding: space.xs },
 });

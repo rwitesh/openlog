@@ -1,6 +1,7 @@
-import { FlatList, StyleSheet, View } from "react-native";
+import { FlatList, ScrollView, StyleSheet, View } from "react-native";
+import { TagChip } from "@/modules/entry";
 import { ThemedText } from "@/shared/components/ThemedText";
-import type { EntrySearchResult } from "@/shared/types";
+import type { EntrySearchResult, TagSummary } from "@/shared/types";
 import { space, useTheme } from "@/theme";
 import { SearchResultRow } from "./SearchResultRow";
 
@@ -9,23 +10,78 @@ const MIN_QUERY_LENGTH = 2;
 interface SearchResultsFeedProps {
   results: EntrySearchResult[];
   query: string;
+  /** Every tag, alphabetical; browsed before typing and narrowed while typing. */
+  tags: TagSummary[];
   searching: boolean;
   paddingTop?: number;
   bottomInset: number;
   onOpenEntry: (entryId: string) => void;
+  onOpenTag: (tagId: string) => void;
+}
+
+function TagList({
+  title,
+  tags,
+  onOpenTag,
+}: {
+  title: string;
+  tags: TagSummary[];
+  onOpenTag: (tagId: string) => void;
+}) {
+  const { theme } = useTheme();
+
+  return (
+    <View style={styles.tagSection}>
+      <ThemedText
+        weight="semibold"
+        style={[styles.tagTitle, { color: theme.colors.textSecondary }]}
+      >
+        {title}
+      </ThemedText>
+      <View style={styles.tagList}>
+        {tags.map((tag) => (
+          <TagChip
+            key={tag.id}
+            tag={tag}
+            count={tag.entryCount}
+            onPress={() => onOpenTag(tag.id)}
+          />
+        ))}
+      </View>
+    </View>
+  );
 }
 
 /** Scrollable list of full-text search hits with an inline empty state. */
 export function SearchResultsFeed({
   results,
   query,
+  tags,
   searching,
   paddingTop = 0,
   bottomInset,
   onOpenEntry,
+  onOpenTag,
 }: SearchResultsFeedProps) {
   const { theme } = useTheme();
   const trimmed = query.trim();
+
+  if (trimmed.length < MIN_QUERY_LENGTH && tags.length) {
+    return (
+      <ScrollView
+        style={styles.list}
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop, paddingBottom: bottomInset + space.xxl },
+        ]}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <TagList title="Tags" tags={tags} onOpenTag={onOpenTag} />
+      </ScrollView>
+    );
+  }
 
   if (trimmed.length < MIN_QUERY_LENGTH) {
     return (
@@ -43,7 +99,10 @@ export function SearchResultsFeed({
     );
   }
 
-  if (!results.length && !searching) {
+  const needle = trimmed.toLocaleLowerCase();
+  const matchingTags = tags.filter((tag) => tag.name.toLocaleLowerCase().includes(needle));
+
+  if (!results.length && !searching && !matchingTags.length) {
     return (
       <View style={[styles.empty, { paddingTop, paddingBottom: bottomInset }]}>
         <ThemedText
@@ -64,7 +123,14 @@ export function SearchResultsFeed({
       style={styles.list}
       data={results}
       keyExtractor={(item) => item.entry.id}
-      renderItem={({ item }) => <SearchResultRow result={item} onOpen={onOpenEntry} />}
+      renderItem={({ item }) => (
+        <SearchResultRow result={item} onOpen={onOpenEntry} onOpenTag={onOpenTag} />
+      )}
+      ListHeaderComponent={
+        matchingTags.length ? (
+          <TagList title="Matching tags" tags={matchingTags} onOpenTag={onOpenTag} />
+        ) : null
+      }
       ItemSeparatorComponent={() => (
         <View style={[styles.separator, { backgroundColor: theme.colors.separator }]} />
       )}
@@ -89,6 +155,19 @@ const styles = StyleSheet.create({
   },
   separator: {
     height: StyleSheet.hairlineWidth,
+  },
+  tagSection: {
+    gap: space.sm,
+    paddingBottom: space.md,
+  },
+  tagTitle: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  tagList: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: space.sm,
   },
   empty: {
     flex: 1,

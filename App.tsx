@@ -25,6 +25,7 @@ import {
   SettingsTimeline,
   SettingsTypography,
 } from "@/screens/settings";
+import { Tag } from "@/screens/tag";
 import { Timeline } from "@/screens/timeline";
 import { Welcome } from "@/screens/welcome";
 import { AudioProvider } from "@/services/audio";
@@ -120,6 +121,7 @@ function AppNavigator({
       <Stack.Screen name="Welcome" component={Welcome} options={{ headerShown: false }} />
       <Stack.Screen name="Timeline" component={Timeline} options={{ headerShown: false }} />
       <Stack.Screen name="Day" component={Day} options={{ headerShown: false }} />
+      <Stack.Screen name="Tag" component={Tag} options={{ headerShown: false }} />
       <Stack.Screen name="Compose" component={Compose} options={{ headerShown: false }} />
       <Stack.Screen
         name="Settings"

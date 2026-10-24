@@ -112,23 +112,28 @@ export async function fetchEntry(id: string): Promise<Entry | null> {
   return fetched;
 }
 
-function matchesFilter(createdAt: number, monthTs?: number, dayTs?: number): boolean {
+interface TimelineFilter {
+  monthTs?: number;
+  dayTs?: number;
+  tagId?: string;
+}
+
+function matchesFilter(entry: Entry, { monthTs, dayTs, tagId }: TimelineFilter): boolean {
+  if (tagId !== undefined && !entry.tags.some((tag) => tag.id === tagId)) return false;
   if (dayTs !== undefined) {
     const start = startOfDay(dayTs);
     const end = addDays(start, 1);
-    return createdAt >= start && createdAt < end;
+    return entry.createdAt >= start && entry.createdAt < end;
   }
   if (monthTs !== undefined) {
     const start = startOfMonth(monthTs);
     const end = addMonths(monthTs, 1);
-    return createdAt >= start && createdAt < end;
+    return entry.createdAt >= start && entry.createdAt < end;
   }
   return true;
 }
 
-export interface UseTimelineEntriesOptions {
-  monthTs?: number;
-  dayTs?: number;
+export interface UseTimelineEntriesOptions extends TimelineFilter {
   pageSize?: number;
 }
 
@@ -138,7 +143,7 @@ export interface UseTimelineEntriesOptions {
  * updates in-memory items automatically on mutations.
  */
 export function useTimelineEntries(options: UseTimelineEntriesOptions = {}) {
-  const { monthTs, dayTs, pageSize = 50 } = options;
+  const { monthTs, dayTs, tagId, pageSize = 50 } = options;
   const [entries, setEntries] = useState<Entry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
@@ -146,11 +151,18 @@ export function useTimelineEntries(options: UseTimelineEntriesOptions = {}) {
 
   const nextCursorRef = useRef<EntryCursor | undefined>(undefined);
   const isFetchingMoreRef = useRef(false);
+  const entriesRef = useRef(entries);
+  entriesRef.current = entries;
+  // Bumped by every first-page load so an in-flight older page can't append onto the new list.
+  const generationRef = useRef(0);
 
   const loadInitial = useCallback(async () => {
+    const generation = generationRef.current + 1;
+    generationRef.current = generation;
     setIsLoading(true);
     try {
-      const res = await getPagedEntries({ monthTs, dayTs, limit: pageSize });
+      const res = await getPagedEntries({ monthTs, dayTs, tagId, limit: pageSize });
+      if (generationRef.current !== generation) return;
       for (const item of res.entries) {
         entryCache.set(item.id, item);
       }
@@ -160,7 +172,7 @@ export function useTimelineEntries(options: UseTimelineEntriesOptions = {}) {
     } finally {
       setIsLoading(false);
     }
-  }, [monthTs, dayTs, pageSize]);
+  }, [monthTs, dayTs, tagId, pageSize]);
 
   const loadInitialRef = useRef(loadInitial);
   loadInitialRef.current = loadInitial;
@@ -171,14 +183,17 @@ export function useTimelineEntries(options: UseTimelineEntriesOptions = {}) {
     }
     isFetchingMoreRef.current = true;
     setIsFetchingMore(true);
+    const generation = generationRef.current;
 
     try {
       const res = await getPagedEntries({
         cursor: nextCursorRef.current,
         monthTs,
         dayTs,
+        tagId,
         limit: pageSize,
       });
+      if (generationRef.current !== generation) return;
 
       for (const item of res.entries) {
         entryCache.set(item.id, item);
@@ -191,7 +206,7 @@ export function useTimelineEntries(options: UseTimelineEntriesOptions = {}) {
       isFetchingMoreRef.current = false;
       setIsFetchingMore(false);
     }
-  }, [hasMore, monthTs, dayTs, pageSize]);
+  }, [hasMore, monthTs, dayTs, tagId, pageSize]);
 
   useEffect(() => {
     void loadInitial();
@@ -201,6 +216,7 @@ export function useTimelineEntries(options: UseTimelineEntriesOptions = {}) {
   useEffect(() => {
     return subscribeMutations((mutation) => {
       if (mutation.type === "clear") {
+        generationRef.current += 1;
         setEntries([]);
         setHasMore(false);
         nextCursorRef.current = undefined;
@@ -218,12 +234,23 @@ export function useTimelineEntries(options: UseTimelineEntriesOptions = {}) {
       }
 
       if (mutation.type === "update") {
-        setEntries((prev) => prev.map((e) => (e.id === mutation.entry.id ? mutation.entry : e)));
+        const { entry } = mutation;
+        const listed = entriesRef.current.some((e) => e.id === entry.id);
+        const matches = matchesFilter(entry, { monthTs, dayTs, tagId });
+        if (listed && !matches) {
+          setEntries((prev) => prev.filter((e) => e.id !== entry.id));
+        } else if (listed) {
+          setEntries((prev) => prev.map((e) => (e.id === entry.id ? entry : e)));
+        } else if (matches && tagId !== undefined) {
+          // An entry that gained this tag may sort below the loaded pages; a reload
+          // keeps the keyset cursor from returning it twice.
+          void loadInitialRef.current();
+        }
         return;
       }
 
       if (mutation.type === "add") {
-        if (matchesFilter(mutation.entry.createdAt, monthTs, dayTs)) {
+        if (matchesFilter(mutation.entry, { monthTs, dayTs, tagId })) {
           setEntries((prev) => {
             const next = [mutation.entry, ...prev.filter((e) => e.id !== mutation.entry.id)];
             return next.sort((a, b) => b.createdAt - a.createdAt);
@@ -231,7 +258,7 @@ export function useTimelineEntries(options: UseTimelineEntriesOptions = {}) {
         }
       }
     });
-  }, [monthTs, dayTs]);
+  }, [monthTs, dayTs, tagId]);
 
   return {
     entries,

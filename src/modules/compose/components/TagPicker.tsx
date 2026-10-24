@@ -1,17 +1,9 @@
 import { Feather } from "@expo/vector-icons";
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
-import { notifyStoreReload } from "@/modules/entry/store/EntryStore";
+import { TagColorSwatches, TagEditor } from "@/modules/entry/components/TagEditor";
 import { tagColors } from "@/modules/entry/utils/TagColors";
-import {
-  createTag,
-  deleteTag,
-  getTags,
-  MAX_TAG_NAME_LENGTH,
-  MAX_TAGS_PER_ENTRY,
-  normalizeTagName,
-  updateTag,
-} from "@/services/db/tags";
+import { createTag, getTags, MAX_TAG_NAME_LENGTH, MAX_TAGS_PER_ENTRY } from "@/services/db/tags";
 import { Sheet, ThemedText } from "@/shared/components";
 import { TAG_COLOR_IDS, type Tag, type TagColorId } from "@/shared/types";
 import { reportError } from "@/shared/utils/devLog";
@@ -31,16 +23,12 @@ export function TagPicker({ visible, selected, onChange, onClose }: TagPickerPro
   const [query, setQuery] = useState("");
   const [colorId, setColorId] = useState<TagColorId>(TAG_COLOR_IDS[0]);
   const [editing, setEditing] = useState<Tag | null>(null);
-  const [editingName, setEditingName] = useState("");
-  const [editingColorId, setEditingColorId] = useState<TagColorId>(TAG_COLOR_IDS[0]);
 
   useEffect(() => {
     if (!visible) return;
     setQuery("");
     setColorId(TAG_COLOR_IDS[0]);
     setEditing(null);
-    setEditingName("");
-    setEditingColorId(TAG_COLOR_IDS[0]);
     getTags()
       .then(setTags)
       .catch((error) => {
@@ -97,68 +85,26 @@ export function TagPicker({ visible, selected, onChange, onClose }: TagPickerPro
     }
   };
 
-  const startEditing = (tag: Tag) => {
-    setEditing(tag);
-    setEditingName(tag.name);
-    setEditingColorId(tag.colorId);
-  };
-
-  const saveEdit = async () => {
-    if (!editing) return;
-    const name = normalizeTagName(editingName);
-    if (!name) {
-      Alert.alert("Couldn't update tag", `Use 1 to ${MAX_TAG_NAME_LENGTH} characters.`);
-      return;
-    }
-    const duplicate = tags.some(
-      (tag) => tag.id !== editing.id && normalizeTagName(tag.name)?.key === name.key
+  const handleSaved = (updated: Tag) => {
+    setTags((current) =>
+      current
+        .map((tag) => (tag.id === updated.id ? updated : tag))
+        .sort((x, y) => x.name.localeCompare(y.name))
     );
-    if (duplicate) {
-      Alert.alert("Couldn't update tag", "A tag with this name already exists.");
-      return;
-    }
-    try {
-      const updated = await updateTag(editing.id, { name: editingName, colorId: editingColorId });
-      setTags((current) => current.map((tag) => (tag.id === updated.id ? updated : tag)));
-      onChange(selected.map((tag) => (tag.id === updated.id ? updated : tag)));
-      notifyStoreReload();
-      setEditing(null);
-    } catch (error) {
-      reportError("tags:update", error);
-      Alert.alert("Couldn't update tag", "Try again.");
-    }
+    onChange(selected.map((tag) => (tag.id === updated.id ? updated : tag)));
+    setEditing(null);
   };
 
-  const removeTag = () => {
-    if (!editing) return;
-    Alert.alert(`Delete “${editing.name}”?`, "It will be removed from every entry.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () => {
-          deleteTag(editing.id)
-            .then(() => {
-              setTags((current) => current.filter((tag) => tag.id !== editing.id));
-              onChange(selected.filter((tag) => tag.id !== editing.id));
-              notifyStoreReload();
-              setEditing(null);
-            })
-            .catch((error) => {
-              reportError("tags:delete", error);
-              Alert.alert("Couldn't delete tag", "Try again.");
-            });
-        },
-      },
-    ]);
+  const handleDeleted = (tagId: string) => {
+    setTags((current) => current.filter((tag) => tag.id !== tagId));
+    onChange(selected.filter((tag) => tag.id !== tagId));
+    setEditing(null);
   };
 
   const close = () => {
     setQuery("");
     setColorId(TAG_COLOR_IDS[0]);
     setEditing(null);
-    setEditingName("");
-    setEditingColorId(TAG_COLOR_IDS[0]);
     onClose();
   };
 
@@ -179,118 +125,35 @@ export function TagPicker({ visible, selected, onChange, onClose }: TagPickerPro
           </ThemedText>
         </Pressable>
       </View>
-      <View style={[styles.search, { backgroundColor: colors.surfaceMuted }]}>
-        <Feather name="search" size={metrics.iconSm} color={colors.textSecondary} />
-        <TextInput
-          value={editing ? editingName : query}
-          onChangeText={editing ? setEditingName : setQuery}
-          placeholder={editing ? "Tag name" : "Find or create a tag"}
-          placeholderTextColor={colors.textSecondary}
-          maxLength={MAX_TAG_NAME_LENGTH}
-          style={[
-            styles.input,
-            { color: colors.text, fontFamily: fontFamily("regular", theme.fontFamily) },
-          ]}
-          accessibilityLabel={editing ? "Tag name" : "Find or create a tag"}
-          accessibilityHint={
-            editing
-              ? `Use up to ${MAX_TAG_NAME_LENGTH} characters.`
-              : `Search existing tags or create one with up to ${MAX_TAG_NAME_LENGTH} characters.`
-          }
-        />
-      </View>
       {editing ? (
-        <View style={styles.createArea}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.colors}
-          >
-            {TAG_COLOR_IDS.map((id) => {
-              const color = tagColors(id, isDark);
-              return (
-                <Pressable
-                  key={id}
-                  onPress={() => setEditingColorId(id)}
-                  style={styles.colorButton}
-                  accessibilityLabel={`Use ${id} tag color`}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: editingColorId === id }}
-                >
-                  <View
-                    style={[
-                      styles.color,
-                      {
-                        backgroundColor: color.foreground,
-                        borderColor: editingColorId === id ? colors.text : "transparent",
-                      },
-                    ]}
-                  />
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-          <View style={styles.editActions}>
-            <Pressable
-              onPress={() => setEditing(null)}
-              style={({ pressed }) => [styles.textAction, pressed && press]}
-              accessibilityRole="button"
-            >
-              <ThemedText weight="medium" style={{ color: colors.textSecondary }}>
-                Cancel
-              </ThemedText>
-            </Pressable>
-            <Pressable
-              onPress={removeTag}
-              style={({ pressed }) => [styles.textAction, pressed && press]}
-              accessibilityRole="button"
-            >
-              <ThemedText weight="medium" style={{ color: colors.destructive }}>
-                Delete
-              </ThemedText>
-            </Pressable>
-            <Pressable
-              onPress={() => void saveEdit()}
-              style={({ pressed }) => [styles.textAction, pressed && press]}
-              accessibilityRole="button"
-            >
-              <ThemedText weight="medium" style={{ color: colors.accent }}>
-                Save
-              </ThemedText>
-            </Pressable>
-          </View>
+        <TagEditor
+          key={editing.id}
+          tag={editing}
+          onSaved={handleSaved}
+          onDeleted={handleDeleted}
+          onCancel={() => setEditing(null)}
+        />
+      ) : (
+        <View style={[styles.search, { backgroundColor: colors.surfaceMuted }]}>
+          <Feather name="search" size={metrics.iconSm} color={colors.textSecondary} />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Find or create a tag"
+            placeholderTextColor={colors.textSecondary}
+            maxLength={MAX_TAG_NAME_LENGTH}
+            style={[
+              styles.input,
+              { color: colors.text, fontFamily: fontFamily("regular", theme.fontFamily) },
+            ]}
+            accessibilityLabel="Find or create a tag"
+            accessibilityHint={`Search existing tags or create one with up to ${MAX_TAG_NAME_LENGTH} characters.`}
+          />
         </View>
-      ) : canCreate ? (
+      )}
+      {!editing && canCreate ? (
         <View style={styles.createArea}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.colors}
-          >
-            {TAG_COLOR_IDS.map((id) => {
-              const color = tagColors(id, isDark);
-              return (
-                <Pressable
-                  key={id}
-                  onPress={() => setColorId(id)}
-                  style={styles.colorButton}
-                  accessibilityLabel={`Use ${id} tag color`}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: colorId === id }}
-                >
-                  <View
-                    style={[
-                      styles.color,
-                      {
-                        backgroundColor: color.foreground,
-                        borderColor: colorId === id ? colors.text : "transparent",
-                      },
-                    ]}
-                  />
-                </Pressable>
-              );
-            })}
-          </ScrollView>
+          <TagColorSwatches value={colorId} onChange={setColorId} />
           <Pressable
             onPress={() => void handleCreate()}
             style={({ pressed }) => [
@@ -334,7 +197,7 @@ export function TagPicker({ visible, selected, onChange, onClose }: TagPickerPro
                   </ThemedText>
                 </Pressable>
                 <Pressable
-                  onPress={() => startEditing(tag)}
+                  onPress={() => setEditing(tag)}
                   style={({ pressed }) => [styles.editButton, pressed && press]}
                   accessibilityLabel={`Edit ${tag.name} tag`}
                   accessibilityRole="button"
@@ -369,14 +232,6 @@ const styles = StyleSheet.create({
   },
   input: { flex: 1, paddingVertical: space.sm, fontSize: 15 },
   createArea: { marginTop: space.sm, gap: space.sm },
-  colors: { gap: space.sm, paddingVertical: 2 },
-  colorButton: {
-    width: metrics.btnLg,
-    height: metrics.btnLg,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  color: { width: 24, height: 24, borderRadius: 12, borderWidth: 2 },
   create: {
     flexDirection: "row",
     alignItems: "center",
@@ -402,12 +257,6 @@ const styles = StyleSheet.create({
   },
   dot: { width: 9, height: 9, borderRadius: 5 },
   rowName: { flex: 1, fontSize: 15 },
-  editActions: { flexDirection: "row", justifyContent: "space-between" },
-  textAction: {
-    minHeight: metrics.btnLg,
-    justifyContent: "center",
-    paddingHorizontal: space.xs,
-  },
   editButton: {
     width: metrics.btnLg,
     height: metrics.btnLg,

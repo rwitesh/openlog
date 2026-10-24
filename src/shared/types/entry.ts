@@ -24,6 +24,11 @@ export interface Tag {
   colorId: TagColorId;
 }
 
+/** A tag with how many entries carry it, for browsing and choosing tags. */
+export interface TagSummary extends Tag {
+  entryCount: number;
+}
+
 export interface Entry {
   id: string;
   createdAt: number;
