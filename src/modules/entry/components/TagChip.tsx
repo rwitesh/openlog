@@ -46,8 +46,9 @@ export function TagChip({ tag, onPress, onRemove, count, size = "regular" }: Tag
       {onRemove ? (
         <Pressable
           onPress={onRemove}
-          hitSlop={space.sm}
-          style={({ pressed }) => [styles.remove, pressed && press]}
+          // Slop instead of padding keeps the chip as tall as its text, so edit mode doesn't shift rows.
+          hitSlop={space.md}
+          style={({ pressed }) => pressed && press}
           accessibilityLabel={`Remove ${tag.name} tag`}
           accessibilityRole="button"
         >
@@ -168,5 +169,4 @@ const styles = StyleSheet.create({
   name: { fontSize: 13, lineHeight: 18 },
   nameCompact: { fontSize: 12, lineHeight: 16 },
   count: { opacity: 0.7, fontVariant: ["tabular-nums"] },
-  remove: { marginRight: -space.xs, padding: space.xs },
 });
