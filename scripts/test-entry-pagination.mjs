@@ -63,3 +63,25 @@ test("entry pagination applies the requested day bounds after its cursor", () =>
     }
   );
 });
+
+test("entry pagination keeps only entries carrying the requested tag across pages", () => {
+  const database = createDatabase();
+  database.exec("CREATE TABLE entry_tags (entry_id TEXT NOT NULL, tag_id TEXT NOT NULL)");
+  const link = database.prepare("INSERT INTO entry_tags (entry_id, tag_id) VALUES (?, ?)");
+  for (const [entryId, tagId] of [
+    ["e", "work"],
+    ["d", "home"],
+    ["c", "work"],
+    ["c", "home"],
+    ["a", "work"],
+  ]) {
+    link.run(entryId, tagId);
+  }
+
+  const first = page(database, { tagId: "work", limit: 2 });
+  const second = page(database, { tagId: "work", cursor: { createdAt: 200, id: "c" }, limit: 2 });
+
+  assert.deepEqual(first, { ids: ["e", "c"], hasMore: true });
+  assert.deepEqual(second, { ids: ["a"], hasMore: false });
+  assert.deepEqual(page(database, { tagId: "missing" }), { ids: [], hasMore: false });
+});

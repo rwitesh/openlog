@@ -58,6 +58,14 @@ export function TimelineScreen({ navigation }: { navigation: Nav }) {
     [navigation]
   );
 
+  const openTagFromSearch = useCallback(
+    (tagId: string) => {
+      setSearchActive(false);
+      navigation.push("Tag", { tagId });
+    },
+    [navigation]
+  );
+
   return (
     <View style={[styles.flex, { backgroundColor: colors.background }]}>
       <TimelineHeader
@@ -87,7 +95,11 @@ export function TimelineScreen({ navigation }: { navigation: Nav }) {
       />
 
       {searchActive ? (
-        <TimelineSearchLayer onClose={closeSearch} onOpenEntry={openEntryFromSearch} />
+        <TimelineSearchLayer
+          onClose={closeSearch}
+          onOpenEntry={openEntryFromSearch}
+          onOpenTag={openTagFromSearch}
+        />
       ) : null}
     </View>
   );

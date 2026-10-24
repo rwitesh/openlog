@@ -59,7 +59,9 @@ export function ComposeScreen({ navigation, route }: Props) {
 
   const composeKey =
     entry?.id ??
-    (route.params?.initialDate !== undefined ? `new-${route.params.initialDate}` : "new");
+    ["new", route.params?.initialDate, route.params?.initialTagId]
+      .filter((part) => part !== undefined)
+      .join("-");
 
   return (
     <ComposeContent
@@ -95,7 +97,12 @@ function ComposeContent({ navigation, route, existing }: ComposeContentProps) {
   const keepFocus = useKeepFocus(inputRef);
 
   const media = useMediaAttachments(existing);
-  const draft = useComposeDraft(existing, media, route.params?.initialDate);
+  const draft = useComposeDraft({
+    existing,
+    media,
+    initialDate: route.params?.initialDate,
+    initialTagId: route.params?.initialTagId,
+  });
   const { location } = draft;
 
   // Pre-focus the writing surface when entering compose or switching to edit mode
@@ -204,6 +211,7 @@ function ComposeContent({ navigation, route, existing }: ComposeContentProps) {
           <TagChip
             key={tag.id}
             tag={tag}
+            onPress={isReadOnly ? () => navigation.push("Tag", { tagId: tag.id }) : undefined}
             onRemove={
               isReadOnly
                 ? undefined

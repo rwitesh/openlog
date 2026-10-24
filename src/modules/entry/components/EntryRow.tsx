@@ -31,9 +31,10 @@ import { TagChip } from "./TagChip";
 interface EntryRowProps {
   entry: Entry;
   animate?: boolean;
+  activeTagId?: string;
 }
 
-function EntryRowBase({ entry, animate }: EntryRowProps) {
+function EntryRowBase({ entry, animate, activeTagId }: EntryRowProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { theme } = useTheme();
   const { removeEntry, removeImage } = useEntries();
@@ -192,7 +193,15 @@ function EntryRowBase({ entry, animate }: EntryRowProps) {
         {hasTags ? (
           <View style={[styles.tags, { marginTop: hasText ? space.sm : 0 }]}>
             {entry.tags.map((tag) => (
-              <TagChip key={tag.id} tag={tag} />
+              <TagChip
+                key={tag.id}
+                tag={tag}
+                onPress={
+                  tag.id === activeTagId
+                    ? undefined
+                    : () => navigation.push("Tag", { tagId: tag.id })
+                }
+              />
             ))}
           </View>
         ) : null}

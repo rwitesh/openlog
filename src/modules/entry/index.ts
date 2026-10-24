@@ -6,5 +6,6 @@ export * from "./components/EntryRow";
 export * from "./components/ImageViewerModal";
 export * from "./components/LocationDetail";
 export * from "./components/TagChip";
+export * from "./components/TagEditor";
 export * from "./store/EntryStore";
 export * from "./utils/EntryLabels";

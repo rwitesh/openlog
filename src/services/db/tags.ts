@@ -1,4 +1,4 @@
-import { TAG_COLOR_IDS, type Tag, type TagColorId } from "@/shared/types";
+import { TAG_COLOR_IDS, type Tag, type TagColorId, type TagSummary } from "@/shared/types";
 import { runDb } from "./database";
 
 export const MAX_TAG_NAME_LENGTH = 10;
@@ -8,6 +8,14 @@ interface TagRecord {
   id: string;
   name: string;
   color_id: TagColorId;
+}
+
+/** Thrown when a rename would collide with another tag's case-insensitive key. */
+export class TagNameTakenError extends Error {
+  constructor() {
+    super("A tag with this name already exists.");
+    this.name = "TagNameTakenError";
+  }
 }
 
 function createId() {
@@ -32,6 +40,30 @@ export async function getTags(): Promise<Tag[]> {
       "SELECT id, name, color_id FROM tags ORDER BY name COLLATE NOCASE, id"
     );
     return rows.map(toTag);
+  });
+}
+
+export async function getTag(id: string): Promise<Tag | null> {
+  return runDb(async (db) => {
+    const row = await db.getFirstAsync<TagRecord>(
+      "SELECT id, name, color_id FROM tags WHERE id = ?",
+      id
+    );
+    return row ? toTag(row) : null;
+  });
+}
+
+/** Every tag, alphabetical, with the number of entries carrying it (unused tags included). */
+export async function getTagSummaries(): Promise<TagSummary[]> {
+  return runDb(async (db) => {
+    const rows = await db.getAllAsync<TagRecord & { entry_count: number }>(
+      `SELECT t.id, t.name, t.color_id, COUNT(et.entry_id) AS entry_count
+         FROM tags t
+         LEFT JOIN entry_tags et ON et.tag_id = t.id
+        GROUP BY t.id
+        ORDER BY t.name COLLATE NOCASE, t.id`
+    );
+    return rows.map((row) => ({ ...toTag(row), entryCount: row.entry_count }));
   });
 }
 
@@ -71,7 +103,7 @@ export async function updateTag(
       normalized.key,
       id
     );
-    if (duplicate) throw new Error("A tag with this name already exists.");
+    if (duplicate) throw new TagNameTakenError();
 
     await db.runAsync(
       "UPDATE tags SET name = ?, key = ?, color_id = ?, updated_at = ? WHERE id = ?",

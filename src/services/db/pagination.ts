@@ -9,6 +9,8 @@ export interface PagedEntriesOptions {
   cursor?: EntryCursor | number;
   monthTs?: number;
   dayTs?: number;
+  /** Restricts the page to entries carrying this tag. */
+  tagId?: string;
   limit?: number;
 }
 
@@ -22,7 +24,7 @@ export function buildPagedEntryQuery(
   columns: string,
   options: PagedEntriesOptions = {}
 ): PagedEntryQuery {
-  const { cursor, monthTs, dayTs, limit = 50 } = options;
+  const { cursor, monthTs, dayTs, tagId, limit = 50 } = options;
   const conditions: string[] = [];
   const params: (number | string)[] = [];
 
@@ -44,6 +46,11 @@ export function buildPagedEntryQuery(
     const start = startOfMonth(monthTs);
     conditions.push("created_at >= ? AND created_at < ?");
     params.push(start, addMonths(start, 1));
+  }
+
+  if (tagId !== undefined) {
+    conditions.push("id IN (SELECT entry_id FROM entry_tags WHERE tag_id = ?)");
+    params.push(tagId);
   }
 
   const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";

@@ -26,6 +26,8 @@ interface TimelineProps {
   emptyTitle: string;
   emptyBody: string;
   animateFirst?: boolean;
+  /** The tag this feed is filtered to; its chips stay inert so they don't reopen the same lens. */
+  activeTagId?: string;
   onOpenDay?: (dayTs: number) => void;
   onEndReached?: () => void;
 }
@@ -40,6 +42,7 @@ export function TimelineFeed({
   emptyTitle,
   emptyBody,
   animateFirst = false,
+  activeTagId,
   onOpenDay,
   onEndReached,
 }: TimelineProps) {
@@ -134,6 +137,7 @@ export function TimelineFeed({
             >
               <EntryRow
                 entry={item.entry}
+                activeTagId={activeTagId}
                 animate={animateFirst && index === 0 && isSameDay(item.entry.createdAt, Date.now())}
               />
             </TimelineRail>
