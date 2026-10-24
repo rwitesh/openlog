@@ -1,5 +1,5 @@
 import { Feather } from "@expo/vector-icons";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Pressable,
@@ -11,7 +11,13 @@ import {
 } from "react-native";
 import { TagColorSwatches, TagEditor } from "@/modules/entry";
 import { tagColors } from "@/modules/entry/utils/TagColors";
-import { createTag, getTags, MAX_TAG_NAME_LENGTH, MAX_TAGS_PER_ENTRY } from "@/services/db/tags";
+import {
+  createTag,
+  getTags,
+  MAX_TAG_NAME_LENGTH,
+  MAX_TAGS_PER_ENTRY,
+  normalizeTagName,
+} from "@/services/db/tags";
 import { Sheet, ThemedText, useKeyboardInset } from "@/shared/components";
 import { TAG_COLOR_IDS, type Tag, type TagColorId } from "@/shared/types";
 import { reportError } from "@/shared/utils/devLog";
@@ -102,6 +108,7 @@ export function TagPicker({ visible, selected, onChange, onClose }: TagPickerPro
   // Height above the field while unfiltered, and the keyboard offset it was measured under;
   // filtering keeps it so the sheet never resizes under the field.
   const [bodyLock, setBodyLock] = useState<{ height: number; offset: number } | null>(null);
+  const bodyRef = useRef<View>(null);
 
   useEffect(() => {
     if (!visible) return;
@@ -117,22 +124,29 @@ export function TagPicker({ visible, selected, onChange, onClose }: TagPickerPro
   }, [visible]);
 
   const colorId = pickedColorId ?? leastUsedColor(tags);
-  const normalized = query.normalize("NFKC").trim().replace(/\s+/g, " ");
+  // Same normalization as stored tag keys, so finding and duplicate checks agree with the database.
+  const typed = normalizeTagName(query);
+  const typedKey = typed?.key;
   const selectedIds = new Set(selected.map((tag) => tag.id));
   const matches = useMemo(
     () =>
-      tags.filter((tag) => tag.name.toLocaleLowerCase().includes(normalized.toLocaleLowerCase())),
-    [tags, normalized]
+      typedKey === undefined
+        ? tags
+        : tags.filter((tag) => normalizeTagName(tag.name)?.key.includes(typedKey)),
+    [tags, typedKey]
   );
-  const existingMatch = tags.some(
-    (tag) => tag.name.toLocaleLowerCase() === normalized.toLocaleLowerCase()
-  );
+  const existingMatch = tags.some((tag) => normalizeTagName(tag.name)?.key === typedKey);
   const atLimit = selected.length >= MAX_TAGS_PER_ENTRY;
-  const canCreate =
-    Boolean(normalized) &&
-    [...normalized].length <= MAX_TAG_NAME_LENGTH &&
-    !existingMatch &&
-    selected.length < MAX_TAGS_PER_ENTRY;
+  const canCreate = typed !== null && !existingMatch && !atLimit;
+
+  // Docking to the keyboard can leave the body's size unchanged, which fires no layout event.
+  const unfiltered = typed === null;
+  useEffect(() => {
+    if (!unfiltered) return;
+    bodyRef.current?.measure((_x, _y, _width, height) =>
+      setBodyLock({ height, offset: keyboard.offset })
+    );
+  }, [unfiltered, keyboard.offset]);
 
   const toggleTag = (tag: Tag) => {
     if (selectedIds.has(tag.id)) {
@@ -143,12 +157,9 @@ export function TagPicker({ visible, selected, onChange, onClose }: TagPickerPro
   };
 
   const handleCreate = async () => {
-    if (selected.length >= MAX_TAGS_PER_ENTRY) {
-      Alert.alert("Tag limit", `An entry can have up to ${MAX_TAGS_PER_ENTRY} tags.`);
-      return;
-    }
+    if (!typed || !canCreate) return;
     try {
-      const tag = await createTag({ name: normalized, colorId });
+      const tag = await createTag({ name: typed.name, colorId });
       setTags((current) =>
         [...current.filter((item) => item.id !== tag.id), tag].sort((a, b) =>
           a.name.localeCompare(b.name)
@@ -221,15 +232,16 @@ export function TagPicker({ visible, selected, onChange, onClose }: TagPickerPro
       ) : (
         <>
           <View
+            ref={bodyRef}
             style={[
               styles.body,
               // A lock measured under another keyboard state could overflow the docked sheet.
-              normalized && bodyLock?.offset === keyboard.offset
+              !unfiltered && bodyLock?.offset === keyboard.offset
                 ? { minHeight: bodyLock.height }
                 : null,
             ]}
             onLayout={(event) => {
-              if (!normalized) {
+              if (unfiltered) {
                 setBodyLock({ height: event.nativeEvent.layout.height, offset: keyboard.offset });
               }
             }}
@@ -269,13 +281,13 @@ export function TagPicker({ visible, selected, onChange, onClose }: TagPickerPro
                     pressed && press,
                   ]}
                   accessibilityRole="button"
-                  accessibilityLabel={`Create ${normalized} tag`}
+                  accessibilityLabel={`Create ${typed?.name} tag`}
                 >
                   <Feather name="plus" size={metrics.iconSm} color={colors.accent} />
                   <ThemedText
                     weight="medium"
                     style={{ color: colors.accent }}
-                  >{`Create “${normalized}”`}</ThemedText>
+                  >{`Create “${typed?.name}”`}</ThemedText>
                 </Pressable>
               </View>
             ) : null}
@@ -323,7 +335,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: space.sm,
-    minHeight: 44,
+    minHeight: metrics.btnLg,
     borderRadius: radius.md,
     paddingHorizontal: space.md,
   },

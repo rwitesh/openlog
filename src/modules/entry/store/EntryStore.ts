@@ -159,6 +159,8 @@ export function useTimelineEntries(options: UseTimelineEntriesOptions = {}) {
   const loadInitial = useCallback(async () => {
     const generation = generationRef.current + 1;
     generationRef.current = generation;
+    // A page requested from the previous list's cursor must not land on the new one.
+    nextCursorRef.current = undefined;
     setIsLoading(true);
     try {
       const res = await getPagedEntries({ monthTs, dayTs, tagId, limit: pageSize });
@@ -218,6 +220,7 @@ export function useTimelineEntries(options: UseTimelineEntriesOptions = {}) {
       if (mutation.type === "clear") {
         generationRef.current += 1;
         setEntries([]);
+        setIsLoading(false);
         setHasMore(false);
         nextCursorRef.current = undefined;
         return;

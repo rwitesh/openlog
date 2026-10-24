@@ -29,6 +29,8 @@ export function TagColorSwatches({ value, onChange }: TagColorSwatchesProps) {
       showsHorizontalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={styles.swatches}
+      accessibilityRole="radiogroup"
+      accessibilityLabel="Tag color"
     >
       {TAG_COLOR_IDS.map((id) => (
         <Pressable
@@ -37,7 +39,7 @@ export function TagColorSwatches({ value, onChange }: TagColorSwatchesProps) {
           style={styles.swatchButton}
           accessibilityLabel={`Use ${id} tag color`}
           accessibilityRole="radio"
-          accessibilityState={{ selected: value === id }}
+          accessibilityState={{ checked: value === id }}
         >
           <View
             style={[
@@ -90,7 +92,7 @@ export function TagEditor({ tag, onSaved, onDeleted, onCancel }: TagEditorProps)
       onSaved(updated);
     } catch (error) {
       if (error instanceof TagNameTakenError) {
-        Alert.alert("Couldn't update tag", "A tag with this name already exists.");
+        Alert.alert("Couldn't update tag", error.message);
       } else {
         reportError("tags:update", error);
         Alert.alert("Couldn't update tag", "Try again.");
@@ -187,7 +189,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: space.sm,
-    minHeight: 44,
+    minHeight: metrics.btnLg,
     borderRadius: radius.md,
     paddingHorizontal: space.md,
   },
