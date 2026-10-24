@@ -170,7 +170,7 @@ export function useTimelineEntries(options: UseTimelineEntriesOptions = {}) {
       setHasMore(res.hasMore);
       nextCursorRef.current = res.nextCursor;
     } finally {
-      setIsLoading(false);
+      if (generationRef.current === generation) setIsLoading(false);
     }
   }, [monthTs, dayTs, tagId, pageSize]);
 

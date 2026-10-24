@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import { buildPagedEntryQuery } from "../src/services/db/pagination.ts";
+import { initializeDatabaseSchema } from "../src/services/db/schema.ts";
 
 const COLUMNS = "id, created_at";
 
@@ -64,9 +65,43 @@ test("entry pagination applies the requested day bounds after its cursor", () =>
   );
 });
 
-test("entry pagination keeps only entries carrying the requested tag across pages", () => {
-  const database = createDatabase();
-  database.exec("CREATE TABLE entry_tags (entry_id TEXT NOT NULL, tag_id TEXT NOT NULL)");
+async function createTaggedDatabase() {
+  const database = new DatabaseSync(":memory:");
+  await initializeDatabaseSchema({
+    execAsync: async (source) => database.exec(source),
+    getFirstAsync: async (source) => database.prepare(source).get() ?? null,
+    getAllAsync: async (source, ...params) => database.prepare(source).all(...params),
+    withTransactionAsync: async (task) => {
+      database.exec("BEGIN");
+      try {
+        await task();
+        database.exec("COMMIT");
+      } catch (error) {
+        database.exec("ROLLBACK");
+        throw error;
+      }
+    },
+  });
+
+  const day = new Date(2026, 8, 6).getTime();
+  const nextDay = day + 24 * 60 * 60 * 1000;
+  const insertEntry = database.prepare(
+    "INSERT INTO entries (id, created_at, updated_at) VALUES (?, ?, ?)"
+  );
+  for (const [id, createdAt] of [
+    ["e", nextDay + 30],
+    ["d", nextDay + 20],
+    ["c", day + 30],
+    ["b", day + 20],
+    ["a", day + 10],
+  ]) {
+    insertEntry.run(id, createdAt, createdAt);
+  }
+  const insertTag = database.prepare(
+    "INSERT INTO tags (id, name, key, color_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
+  );
+  insertTag.run("work", "Work", "work", "clay", 1, 1);
+  insertTag.run("home", "Home", "home", "sage", 1, 1);
   const link = database.prepare("INSERT INTO entry_tags (entry_id, tag_id) VALUES (?, ?)");
   for (const [entryId, tagId] of [
     ["e", "work"],
@@ -77,11 +112,33 @@ test("entry pagination keeps only entries carrying the requested tag across page
   ]) {
     link.run(entryId, tagId);
   }
+  return { database, day };
+}
 
+test("entry pagination keeps only entries carrying the requested tag across pages", async () => {
+  const { database, day } = await createTaggedDatabase();
   const first = page(database, { tagId: "work", limit: 2 });
-  const second = page(database, { tagId: "work", cursor: { createdAt: 200, id: "c" }, limit: 2 });
+  const second = page(database, {
+    tagId: "work",
+    cursor: { createdAt: day + 30, id: "c" },
+    limit: 2,
+  });
 
   assert.deepEqual(first, { ids: ["e", "c"], hasMore: true });
   assert.deepEqual(second, { ids: ["a"], hasMore: false });
-  assert.deepEqual(page(database, { tagId: "missing" }), { ids: [], hasMore: false });
+});
+
+test("entry pagination combines a tag with day bounds", async () => {
+  const { database, day } = await createTaggedDatabase();
+
+  assert.deepEqual(page(database, { tagId: "work", dayTs: day }).ids, ["c", "a"]);
+  assert.deepEqual(page(database, { tagId: "home", dayTs: day }).ids, ["c"]);
+});
+
+test("entry pagination returns nothing for a deleted tag", async () => {
+  const { database } = await createTaggedDatabase();
+  database.prepare("DELETE FROM tags WHERE id = ?").run("work");
+
+  assert.deepEqual(page(database, { tagId: "work" }).ids, []);
+  assert.deepEqual(page(database, {}).ids, ["e", "d", "c", "b", "a"]);
 });

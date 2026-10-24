@@ -73,8 +73,14 @@ export function TagEditor({ tag, onSaved, onDeleted, onCancel }: TagEditorProps)
   const [busy, setBusy] = useState(false);
 
   const save = async () => {
-    if (!normalizeTagName(name)) {
+    const normalized = normalizeTagName(name);
+    if (!normalized) {
       Alert.alert("Couldn't update tag", `Use 1 to ${MAX_TAG_NAME_LENGTH} characters.`);
+      return;
+    }
+    // Unchanged tags skip the write, which would otherwise reload every open timeline.
+    if (normalized.name === tag.name && colorId === tag.colorId) {
+      onSaved(tag);
       return;
     }
     setBusy(true);
