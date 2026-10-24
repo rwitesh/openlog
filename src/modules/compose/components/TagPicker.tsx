@@ -9,6 +9,15 @@ import { TAG_COLOR_IDS, type Tag, type TagColorId } from "@/shared/types";
 import { reportError } from "@/shared/utils/devLog";
 import { fontFamily, metrics, press, radius, space, useTheme } from "@/theme";
 
+/** The palette color fewest tags use (palette order breaks ties), so new tags spread across hues. */
+function leastUsedColor(tags: Tag[]): TagColorId {
+  const usage = new Map<TagColorId, number>(TAG_COLOR_IDS.map((id) => [id, 0]));
+  for (const tag of tags) usage.set(tag.colorId, (usage.get(tag.colorId) ?? 0) + 1);
+  return TAG_COLOR_IDS.reduce((best, id) =>
+    (usage.get(id) ?? 0) < (usage.get(best) ?? 0) ? id : best
+  );
+}
+
 interface TagPickerProps {
   visible: boolean;
   selected: Tag[];
@@ -21,13 +30,14 @@ export function TagPicker({ visible, selected, onChange, onClose }: TagPickerPro
   const { colors } = theme;
   const [tags, setTags] = useState<Tag[]>([]);
   const [query, setQuery] = useState("");
-  const [colorId, setColorId] = useState<TagColorId>(TAG_COLOR_IDS[0]);
+  // A color picked for the tag being created; otherwise each new tag gets a fresh suggestion.
+  const [pickedColorId, setPickedColorId] = useState<TagColorId | null>(null);
   const [editing, setEditing] = useState<Tag | null>(null);
 
   useEffect(() => {
     if (!visible) return;
     setQuery("");
-    setColorId(TAG_COLOR_IDS[0]);
+    setPickedColorId(null);
     setEditing(null);
     getTags()
       .then(setTags)
@@ -37,6 +47,7 @@ export function TagPicker({ visible, selected, onChange, onClose }: TagPickerPro
       });
   }, [visible]);
 
+  const colorId = pickedColorId ?? leastUsedColor(tags);
   const normalized = query.normalize("NFKC").trim().replace(/\s+/g, " ");
   const selectedIds = new Set(selected.map((tag) => tag.id));
   const matches = useMemo(
@@ -78,6 +89,7 @@ export function TagPicker({ visible, selected, onChange, onClose }: TagPickerPro
         )
       );
       setQuery("");
+      setPickedColorId(null);
       if (!selectedIds.has(tag.id)) toggleTag(tag);
     } catch (error) {
       reportError("tags:create", error);
@@ -103,7 +115,7 @@ export function TagPicker({ visible, selected, onChange, onClose }: TagPickerPro
 
   const close = () => {
     setQuery("");
-    setColorId(TAG_COLOR_IDS[0]);
+    setPickedColorId(null);
     setEditing(null);
     onClose();
   };
@@ -153,7 +165,7 @@ export function TagPicker({ visible, selected, onChange, onClose }: TagPickerPro
       )}
       {!editing && canCreate ? (
         <View style={styles.createArea}>
-          <TagColorSwatches value={colorId} onChange={setColorId} />
+          <TagColorSwatches value={colorId} onChange={setPickedColorId} />
           <Pressable
             onPress={() => void handleCreate()}
             style={({ pressed }) => [
