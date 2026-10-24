@@ -26,14 +26,19 @@ import { AudioPlayer } from "./AudioPlayer";
 import { EntryDetailsModal } from "./EntryDetailsModal";
 import { EntryMenuButton } from "./EntryMenuButton";
 import { ImageViewerModal } from "./ImageViewerModal";
-import { TagChip } from "./TagChip";
+import { TagChipList } from "./TagChip";
+
+/** Tags shown on a timeline row before the rest fold into "+N". */
+const ROW_TAG_LIMIT = 4;
 
 interface EntryRowProps {
   entry: Entry;
   animate?: boolean;
+  /** The tag the surrounding timeline is filtered to; its header already names it. */
+  activeTagId?: string;
 }
 
-function EntryRowBase({ entry, animate }: EntryRowProps) {
+function EntryRowBase({ entry, animate, activeTagId }: EntryRowProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { theme } = useTheme();
   const { removeEntry, removeImage } = useEntries();
@@ -91,7 +96,7 @@ function EntryRowBase({ entry, animate }: EntryRowProps) {
   const hasAudio = audios.length > 0;
   const hasAttachments = attachments.length > 0;
   const hasText = Boolean(bodyText);
-  const hasTags = entry.tags.length > 0;
+  const rowTags = activeTagId ? entry.tags.filter((tag) => tag.id !== activeTagId) : entry.tags;
   const locationName = entry.location ? locationPlaceTitle(entry.location) : undefined;
 
   const [isTruncated, setIsTruncated] = useState(() => {
@@ -189,13 +194,13 @@ function EntryRowBase({ entry, animate }: EntryRowProps) {
           </Pressable>
         ) : null}
 
-        {hasTags ? (
-          <View style={[styles.tags, { marginTop: hasText ? space.sm : 0 }]}>
-            {entry.tags.map((tag) => (
-              <TagChip key={tag.id} tag={tag} />
-            ))}
-          </View>
-        ) : null}
+        <TagChipList
+          tags={rowTags}
+          max={ROW_TAG_LIMIT}
+          onPressTag={(tag) => navigation.push("Tag", { tagId: tag.id })}
+          onPressMore={handleView}
+          style={{ marginTop: hasText ? space.sm : 0 }}
+        />
 
         {hasImages ? (
           images.length === 1 ? (
@@ -369,11 +374,6 @@ const styles = StyleSheet.create({
   },
   audioList: {
     gap: space.xs,
-  },
-  tags: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: space.xs + 2,
   },
   attachmentAfterContent: {
     marginTop: space.md,

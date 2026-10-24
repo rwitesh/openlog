@@ -1,7 +1,10 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Animated, BackHandler, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { getTagSummaries } from "@/services/db/tags";
+import type { TagSummary } from "@/shared/types";
+import { reportError } from "@/shared/utils/devLog";
 import { space, useTheme } from "@/theme";
 import { useEntrySearch } from "../hooks/useEntrySearch";
 import { SearchBar } from "./SearchBar";
@@ -10,18 +13,32 @@ import { SearchResultsFeed } from "./SearchResultsFeed";
 interface TimelineSearchLayerProps {
   onClose: () => void;
   onOpenEntry: (entryId: string) => void;
+  onOpenTag: (tagId: string) => void;
 }
 
 /**
  * Full-screen search surface over the timeline: search bar on top, ranked
- * matches with highlighted snippets below. Mounted only while active, so
- * every session starts from a fresh query.
+ * matches with highlighted snippets below, and every tag one tap away before
+ * typing. Mounted only while active, so every session starts fresh.
  */
-export function TimelineSearchLayer({ onClose, onOpenEntry }: TimelineSearchLayerProps) {
+export function TimelineSearchLayer({ onClose, onOpenEntry, onOpenTag }: TimelineSearchLayerProps) {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
   const { motion, colors } = theme;
-  const { query, setQuery, results, searching } = useEntrySearch();
+  const { query, setQuery, results, resultsQuery, searching } = useEntrySearch();
+  const [tags, setTags] = useState<TagSummary[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    getTagSummaries()
+      .then((next) => {
+        if (active) setTags(next);
+      })
+      .catch((error) => reportError("search:tagSummaries", error));
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const opacity = useRef(new Animated.Value(motion.level === "reduced" ? 1 : 0)).current;
 
@@ -61,10 +78,13 @@ export function TimelineSearchLayer({ onClose, onOpenEntry }: TimelineSearchLaye
       <SearchResultsFeed
         results={results}
         query={query}
+        resultsQuery={resultsQuery}
+        tags={tags}
         searching={searching}
         paddingTop={space.lg}
         bottomInset={insets.bottom}
         onOpenEntry={onOpenEntry}
+        onOpenTag={onOpenTag}
       />
     </Animated.View>
   );

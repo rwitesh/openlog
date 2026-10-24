@@ -8,12 +8,14 @@ import { ThemedText } from "./ThemedText";
 
 interface ScreenHeaderProps {
   title: string;
+  /** Decorative mark drawn just before the title. */
+  icon?: ReactNode;
   onBack?: () => void;
   right?: ReactNode;
 }
 
 /** In-app header drawn directly on the screen's themed background. */
-export function ScreenHeader({ title, onBack, right }: ScreenHeaderProps) {
+export function ScreenHeader({ title, icon, onBack, right }: ScreenHeaderProps) {
   const insets = useSafeAreaInsets();
   const { colors, typography } = useTheme();
 
@@ -30,6 +32,16 @@ export function ScreenHeader({ title, onBack, right }: ScreenHeaderProps) {
           >
             <Feather name="arrow-left" size={metrics.iconMd} color={colors.text} />
           </Pressable>
+        ) : null}
+
+        {icon ? (
+          <View
+            style={styles.icon}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          >
+            {icon}
+          </View>
         ) : null}
 
         <ThemedText
@@ -62,6 +74,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginRight: space.xs,
+  },
+  icon: {
+    marginRight: space.sm,
   },
   title: {
     flexShrink: 1,

@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { entryContentTypeLabel, TagChip } from "@/modules/entry";
+import { entryContentTypeLabel, TagChipList } from "@/modules/entry";
+import { normalizeTagName } from "@/services/db/tags";
 import { locationPlaceTitle } from "@/services/location/location";
 import { ThemedText } from "@/shared/components/ThemedText";
 import type { EntrySearchResult } from "@/shared/types";
@@ -9,16 +10,29 @@ import { press, space, typography, useEntryPreferences, useTheme } from "@/theme
 import { hasSnippetMatch } from "../utils/highlight";
 import { SearchHighlight } from "./SearchHighlight";
 
+/** Result rows are for scanning, so they keep fewer chips than the timeline. */
+const RESULT_TAG_LIMIT = 3;
+
 interface SearchResultRowProps {
   result: EntrySearchResult;
+  /** The query these results answer; tags it matches lead the row so the reason for the hit stays visible. */
+  query: string;
   onOpen: (entryId: string) => void;
+  onOpenTag: (tagId: string) => void;
 }
 
-function SearchResultRowBase({ result, onOpen }: SearchResultRowProps) {
+function SearchResultRowBase({ result, query, onOpen, onOpenTag }: SearchResultRowProps) {
   const { theme } = useTheme();
   const { showLocation: locationPref } = useEntryPreferences();
   const { colors } = theme;
   const { entry, snippet, locationSnippet } = result;
+  // Mirrors the prefix match searchEntries runs against tag keys.
+  const tagQuery = normalizeTagName(query)?.key;
+  const matchesQuery = (name: string) =>
+    tagQuery !== undefined && (normalizeTagName(name)?.key ?? "").startsWith(tagQuery);
+  const tags = [...entry.tags].sort(
+    (a, b) => Number(matchesQuery(b.name)) - Number(matchesQuery(a.name))
+  );
 
   const hasText = Boolean(entry.text?.trim());
   const textMatched = hasSnippetMatch(snippet);
@@ -63,13 +77,14 @@ function SearchResultRowBase({ result, onOpen }: SearchResultRowProps) {
         </ThemedText>
       )}
 
-      {entry.tags.length ? (
-        <View style={styles.tags}>
-          {entry.tags.map((tag) => (
-            <TagChip key={tag.id} tag={tag} size="compact" />
-          ))}
-        </View>
-      ) : null}
+      <TagChipList
+        tags={tags}
+        max={RESULT_TAG_LIMIT}
+        size="compact"
+        onPressTag={(tag) => onOpenTag(tag.id)}
+        onPressMore={() => onOpen(entry.id)}
+        style={styles.tags}
+      />
     </Pressable>
   );
 }
@@ -107,9 +122,6 @@ const styles = StyleSheet.create({
     letterSpacing: typography.entryText.letterSpacing,
   },
   tags: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: space.xs + 2,
     marginTop: space.sm,
   },
 });

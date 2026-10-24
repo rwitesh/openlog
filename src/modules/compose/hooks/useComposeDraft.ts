@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Alert } from "react-native";
 
 import { addEntry, patchEntry } from "@/modules/entry";
-import { getTags } from "@/services/db/tags";
+import { getTag, getTags, MAX_TAGS_PER_ENTRY } from "@/services/db/tags";
 import { getCachedPlace, useLocation } from "@/services/location";
 import type { Attachment, Entry, Tag } from "@/shared/types";
 import { getInitialWhen } from "@/shared/utils/dates";
@@ -19,15 +19,24 @@ interface ComposeMedia {
   isRecording: boolean;
 }
 
+interface ComposeDraftOptions {
+  existing: Entry | undefined;
+  media: ComposeMedia;
+  initialDate?: number;
+  /** Pre-attaches this tag to a new entry, e.g. when composing from a tag's timeline. */
+  initialTagId?: string;
+}
+
 /**
  * Scalar draft state (text, timestamp, location) plus the pipeline that
  * persists the whole draft — media included — into a stored entry.
  */
-export function useComposeDraft(
-  existing: Entry | undefined,
-  media: ComposeMedia,
-  initialDate?: number
-) {
+export function useComposeDraft({
+  existing,
+  media,
+  initialDate,
+  initialTagId,
+}: ComposeDraftOptions) {
   const [text, setText] = useState(() => existing?.text ?? "");
   const [tags, setTags] = useState<Tag[]>(() => existing?.tags ?? []);
   const [when, setWhen] = useState(() => getInitialWhen(existing?.createdAt, initialDate));
@@ -53,6 +62,24 @@ export function useComposeDraft(
       active = false;
     };
   }, [existing]);
+
+  useEffect(() => {
+    if (existing || !initialTagId) return;
+    let active = true;
+    getTag(initialTagId)
+      .then((tag) => {
+        if (!active || !tag) return;
+        setTags((current) =>
+          current.length >= MAX_TAGS_PER_ENTRY || current.some((item) => item.id === tag.id)
+            ? current
+            : [tag, ...current]
+        );
+      })
+      .catch((error) => reportError("compose:initialTag", error));
+    return () => {
+      active = false;
+    };
+  }, [existing, initialTagId]);
 
   const canSave =
     canSaveDraft({
