@@ -1,10 +1,18 @@
 import { Feather } from "@expo/vector-icons";
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { TagColorSwatches, TagEditor } from "@/modules/entry";
 import { tagColors } from "@/modules/entry/utils/TagColors";
 import { createTag, getTags, MAX_TAG_NAME_LENGTH, MAX_TAGS_PER_ENTRY } from "@/services/db/tags";
-import { Sheet, ThemedText } from "@/shared/components";
+import { Sheet, ThemedText, useKeyboardInset } from "@/shared/components";
 import { TAG_COLOR_IDS, type Tag, type TagColorId } from "@/shared/types";
 import { reportError } from "@/shared/utils/devLog";
 import { fontFamily, metrics, press, radius, space, useTheme } from "@/theme";
@@ -18,6 +26,62 @@ function leastUsedColor(tags: Tag[]): TagColorId {
   );
 }
 
+/** Share of the screen the tag grid may fill before it scrolls; few tags keep the sheet short. */
+const GRID_MAX_SHARE = 0.45;
+
+interface PickerChipProps {
+  tag: Tag;
+  selected: boolean;
+  /** At the per-entry limit: attaching is blocked, but long-press editing still works. */
+  disabled: boolean;
+  onToggle: () => void;
+  onEdit: () => void;
+}
+
+/** Selectable tag: outlined with a dot when free, tinted with a check when attached. */
+function PickerChip({ tag, selected, disabled, onToggle, onEdit }: PickerChipProps) {
+  const { isDark, colors } = useTheme();
+  const tint = tagColors(tag.colorId, isDark);
+
+  return (
+    <Pressable
+      onPress={() => {
+        if (!disabled) onToggle();
+      }}
+      onLongPress={onEdit}
+      hitSlop={space.xs}
+      style={({ pressed }) => [
+        styles.chip,
+        selected
+          ? { backgroundColor: tint.background, borderColor: tint.background }
+          : { borderColor: colors.line },
+        disabled && styles.chipDisabled,
+        pressed && !disabled && press,
+      ]}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: selected, disabled }}
+      accessibilityLabel={tag.name}
+      accessibilityHint="Long press to edit."
+      accessibilityActions={[{ name: "edit", label: "Edit tag" }]}
+      onAccessibilityAction={(event) => {
+        if (event.nativeEvent.actionName === "edit") onEdit();
+      }}
+    >
+      {selected ? (
+        <Feather name="check" size={metrics.iconXs} color={tint.foreground} />
+      ) : (
+        <View style={[styles.chipDot, { backgroundColor: tint.foreground }]} />
+      )}
+      <ThemedText
+        weight={selected ? "medium" : "regular"}
+        style={[styles.chipName, { color: selected ? tint.foreground : colors.textSecondary }]}
+      >
+        {tag.name}
+      </ThemedText>
+    </Pressable>
+  );
+}
+
 interface TagPickerProps {
   visible: boolean;
   selected: Tag[];
@@ -26,13 +90,18 @@ interface TagPickerProps {
 }
 
 export function TagPicker({ visible, selected, onChange, onClose }: TagPickerProps) {
-  const { isDark, theme } = useTheme();
+  const { theme } = useTheme();
   const { colors } = theme;
+  const window = useWindowDimensions();
   const [tags, setTags] = useState<Tag[]>([]);
   const [query, setQuery] = useState("");
   // A color picked for the tag being created; otherwise each new tag gets a fresh suggestion.
   const [pickedColorId, setPickedColorId] = useState<TagColorId | null>(null);
   const [editing, setEditing] = useState<Tag | null>(null);
+  const keyboard = useKeyboardInset();
+  // Height above the field while unfiltered, and the keyboard offset it was measured under;
+  // filtering keeps it so the sheet never resizes under the field.
+  const [bodyLock, setBodyLock] = useState<{ height: number; offset: number } | null>(null);
 
   useEffect(() => {
     if (!visible) return;
@@ -58,6 +127,7 @@ export function TagPicker({ visible, selected, onChange, onClose }: TagPickerPro
   const existingMatch = tags.some(
     (tag) => tag.name.toLocaleLowerCase() === normalized.toLocaleLowerCase()
   );
+  const atLimit = selected.length >= MAX_TAGS_PER_ENTRY;
   const canCreate =
     Boolean(normalized) &&
     [...normalized].length <= MAX_TAG_NAME_LENGTH &&
@@ -67,10 +137,6 @@ export function TagPicker({ visible, selected, onChange, onClose }: TagPickerPro
   const toggleTag = (tag: Tag) => {
     if (selectedIds.has(tag.id)) {
       onChange(selected.filter((item) => item.id !== tag.id));
-      return;
-    }
-    if (selected.length >= MAX_TAGS_PER_ENTRY) {
-      Alert.alert("Tag limit", `An entry can have up to ${MAX_TAGS_PER_ENTRY} tags.`);
       return;
     }
     onChange([...selected, tag]);
@@ -121,11 +187,18 @@ export function TagPicker({ visible, selected, onChange, onClose }: TagPickerPro
   };
 
   return (
-    <Sheet visible={visible} onClose={close} keyboardBehavior="dock" sheetStyle={styles.sheet}>
+    <Sheet visible={visible} onClose={close} keyboardBehavior="dock">
       <View style={styles.header}>
-        <ThemedText weight="semibold" style={[styles.title, { color: colors.text }]}>
-          {editing ? "Edit tag" : "Tags"}
-        </ThemedText>
+        <View style={styles.titleRow}>
+          <ThemedText weight="semibold" style={[styles.title, { color: colors.text }]}>
+            {editing ? "Edit tag" : "Tags"}
+          </ThemedText>
+          {!editing && selected.length ? (
+            <ThemedText style={[styles.limit, { color: colors.textTertiary }]}>
+              {`${selected.length} of ${MAX_TAGS_PER_ENTRY}`}
+            </ThemedText>
+          ) : null}
+        </View>
         <Pressable
           onPress={close}
           hitSlop={space.sm}
@@ -146,95 +219,107 @@ export function TagPicker({ visible, selected, onChange, onClose }: TagPickerPro
           onCancel={() => setEditing(null)}
         />
       ) : (
-        <View style={[styles.search, { backgroundColor: colors.surfaceMuted }]}>
-          <Feather name="search" size={metrics.iconSm} color={colors.textSecondary} />
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Find or create a tag"
-            placeholderTextColor={colors.textSecondary}
-            maxLength={MAX_TAG_NAME_LENGTH}
+        <>
+          <View
             style={[
-              styles.input,
-              { color: colors.text, fontFamily: fontFamily("regular", theme.fontFamily) },
+              styles.body,
+              // A lock measured under another keyboard state could overflow the docked sheet.
+              normalized && bodyLock?.offset === keyboard.offset
+                ? { minHeight: bodyLock.height }
+                : null,
             ]}
-            accessibilityLabel="Find or create a tag"
-            accessibilityHint={`Search existing tags or create one with up to ${MAX_TAG_NAME_LENGTH} characters.`}
-          />
-        </View>
-      )}
-      {!editing && canCreate ? (
-        <View style={styles.createArea}>
-          <TagColorSwatches value={colorId} onChange={setPickedColorId} />
-          <Pressable
-            onPress={() => void handleCreate()}
-            style={({ pressed }) => [
-              styles.create,
-              { backgroundColor: colors.surfaceMuted },
-              pressed && press,
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel={`Create ${normalized} tag`}
+            onLayout={(event) => {
+              if (!normalized) {
+                setBodyLock({ height: event.nativeEvent.layout.height, offset: keyboard.offset });
+              }
+            }}
           >
-            <Feather name="plus" size={metrics.iconSm} color={colors.accent} />
-            <ThemedText
-              weight="medium"
-              style={{ color: colors.accent }}
-            >{`Create “${normalized}”`}</ThemedText>
-          </Pressable>
-        </View>
-      ) : null}
-      {!editing ? (
-        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.list}>
-          {matches.map((tag) => {
-            const color = tagColors(tag.colorId, isDark);
-            const attached = selectedIds.has(tag.id);
-            return (
-              <View key={tag.id} style={styles.row}>
+            {tags.length ? (
+              <ScrollView
+                style={[styles.grid, { maxHeight: window.height * GRID_MAX_SHARE }]}
+                contentContainerStyle={styles.gridContent}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+              >
+                <View style={styles.gridRows}>
+                  {matches.map((tag) => {
+                    const attached = selectedIds.has(tag.id);
+                    return (
+                      <PickerChip
+                        key={tag.id}
+                        tag={tag}
+                        selected={attached}
+                        disabled={!attached && atLimit}
+                        onToggle={() => toggleTag(tag)}
+                        onEdit={() => setEditing(tag)}
+                      />
+                    );
+                  })}
+                </View>
+              </ScrollView>
+            ) : null}
+            {canCreate ? (
+              <View style={styles.createArea}>
+                <TagColorSwatches value={colorId} onChange={setPickedColorId} />
                 <Pressable
-                  onPress={() => toggleTag(tag)}
-                  style={({ pressed }) => [styles.attachRow, pressed && press]}
-                  accessibilityRole="checkbox"
-                  accessibilityState={{ checked: attached }}
-                  accessibilityLabel={`${attached ? "Remove" : "Attach"} ${tag.name} tag`}
-                >
-                  <Feather
-                    name={attached ? "check-square" : "square"}
-                    size={metrics.iconSm + 2}
-                    color={attached ? colors.accent : colors.textTertiary}
-                  />
-                  <View style={[styles.dot, { backgroundColor: color.foreground }]} />
-                  <ThemedText style={[styles.rowName, { color: colors.text }]}>
-                    {tag.name}
-                  </ThemedText>
-                </Pressable>
-                <Pressable
-                  onPress={() => setEditing(tag)}
-                  style={({ pressed }) => [styles.editButton, pressed && press]}
-                  accessibilityLabel={`Edit ${tag.name} tag`}
+                  onPress={() => void handleCreate()}
+                  style={({ pressed }) => [
+                    styles.create,
+                    { backgroundColor: colors.surfaceMuted },
+                    pressed && press,
+                  ]}
                   accessibilityRole="button"
+                  accessibilityLabel={`Create ${normalized} tag`}
                 >
-                  <Feather name="more-vertical" size={metrics.iconSm} color={colors.textTertiary} />
+                  <Feather name="plus" size={metrics.iconSm} color={colors.accent} />
+                  <ThemedText
+                    weight="medium"
+                    style={{ color: colors.accent }}
+                  >{`Create “${normalized}”`}</ThemedText>
                 </Pressable>
               </View>
-            );
-          })}
-        </ScrollView>
-      ) : null}
+            ) : null}
+          </View>
+          {/* Last in the sheet, so it rests on the keyboard and stays put while results change. */}
+          <View style={[styles.search, { backgroundColor: colors.surfaceMuted }]}>
+            <Feather name="search" size={metrics.iconSm} color={colors.textSecondary} />
+            <TextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Find or create a tag"
+              placeholderTextColor={colors.textSecondary}
+              maxLength={MAX_TAG_NAME_LENGTH}
+              returnKeyType="done"
+              submitBehavior={canCreate ? "submit" : "blurAndSubmit"}
+              onSubmitEditing={() => {
+                if (canCreate) void handleCreate();
+              }}
+              style={[
+                styles.input,
+                { color: colors.text, fontFamily: fontFamily("regular", theme.fontFamily) },
+              ]}
+              accessibilityLabel="Find or create a tag"
+              accessibilityHint={`Search existing tags or create one with up to ${MAX_TAG_NAME_LENGTH} characters.`}
+            />
+          </View>
+        </>
+      )}
     </Sheet>
   );
 }
 
 const styles = StyleSheet.create({
-  sheet: { maxHeight: "78%" },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: space.md,
   },
+  titleRow: { flexDirection: "row", alignItems: "baseline", gap: space.sm },
   title: { fontSize: 17, lineHeight: 24 },
+  limit: { fontSize: 13, lineHeight: 18, fontVariant: ["tabular-nums"] },
   search: {
+    marginBottom: space.sm,
     flexDirection: "row",
     alignItems: "center",
     gap: space.sm,
@@ -243,7 +328,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
   },
   input: { flex: 1, paddingVertical: space.sm, fontSize: 15 },
-  createArea: { marginTop: space.sm, gap: space.sm },
+  createArea: { gap: space.sm, marginBottom: space.sm },
   create: {
     flexDirection: "row",
     alignItems: "center",
@@ -252,27 +337,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     paddingVertical: space.sm,
   },
-  list: { flexShrink: 1, paddingTop: space.sm, paddingBottom: space.md },
-  row: {
+  body: { flexShrink: 1 },
+  grid: { flexGrow: 1, flexShrink: 1 },
+  // Rows settle at the bottom, next to the field, when filtering leaves room above them.
+  gridContent: { flexGrow: 1, justifyContent: "flex-end", paddingBottom: space.md },
+  gridRows: { flexDirection: "row", flexWrap: "wrap", gap: space.sm },
+  chip: {
     flexDirection: "row",
     alignItems: "center",
-    minHeight: 44,
-    paddingHorizontal: space.xs,
-    gap: space.sm,
+    gap: space.xs + 2,
+    minHeight: metrics.btnMd,
+    borderRadius: radius.sm,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    paddingHorizontal: space.md,
   },
-  attachRow: {
-    flex: 1,
-    minHeight: metrics.btnLg,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: space.sm,
-  },
-  dot: { width: 9, height: 9, borderRadius: 5 },
-  rowName: { flex: 1, fontSize: 15 },
-  editButton: {
-    width: metrics.btnLg,
-    height: metrics.btnLg,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  chipDisabled: { opacity: 0.4 },
+  chipDot: { width: 6, height: 6, borderRadius: 3 },
+  chipName: { fontSize: 14, lineHeight: 20 },
 });

@@ -14,6 +14,8 @@ const MIN_QUERY_LENGTH = 2;
 export function useEntrySearch() {
   const [query, setQueryState] = useState("");
   const [results, setResults] = useState<EntrySearchResult[]>([]);
+  // The query `results` answer; it lags `query` by the debounce.
+  const [resultsQuery, setResultsQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const requestId = useRef(0);
 
@@ -23,6 +25,7 @@ export function useEntrySearch() {
 
     if (nextQuery.trim().length < MIN_QUERY_LENGTH) {
       setResults([]);
+      setResultsQuery("");
       setSearching(false);
       return;
     }
@@ -32,6 +35,7 @@ export function useEntrySearch() {
       .then((nextResults) => {
         if (requestId.current !== id) return;
         setResults(nextResults);
+        setResultsQuery(nextQuery);
       })
       .catch(() => {
         if (requestId.current !== id) return;
@@ -55,5 +59,5 @@ export function useEntrySearch() {
     [runSearch]
   );
 
-  return { query, setQuery, results, searching };
+  return { query, setQuery, results, resultsQuery, searching };
 }

@@ -25,7 +25,7 @@ export function TimelineSearchLayer({ onClose, onOpenEntry, onOpenTag }: Timelin
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
   const { motion, colors } = theme;
-  const { query, setQuery, results, searching } = useEntrySearch();
+  const { query, setQuery, results, resultsQuery, searching } = useEntrySearch();
   const [tags, setTags] = useState<TagSummary[]>([]);
 
   useEffect(() => {
@@ -78,6 +78,7 @@ export function TimelineSearchLayer({ onClose, onOpenEntry, onOpenTag }: Timelin
       <SearchResultsFeed
         results={results}
         query={query}
+        resultsQuery={resultsQuery}
         tags={tags}
         searching={searching}
         paddingTop={space.lg}

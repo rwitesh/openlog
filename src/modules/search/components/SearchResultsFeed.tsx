@@ -10,6 +10,8 @@ const MIN_QUERY_LENGTH = 2;
 interface SearchResultsFeedProps {
   results: EntrySearchResult[];
   query: string;
+  /** The query the current results were fetched for. */
+  resultsQuery: string;
   /** Every tag, alphabetical; browsed before typing and narrowed while typing. */
   tags: TagSummary[];
   searching: boolean;
@@ -54,6 +56,7 @@ function TagList({ title, tags, onOpenTag }: TagListProps) {
 export function SearchResultsFeed({
   results,
   query,
+  resultsQuery,
   tags,
   searching,
   paddingTop = 0,
@@ -127,7 +130,12 @@ export function SearchResultsFeed({
       data={results}
       keyExtractor={(item) => item.entry.id}
       renderItem={({ item }) => (
-        <SearchResultRow result={item} onOpen={onOpenEntry} onOpenTag={onOpenTag} />
+        <SearchResultRow
+          result={item}
+          query={resultsQuery}
+          onOpen={onOpenEntry}
+          onOpenTag={onOpenTag}
+        />
       )}
       ListHeaderComponent={
         matchingTags.length ? (
