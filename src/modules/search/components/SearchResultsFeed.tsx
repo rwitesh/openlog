@@ -19,15 +19,13 @@ interface SearchResultsFeedProps {
   onOpenTag: (tagId: string) => void;
 }
 
-function TagList({
-  title,
-  tags,
-  onOpenTag,
-}: {
+interface TagListProps {
   title: string;
   tags: TagSummary[];
   onOpenTag: (tagId: string) => void;
-}) {
+}
+
+function TagList({ title, tags, onOpenTag }: TagListProps) {
   const { theme } = useTheme();
 
   return (
@@ -78,6 +76,11 @@ export function SearchResultsFeed({
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        <ThemedText
+          style={[theme.typography.emptyBody, styles.hint, { color: theme.colors.textSecondary }]}
+        >
+          Find entries by text, place, or tag.
+        </ThemedText>
         <TagList title="Tags" tags={tags} onOpenTag={onOpenTag} />
       </ScrollView>
     );
@@ -155,6 +158,9 @@ const styles = StyleSheet.create({
   },
   separator: {
     height: StyleSheet.hairlineWidth,
+  },
+  hint: {
+    marginBottom: space.lg,
   },
   tagSection: {
     gap: space.sm,

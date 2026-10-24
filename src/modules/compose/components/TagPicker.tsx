@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
-import { TagColorSwatches, TagEditor } from "@/modules/entry/components/TagEditor";
+import { TagColorSwatches, TagEditor } from "@/modules/entry";
 import { tagColors } from "@/modules/entry/utils/TagColors";
 import { createTag, getTags, MAX_TAG_NAME_LENGTH, MAX_TAGS_PER_ENTRY } from "@/services/db/tags";
 import { Sheet, ThemedText } from "@/shared/components";

@@ -117,6 +117,18 @@ function ComposeContent({ navigation, route, existing }: ComposeContentProps) {
 
   const title = isReadOnly ? "Entry" : existing ? "Edit entry" : "New entry";
 
+  // Opened from this tag's timeline: returning shows it again without stacking a copy.
+  const openTag = (tagId: string) => {
+    const { routes, index } = navigation.getState();
+    const previous = routes[index - 1];
+    const params = previous?.params;
+    if (previous?.name === "Tag" && params && "tagId" in params && params.tagId === tagId) {
+      navigation.goBack();
+    } else {
+      navigation.push("Tag", { tagId });
+    }
+  };
+
   const headerRight = isReadOnly ? (
     <View style={styles.headerActions}>
       <Pressable
@@ -211,7 +223,7 @@ function ComposeContent({ navigation, route, existing }: ComposeContentProps) {
           <TagChip
             key={tag.id}
             tag={tag}
-            onPress={isReadOnly ? () => navigation.push("Tag", { tagId: tag.id }) : undefined}
+            onPress={isReadOnly ? () => openTag(tag.id) : undefined}
             onRemove={
               isReadOnly
                 ? undefined

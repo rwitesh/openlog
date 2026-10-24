@@ -20,9 +20,11 @@ export function TagTimelineScreen({ route, navigation }: Props) {
   const { tagId } = route.params;
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
-  const { entries, loadMore } = useTimelineEntries({ tagId });
+  const { entries, isLoading, loadMore } = useTimelineEntries({ tagId });
   const [tag, setTag] = useState<Tag | null | undefined>(undefined);
   const [editing, setEditing] = useState(false);
+  // Each opening starts a fresh edit session, so cancelled changes never linger.
+  const [editSession, setEditSession] = useState(0);
 
   // Tag edits from any surface notify a store reload, so the title follows them.
   useEffect(() => {
@@ -54,7 +56,10 @@ export function TagTimelineScreen({ route, navigation }: Props) {
 
   const editButton = tag ? (
     <Pressable
-      onPress={() => setEditing(true)}
+      onPress={() => {
+        setEditSession((session) => session + 1);
+        setEditing(true);
+      }}
       hitSlop={space.md}
       style={({ pressed }) => pressed && press}
       accessibilityRole="button"
@@ -68,7 +73,8 @@ export function TagTimelineScreen({ route, navigation }: Props) {
     <View style={[styles.flex, { backgroundColor: colors.background }]}>
       <ScreenHeader title={tag?.name ?? ""} onBack={() => navigation.goBack()} right={editButton} />
 
-      {tag ? (
+      {/* Until the first page arrives, an empty feed would wrongly read as "nothing tagged". */}
+      {tag && (entries.length > 0 || !isLoading) ? (
         <TimelineFeed
           entries={entries}
           showDates
@@ -84,7 +90,7 @@ export function TagTimelineScreen({ route, navigation }: Props) {
         <View style={styles.flex} />
       )}
 
-      <AddEntryFab onPress={() => navigation.push("Compose", { initialTagId: tagId })} />
+      <AddEntryFab onPress={() => navigation.navigate("Compose", { initialTagId: tagId })} />
 
       {tag ? (
         <Sheet visible={editing} onClose={() => setEditing(false)} keyboardBehavior="dock">
@@ -92,12 +98,9 @@ export function TagTimelineScreen({ route, navigation }: Props) {
             Edit tag
           </ThemedText>
           <TagEditor
-            key={`${tag.id}-${editing}`}
+            key={editSession}
             tag={tag}
-            onSaved={(updated) => {
-              setTag(updated);
-              setEditing(false);
-            }}
+            onSaved={() => setEditing(false)}
             onDeleted={() => setEditing(false)}
             onCancel={() => setEditing(false)}
           />

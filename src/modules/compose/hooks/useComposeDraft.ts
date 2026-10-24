@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Alert } from "react-native";
 
 import { addEntry, patchEntry } from "@/modules/entry";
-import { getTag, getTags } from "@/services/db/tags";
+import { getTag, getTags, MAX_TAGS_PER_ENTRY } from "@/services/db/tags";
 import { getCachedPlace, useLocation } from "@/services/location";
 import type { Attachment, Entry, Tag } from "@/shared/types";
 import { getInitialWhen } from "@/shared/utils/dates";
@@ -70,7 +70,9 @@ export function useComposeDraft({
       .then((tag) => {
         if (!active || !tag) return;
         setTags((current) =>
-          current.some((item) => item.id === tag.id) ? current : [tag, ...current]
+          current.length >= MAX_TAGS_PER_ENTRY || current.some((item) => item.id === tag.id)
+            ? current
+            : [tag, ...current]
         );
       })
       .catch((error) => reportError("compose:initialTag", error));

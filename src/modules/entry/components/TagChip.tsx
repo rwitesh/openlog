@@ -68,7 +68,7 @@ export function TagChip({ tag, onPress, onRemove, count, size = "regular" }: Tag
   return (
     <Pressable
       onPress={onPress}
-      hitSlop={compact ? space.xs : 0}
+      hitSlop={compact ? space.sm : 0}
       style={({ pressed }) => [chipStyle, pressed && press]}
       accessibilityRole="button"
       accessibilityLabel={
