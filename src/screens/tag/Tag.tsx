@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Alert, Pressable, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { subscribeMutations, TagEditor, useTimelineEntries } from "@/modules/entry";
+import { tagColors } from "@/modules/entry/utils/TagColors";
 import { AddEntryFab, FAB_CLEARANCE, TimelineFeed } from "@/modules/timeline";
 import type { RootStackParamList } from "@/navigation/types";
 import { getTag } from "@/services/db/tags";
@@ -19,7 +20,7 @@ type Props = NativeStackScreenProps<RootStackParamList, "Tag">;
 export function TagTimelineScreen({ route, navigation }: Props) {
   const { tagId } = route.params;
   const insets = useSafeAreaInsets();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const { entries, isLoading, loadMore } = useTimelineEntries({ tagId });
   const [tag, setTag] = useState<Tag | null | undefined>(undefined);
   const [editing, setEditing] = useState(false);
@@ -71,7 +72,20 @@ export function TagTimelineScreen({ route, navigation }: Props) {
 
   return (
     <View style={[styles.flex, { backgroundColor: colors.background }]}>
-      <ScreenHeader title={tag?.name ?? ""} onBack={() => navigation.goBack()} right={editButton} />
+      <ScreenHeader
+        title={tag?.name ?? ""}
+        icon={
+          tag ? (
+            <Feather
+              name="tag"
+              size={metrics.iconSm}
+              color={tagColors(tag.colorId, isDark).foreground}
+            />
+          ) : undefined
+        }
+        onBack={() => navigation.goBack()}
+        right={editButton}
+      />
 
       {/* Until the first page arrives, an empty feed would wrongly read as "nothing tagged". */}
       {tag && (entries.length > 0 || !isLoading) ? (
