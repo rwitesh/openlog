@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { analytics } from "@/config/analytics";
 import { useRecording } from "@/services/audio";
+import type { DraftSnapshot } from "@/services/drafts/snapshot";
 import { downscaleImage, pickDocuments } from "@/services/media";
 import type { Attachment, Entry } from "@/shared/types";
 import { MAX_ATTACHMENTS, MAX_IMAGES } from "../types";
@@ -12,10 +13,18 @@ import { MAX_ATTACHMENTS, MAX_IMAGES } from "../types";
  * the side effects that capture them (picker permissions, recorder lifecycle).
  * Isolated here so the screen's render loop stays free of media concerns.
  */
-export function useMediaAttachments(existing?: Entry) {
-  const [images, setImages] = useState<string[]>(() => existing?.images ?? []);
-  const [audios, setAudios] = useState<string[]>(() => existing?.audios ?? []);
-  const [attachments, setAttachments] = useState<Attachment[]>(() => existing?.attachments ?? []);
+export function useMediaAttachments({
+  existing,
+  restored,
+}: {
+  existing: Entry | undefined;
+  /** An unsaved draft to resume; wins over the stored entry. */
+  restored: DraftSnapshot | null;
+}) {
+  const initial = restored ?? existing;
+  const [images, setImages] = useState<string[]>(() => initial?.images ?? []);
+  const [audios, setAudios] = useState<string[]>(() => initial?.audios ?? []);
+  const [attachments, setAttachments] = useState<Attachment[]>(() => initial?.attachments ?? []);
 
   const {
     isRecording,
@@ -80,15 +89,18 @@ export function useMediaAttachments(existing?: Entry) {
     setAttachments((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
-  /** Discard edits and restore the entry's stored media. */
-  const reset = useCallback(() => {
-    // Stop the mic and drop any in-progress or finished-but-unsaved take.
-    void cancel();
-    setImages(existing?.images ?? []);
-    setAudios(existing?.audios ?? []);
-    setAttachments(existing?.attachments ?? []);
-    clear();
-  }, [existing, cancel, clear]);
+  /** Discard edits and show the media of `to`. */
+  const reset = useCallback(
+    (to: Entry | undefined) => {
+      // Stop the mic and drop any in-progress or finished-but-unsaved take.
+      void cancel();
+      setImages(to?.images ?? []);
+      setAudios(to?.audios ?? []);
+      setAttachments(to?.attachments ?? []);
+      clear();
+    },
+    [cancel, clear]
+  );
 
   return {
     images,

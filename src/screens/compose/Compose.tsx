@@ -8,12 +8,15 @@ import {
   ComposeEditor,
   ComposeFooterBar,
   DateTimeBadges,
+  isDraftWorthKeeping,
   TagPicker,
   useComposeDraft,
   useMediaAttachments,
 } from "@/modules/compose";
 import { EntryDetailsModal, TagChip, useEntries, useEntry } from "@/modules/entry";
 import type { RootStackParamList } from "@/navigation/types";
+import type { DraftSnapshot } from "@/services/drafts/snapshot";
+import { loadDraft, NEW_ENTRY_DRAFT } from "@/services/drafts/store";
 import { ScreenHeader, ThemedText } from "@/shared/components";
 import { Layout, useKeepFocus } from "@/shared/components/Layout";
 import { CalendarPicker, TimePicker } from "@/shared/pickers";
@@ -24,10 +27,33 @@ import { metrics, press, space, useTheme } from "@/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Compose">;
 
+/** The unsaved draft stored for `key`: `undefined` while reading, `null` when there is none. */
+function useStoredDraft(key: string): DraftSnapshot | null | undefined {
+  const [draft, setDraft] = useState<DraftSnapshot | null>();
+
+  useEffect(() => {
+    let active = true;
+    loadDraft(key)
+      .catch((error) => {
+        reportError("compose:loadDraft", error);
+        return null;
+      })
+      .then((stored) => {
+        if (active) setDraft(stored);
+      });
+    return () => {
+      active = false;
+    };
+  }, [key]);
+
+  return draft;
+}
+
 export function ComposeScreen({ navigation, route }: Props) {
   const { colors } = useTheme().theme;
   const entryId = route.params?.entryId;
   const entry = useEntry(entryId);
+  const storedDraft = useStoredDraft(entryId ?? NEW_ENTRY_DRAFT);
 
   // Editing an entry that no longer exists — leave.
   useEffect(() => {
@@ -41,10 +67,10 @@ export function ComposeScreen({ navigation, route }: Props) {
     }
   }, [entryId, entry, navigation]);
 
-  if (entryId && entry === undefined) {
+  if ((entryId && entry === undefined) || storedDraft === undefined) {
     return (
       <Layout.Screen style={[styles.screen, { backgroundColor: colors.background }]}>
-        <ScreenHeader title="Entry" onBack={() => navigation.goBack()} />
+        <ScreenHeader title={entryId ? "Entry" : "New entry"} onBack={() => navigation.goBack()} />
       </Layout.Screen>
     );
   }
@@ -69,6 +95,12 @@ export function ComposeScreen({ navigation, route }: Props) {
       navigation={navigation}
       route={route}
       existing={entry ?? undefined}
+      // A draft that matches the entry, or holds nothing, is cleared by the first autosave.
+      restored={
+        storedDraft && isDraftWorthKeeping({ draft: storedDraft, entry: entry ?? undefined })
+          ? storedDraft
+          : null
+      }
     />
   );
 }
@@ -77,13 +109,15 @@ interface ComposeContentProps {
   navigation: Props["navigation"];
   route: Props["route"];
   existing?: Entry;
+  restored: DraftSnapshot | null;
 }
 
-function ComposeContent({ navigation, route, existing }: ComposeContentProps) {
+function ComposeContent({ navigation, route, existing, restored }: ComposeContentProps) {
   const { colors } = useTheme().theme;
   const entryId = existing?.id;
+  // An unsaved edit reopens where it was left.
   const [mode, setMode] = useState<"view" | "edit">(
-    route.params?.mode ?? (entryId ? "view" : "edit")
+    restored ? "edit" : (route.params?.mode ?? (entryId ? "view" : "edit"))
   );
   const isReadOnly = Boolean(entryId && mode === "view");
   const [datePickerOpen, setDatePickerOpen] = useState(false);
@@ -96,14 +130,21 @@ function ComposeContent({ navigation, route, existing }: ComposeContentProps) {
   const inputRef = useRef<TextInput>(null);
   const keepFocus = useKeepFocus(inputRef);
 
-  const media = useMediaAttachments(existing);
+  const media = useMediaAttachments({ existing, restored });
   const draft = useComposeDraft({
     existing,
+    restored,
     media,
     initialDate: route.params?.initialDate,
     initialTagId: route.params?.initialTagId,
   });
   const { location } = draft;
+
+  // Write before the screen animates away: a compose opened meanwhile reads the draft at once.
+  useEffect(
+    () => navigation.addListener("beforeRemove", draft.flushDraft),
+    [navigation, draft.flushDraft]
+  );
 
   // Pre-focus the writing surface when entering compose or switching to edit mode
   useEffect(() => {
@@ -154,7 +195,7 @@ function ComposeContent({ navigation, route, existing }: ComposeContentProps) {
     <Pressable
       onPress={() => {
         draft.reset();
-        media.reset();
+        media.reset(existing);
         setMode("view");
       }}
       hitSlop={space.md}

@@ -1,11 +1,38 @@
+import { type DraftSnapshot, draftSignature } from "@/services/drafts/snapshot";
 import { persistAttachment, persistMedia } from "@/services/media";
-import type { NewEntryInput } from "@/shared/types";
+import type { Entry, NewEntryInput } from "@/shared/types";
 import type { Draft } from "../types";
 
 export function canSaveDraft(draft: Draft): boolean {
   return Boolean(
     draft.text?.trim() || draft.images?.length || draft.audios?.length || draft.attachments?.length
   );
+}
+
+/** The entry's stored content in draft form. */
+export function entrySnapshot(entry: Entry): DraftSnapshot {
+  return {
+    text: entry.text ?? "",
+    images: entry.images,
+    audios: entry.audios,
+    attachments: entry.attachments,
+    tags: entry.tags,
+    createdAt: entry.createdAt,
+    location: entry.location ?? null,
+  };
+}
+
+/** A draft is worth keeping when it would save something: new content, or a change to the entry. */
+export function isDraftWorthKeeping({
+  draft,
+  entry,
+}: {
+  draft: DraftSnapshot;
+  entry: Entry | undefined;
+}): boolean {
+  return entry
+    ? draftSignature(draft) !== draftSignature(entrySnapshot(entry))
+    : canSaveDraft(draft);
 }
 
 /** Turn write-screen draft into a database entry, persisting media when needed. */
@@ -22,7 +49,6 @@ export async function fromDraft(draft: Draft): Promise<NewEntryInput | null> {
     ? await Promise.all(draft.audios.map((audioUri) => persistMedia(audioUri, "m4a")))
     : [];
 
-  // Attachments are persisted when saving, keeping drafts ephemeral.
   const attachments = draft.attachments?.length
     ? await Promise.all(draft.attachments.map(persistAttachment))
     : [];

@@ -7,7 +7,7 @@ import { logDevWarning } from "@/shared/utils/devLog";
 import { persistMedia } from "./storage";
 
 /** Derives a safe extension from a filename or mime type; `bin` as the last resort. */
-function fileExtension(name: string, mime?: string): string {
+export function fileExtension(name: string, mime?: string): string {
   const ext = name.includes(".") ? (name.split(".").pop() ?? "") : "";
   if (ext && /^[a-zA-Z0-9]{1,8}$/.test(ext)) return ext.toLowerCase();
   const mimeExt = mime?.split("/").pop();

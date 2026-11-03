@@ -11,6 +11,7 @@ import {
   type UpdateEntryInput,
   updateEntry,
 } from "@/services/db/entries";
+import { discardAllDrafts, discardDraft } from "@/services/drafts/store";
 import { deleteMediaFiles } from "@/services/media";
 import type { Entry } from "@/shared/types";
 import { addDays, addMonths, startOfDay, startOfMonth } from "@/shared/utils/dates";
@@ -78,6 +79,7 @@ export async function patchEntry(id: string, input: UpdateEntryInput): Promise<E
 
 export async function removeEntry(id: string): Promise<void> {
   const uris = await deleteEntry(id);
+  await discardDraft(id).catch((error) => reportError("entry:discardDraft", error));
   await cleanupMedia(uris);
   entryCache.delete(id);
   notifyMutation({ type: "delete", id });
@@ -99,6 +101,7 @@ export async function removeAudio(entryId: string, audioIndex: number): Promise<
 
 export async function clearAll(): Promise<string[]> {
   const uris = await deleteAllEntries();
+  await discardAllDrafts().catch((error) => reportError("entry:discardDrafts", error));
   entryCache.clear();
   notifyMutation({ type: "clear" });
   return uris;

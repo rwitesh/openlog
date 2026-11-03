@@ -5,6 +5,7 @@ import { strFromU8, Unzip, UnzipInflate, UnzipPassThrough } from "fflate";
 
 import { notifyStoreReload } from "@/modules/entry/store/EntryStore";
 import { runDb } from "@/services/db/database";
+import { discardAllDrafts } from "@/services/drafts/store";
 import { mediaDirectory } from "@/services/media/storage";
 import { logDevWarning, reportError } from "@/shared/utils/devLog";
 import {
@@ -371,6 +372,8 @@ export async function importBackupArchive(
       throw error;
     }
     pruneReplacedMedia(mediaNames);
+    // Drafts were written against the replaced timeline.
+    await discardAllDrafts().catch((error) => reportError("backup:importDrafts", error));
 
     try {
       notifyStoreReload();
