@@ -1,0 +1,58 @@
+{
+  "cli_version": "0.12.2",
+  "checkpoint_id": "01M6GAFRHVTZD77X0FEX7XYMW7",
+  "strategy": "manual-commit",
+  "branch": "fix/persist-compose-drafts",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "scripts/test-draft-snapshot.mjs",
+    "src/modules/compose/hooks/useComposeDraft.ts",
+    "src/modules/compose/hooks/useMediaAttachments.ts",
+    "src/modules/compose/utils/DraftTransform.ts",
+    "src/modules/entry/store/EntryStore.ts",
+    "src/screens/compose/Compose.tsx",
+    "src/services/backup/import/index.ts",
+    "src/services/drafts/snapshot.ts",
+    "src/services/drafts/store.ts",
+    "src/services/location/useLocation.ts",
+    "src/services/media/attachments.ts",
+    "src/services/media/storage.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 140,
+    "cache_creation_tokens": 156670,
+    "cache_read_tokens": 9727741,
+    "output_tokens": 68335,
+    "api_call_count": 66,
+    "subagent_tokens": {
+      "input_tokens": 118,
+      "cache_creation_tokens": 258118,
+      "cache_read_tokens": 6110582,
+      "output_tokens": 56454,
+      "api_call_count": 59
+    }
+  },
+  "redaction": {
+    "replacements": 0,
+    "layers": {
+      "betterleaks": 0,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 0,
+      "credentialed_uri": 0,
+      "entropy": 0,
+      "key_context": 0,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "cli_version": "0.12.2",
+  "checkpoint_id": "01M6GAFRHVTZD77X0FEX7XYMW7",
+  "session_id": "7870c2eb-1139-4bd2-8aa1-2642d64aa5ad",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-03T09:05:21.045185Z",
+  "branch": "fix/persist-compose-drafts",
+  "checkpoints_count": 4,
+  "save_step_count": 4,
+  "files_touched": [
+    "scripts/test-draft-snapshot.mjs",
+    "src/modules/compose/hooks/useComposeDraft.ts",
+    "src/modules/compose/hooks/useMediaAttachments.ts",
+    "src/modules/compose/utils/DraftTransform.ts",
+    "src/modules/entry/store/EntryStore.ts",
+    "src/screens/compose/Compose.tsx",
+    "src/services/backup/import/index.ts",
+    "src/services/drafts/snapshot.ts",
+    "src/services/drafts/store.ts",
+    "src/services/location/useLocation.ts",
+    "src/services/media/attachments.ts",
+    "src/services/media/storage.ts"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "ada5d5861dd9",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 140,
+    "cache_creation_tokens": 156670,
+    "cache_read_tokens": 9727741,
+    "output_tokens": 68335,
+    "api_call_count": 66,
+    "subagent_tokens": {
+      "input_tokens": 118,
+      "cache_creation_tokens": 258118,
+      "cache_read_tokens": 6110582,
+      "output_tokens": 56454,
+      "api_call_count": 59
+    }
+  },
+  "redaction": {
+    "replacements": 0,
+    "layers": {
+      "betterleaks": 0,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 0,
+      "credentialed_uri": 0,
+      "entropy": 0,
+      "key_context": 0,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  },
+  "session_metrics": {
+    "turn_count": 4
+  }
+}

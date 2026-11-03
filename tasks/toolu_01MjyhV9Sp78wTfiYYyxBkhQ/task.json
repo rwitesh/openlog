@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_01MjyhV9Sp78wTfiYYyxBkhQ",
+  "agent_id": "ad5d95a945027a44f",
+  "subagent_type": "general-purpose",
+  "task_description": "Review draft persistence correctness",
+  "token_usage": {
+    "input_tokens": 94,
+    "cache_creation_tokens": 164183,
+    "cache_read_tokens": 5228848,
+    "output_tokens": 42187,
+    "api_call_count": 47
+  },
+  "started_at": "2026-11-03T13:55:42.109868+05:30",
+  "completed_at": "2026-11-03T14:03:54.423397+05:30"
+}
