@@ -67,14 +67,14 @@ export function useLocation(initialLocation?: EntryLocation | null) {
     setLoading(false);
   }, []);
 
-  /** Restore the location the draft started with, discarding edits. */
-  const reset = useCallback(() => {
+  /** Replace the attached location with `to`, discarding edits and in-flight fetches. */
+  const reset = useCallback((to: EntryLocation | null) => {
     fetchId.current += 1;
-    setOn(Boolean(initialLocation));
-    setPlace(initialLocation ?? null);
+    setOn(Boolean(to));
+    setPlace(to);
     setLoading(false);
     setFailed(false);
-  }, [initialLocation]);
+  }, []);
 
   const toggle = useCallback(async () => {
     if (loading) return;

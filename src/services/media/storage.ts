@@ -14,7 +14,7 @@ export function mediaFileUri(filename: string): string {
 }
 
 /** Generates a collision-free filename for durable media storage. */
-function createMediaFilename(ext: string): string {
+export function createMediaFilename(ext: string): string {
   const cleanExt = ext.replace(/^\./, "").toLowerCase() || "bin";
   const uuid =
     typeof crypto !== "undefined" && "randomUUID" in crypto
