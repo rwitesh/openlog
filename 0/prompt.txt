@@ -1,0 +1,28 @@
+* Photos from the gallery and voice recordings. They use the same save-and-restore code as attached files, so they should work, but I didn’t try them because they need you to grant permissions on the phone. You can check both yourself in OpenLog Test in about a minute.
+* Android clearing the app’s cache. My test for this hung, so it’s only partly confirmed. The draft keeps its own copy of each file for exactly this case. test agin. i merged the code otm ain and switched tom ain
+
+---
+
+<task-notification>
+<task-id>b471nnuxf</task-id>
+<tool-use-id>toolu_01Bv69WSkMa7VtBeMqYiKa3F</tool-use-id>
+<output-file>/private/tmp/claude-501/-Users-rwitesh-Work-openlog/7870c2eb-1139-4bd2-8aa1-2642d64aa5ad/tasks/b471nnuxf.output</output-file>
+<status>completed</status>
+<summary>Background command "Rebuild debuggable test APK from main" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+Allowed, continue
+
+---
+
+is it okay to release? jus asing dont do now
+
+---
+
+that is ifne ongoing recording is deleted thats fine
+
+---
+
+based on this release rule and steps wahtever done earlier or documented do now
