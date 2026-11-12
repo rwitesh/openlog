@@ -304,6 +304,7 @@ export async function exportBackupArchive(
       options?.onProgress?.(index + 1, mediaFiles.length, "media");
     }
 
+    if (options?.signal?.aborted) throw new Error("Backup cancelled");
     zip.end();
     if (archiveError) throw archiveError;
     succeeded = true;
