@@ -594,7 +594,8 @@ export function TypographySettingsScreen() {
                 {availableFonts.map((fontName) => renderFontRow(fontName, false))}
               </View>
               <ThemedText style={[typoStyles.sectionNote, { color: colors.textSecondary }]}>
-                Choosing a font downloads it once from jsDelivr. No entry content is sent.
+                Choosing a font downloads it from jsDelivr and keeps it on this device. No entry
+                content is sent.
               </ThemedText>
             </View>
           ) : null}

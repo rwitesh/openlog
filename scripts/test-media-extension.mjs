@@ -95,7 +95,18 @@ test("audio and attachments keep their existing extensions", async () => {
 
 test("a photo kept in its original format is shared with its own MIME type", async () => {
   globalThis.shared = [];
-  for (const name of ["a.gif", "b.AVIF", "c.bmp", "d.png", "e.webp", "f.heic", "g.jpg", "h.jpeg"]) {
+  for (const name of [
+    "a.gif",
+    "b.AVIF",
+    "c.bmp",
+    "d.png",
+    "e.webp",
+    "f.heic",
+    "g.heif",
+    "h.tiff",
+    "i.jpg",
+    "j.jpeg",
+  ]) {
     await shareImage(`file:///media/${name}`);
   }
   assert.deepEqual(globalThis.shared, [
@@ -105,6 +116,8 @@ test("a photo kept in its original format is shared with its own MIME type", asy
     "image/png",
     "image/webp",
     "image/heic",
+    "image/heif",
+    "image/tiff",
     "image/jpeg",
     "image/jpeg",
   ]);
