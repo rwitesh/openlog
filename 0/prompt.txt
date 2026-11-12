@@ -1,0 +1,50 @@
+<pasted_content id="0f77">
+Install Plain English Skill and Audit the Project
+Install and apply this skill:
+`git@github.com:b1rdmania/claude-plain-english-skill.git`
+1. Installation
+
+* Install the skill locally within this project, not globally.
+* Make it available to all AI agents supported by the project.
+* Follow the skill's own installation instructions.
+* Update `AGENTS.md` and other relevant agent configurations so agents discover and follow the skill when writing or modifying content.
+* Ensure the installation and configuration are committed to the repository.
+
+2. Project-wide audit
+Create a new working session and use parallel audit subagents to inspect the entire project, including:
+
+* Source code comments and docstrings.
+* README files and technical documentation.
+* Website content.
+* Application UI text.
+* Error messages, notifications, tooltips, labels, and instructions.
+
+Use the installed skill as the authority for writing standards. Read and understand its actual rules rather than inventing additional ones.
+3. Fix genuine issues
+Apply the skill's principles wherever existing content does not follow them.
+
+* Make only necessary corrections.
+* Preserve correct, natural English.
+* Do not rewrite content simply for stylistic preference.
+* Preserve technical accuracy and intended meaning.
+* Do not change application functionality or introduce unrelated changes.
+
+4. Review and validate
+Have independent subagents review the audit findings and proposed fixes. Resolve conflicting findings and inspect the complete diff.
+Run relevant tests, linting, type checks, and build validation to ensure no regressions.
+5. Create and merge a PR
+Create a dedicated branch and open a PR titled:
+`chore: adopt plain English writing standards`
+Include a concise summary of:
+
+* Skill installation and agent configuration.
+* Areas audited.
+* Genuine issues identified and fixed.
+* Validation results.
+
+Review the PR and address any issues. Once all checks pass and required approvals are obtained, merge it.
+Important
+Be thorough with the audit but conservative with changes. The objective is to make the entire project consistently follow the installed Plain English skill, not to rewrite content that is already correct.
+</pasted_content id="0f77">
+
+Dont create claude attrbteus based commit , use my anme commit. new branch plain short name.
