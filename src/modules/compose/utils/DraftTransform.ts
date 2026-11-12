@@ -35,6 +35,15 @@ export function isDraftWorthKeeping({
     : canSaveDraft(draft);
 }
 
+/**
+ * Photos within the size limit keep their original encoding; only downscaled ones are JPEG.
+ * Draft copies of a file with no usable extension are named `.bin`, so that also means JPEG.
+ */
+function photoExtension(uri: string): string {
+  const ext = fileExtension(uri.split(/[?#]/)[0]);
+  return ext === "bin" ? "jpg" : ext;
+}
+
 /** Turn write-screen draft into a database entry, persisting media when needed. */
 export async function fromDraft(draft: Draft): Promise<NewEntryInput | null> {
   const text = draft.text?.trim() || null;
@@ -43,10 +52,7 @@ export async function fromDraft(draft: Draft): Promise<NewEntryInput | null> {
 
   const images = draft.images?.length
     ? await Promise.all(
-        // Photos within the size limit keep their original encoding; only downscaled ones are JPEG.
-        draft.images.map((imageUri) =>
-          persistMedia(imageUri, fileExtension(imageUri, "image/jpeg"))
-        )
+        draft.images.map((imageUri) => persistMedia(imageUri, photoExtension(imageUri)))
       )
     : [];
 
