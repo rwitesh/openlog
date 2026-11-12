@@ -1,5 +1,5 @@
 import { type DraftSnapshot, draftSignature } from "@/services/drafts/snapshot";
-import { persistAttachment, persistMedia } from "@/services/media";
+import { fileExtension, persistAttachment, persistMedia } from "@/services/media";
 import type { Entry, NewEntryInput } from "@/shared/types";
 import type { Draft } from "../types";
 
@@ -42,7 +42,12 @@ export async function fromDraft(draft: Draft): Promise<NewEntryInput | null> {
   const location = draft.location;
 
   const images = draft.images?.length
-    ? await Promise.all(draft.images.map((imageUri) => persistMedia(imageUri, "jpg")))
+    ? await Promise.all(
+        // Photos within the size limit keep their original encoding; only downscaled ones are JPEG.
+        draft.images.map((imageUri) =>
+          persistMedia(imageUri, fileExtension(imageUri, "image/jpeg"))
+        )
+      )
     : [];
 
   const audios = draft.audios?.length
