@@ -1,0 +1,13 @@
+check the /docs since when its wrritten and whats resolved so far. you can remove and simply and keep only whats left in docs fodler findings.
+
+---
+
+can u share a prmpt clean so i can give it cloud session. it should be able tocreate multipelsession and solve and creat PR iwth cleanest code. following AGENTS.md. and at thene d each session should run subagners to audit whethte it achieve dthe goal or not. make sure its well tested and confirmed than just assumption.
+
+---
+
+hey the problem is you have not pulled and check so u have to check again
+
+---
+
+Commit the working tree changes with a sensible message.
