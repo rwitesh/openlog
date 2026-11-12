@@ -4,7 +4,7 @@ OpenLog uses Expo with an installed Android development build. Use that build fo
 
 ## Setup
 
-Install Node.js, the pnpm version specified in `package.json`, Android Studio, and JDK 17. Start an Android emulator or connect a device with USB debugging enabled, and ensure `adb` is on your `PATH`.
+Install Node.js, the pnpm version specified in `package.json`, Android Studio, and JDK 17. Start an Android emulator or connect a device with USB debugging enabled. Make sure that `adb` is on your `PATH`.
 
 ```bash
 pnpm install
@@ -12,7 +12,7 @@ cp .env.example .env
 pnpm android
 ```
 
-The last command builds, installs, and launches the development app, then starts Metro. Use `pnpm android:device` to select a device when several are connected.
+The last command builds, installs, and launches the development app, then starts Metro. When several devices are connected, use `pnpm android:device` to select one.
 
 The environment template contains `EXPO_PUBLIC_POSTHOG_PROJECT_TOKEN`. Supply a project token to enable analytics, or leave it empty to disable them. Values prefixed with `EXPO_PUBLIC_` are included in the app; do not put secrets there.
 
@@ -24,7 +24,7 @@ Once the development app is installed:
 pnpm start
 ```
 
-For a USB-connected device, run `pnpm adb:reverse` first to connect port 8081 to Metro. JavaScript and TypeScript changes use Fast Refresh. Rebuild with `pnpm android` after changing native dependencies, config plugins, permissions, `app.json`, or native code.
+For a USB-connected device, run `pnpm adb:reverse` first to connect port 8081 to Metro. JavaScript and TypeScript changes use Fast Refresh. After you change native dependencies, config plugins, permissions, `app.json`, or native code, rebuild with `pnpm android`.
 
 ## Commands
 
@@ -58,10 +58,10 @@ pnpm exec biome check src scripts
 pnpm expo:doctor
 ```
 
-Check UI changes in light and dark themes. Validate native behavior on an Android device or emulator and report anything that could not be tested.
+Check UI changes in light and dark themes. Validate native behavior on an Android device or emulator. Report anything that you cannot test.
 
 ## Releases
 
-Android releases are published by GitHub Actions. Merge the version bump and changelog entry to `main`, then push a matching tag such as `v1.3.12`; the workflow builds on EAS and submits to Google Play. The full release rules are in [AGENTS.md](AGENTS.md#release).
+Android releases are published by GitHub Actions. Merge the version bump and changelog entry to `main`. Then push a matching tag, such as `v1.3.12`. The workflow builds on EAS and submits to Google Play. The full release rules are in [AGENTS.md](AGENTS.md#release).
 
 EAS build profiles live in `eas.json`. For a manual build with `pnpm eas:prod`, verify the resolved release identifiers with `pnpm exec expo config --type public --json` first.

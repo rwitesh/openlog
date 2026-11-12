@@ -213,7 +213,7 @@ export function useComposeDraft({
       return existing ? "updated" : "created";
     } catch (error) {
       reportError("compose:save", error);
-      Alert.alert("Couldn't save", "Something went wrong. Try again.");
+      Alert.alert("Couldn't save", "Try again.");
       return "aborted";
     } finally {
       setSaving(false);

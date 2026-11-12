@@ -35,7 +35,7 @@ async function applyMigrations(
     throw new Error(`Unsupported database version (${currentVersion}).`);
   }
   if (currentVersion > DATABASE_SCHEMA_VERSION) {
-    throw new Error(`Unsupported database version (${currentVersion}). Please update OpenLog.`);
+    throw new Error(`Unsupported database version (${currentVersion}). Update OpenLog.`);
   }
 
   const pending = MIGRATIONS.filter((migration) => migration.version > currentVersion);

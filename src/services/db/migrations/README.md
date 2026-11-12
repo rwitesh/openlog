@@ -18,7 +18,7 @@ db/
 
 ## What counts as a migration?
 
-Make a migration when changing the **database shape**:
+When you change the **database shape**, make a migration:
 
 - adding, removing, or renaming a table or column;
 - adding an index, constraint, trigger, or FTS structure;
@@ -66,7 +66,7 @@ Update the row type, reads/writes, and `validation.ts` for the new final schema.
 ## What OpenLog does for you
 
 1. It reads SQLite’s `PRAGMA user_version`.
-2. It runs each missing migration in order inside a transaction, with foreign keys off so table rebuilds stay possible (never toggle that pragma in a migration — SQLite ignores it inside a transaction).
+2. It runs each missing migration in order inside a transaction, with foreign keys off so that table rebuilds stay possible. A migration must never toggle that pragma, because SQLite ignores it inside a transaction.
 3. It writes the new version number only when that migration succeeds.
 4. It re-enables `PRAGMA foreign_keys = ON` after the last migration.
 5. Restore validates its archive before replacing local rows.
@@ -76,7 +76,7 @@ So if v2 fails, the database stays at its prior schema version. A backup made by
 ## Safety rules
 
 - **Never edit, delete, or renumber** a released `vN.ts` file.
-- **Never put two unrelated schema changes** into the same migration if they could be reviewed separately.
+- If two unrelated schema changes can be reviewed separately, **never put them into the same migration**.
 - **Never make a migration depend on app state or the network.** It must work from the database alone.
 - **Always test upgrade paths**: fresh install → current and v1 → current.
 

@@ -141,7 +141,7 @@ export async function hasLocalContentForImport(): Promise<boolean> {
 }
 
 /**
- * Validates and stages a structured backup before replacing local content in-session.
+ * Validates and stages a backup before it replaces local content in-session.
  */
 export async function importBackupArchive(
   fileUri: string,
@@ -159,7 +159,7 @@ export async function importBackupArchive(
     options.expectedArchiveBytes !== archiveBytes
   ) {
     throw new Error(
-      "The selected backup file was modified after inspection. Please select the file again."
+      "The selected backup file was modified after inspection. Select the file again."
     );
   }
 
