@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useContentHidden } from "@/services/auth";
 import { shareImage } from "@/services/media/share";
 import { ThemedText } from "@/shared/components/ThemedText";
 import { metrics, space } from "@/theme";
@@ -39,8 +40,17 @@ export function ImageViewerModal({
   onDelete,
 }: ImageViewerModalProps) {
   const insets = useSafeAreaInsets();
+  const contentHidden = useContentHidden();
   const [index, setIndex] = useState(initialIndex);
+  const [opened, setOpened] = useState(visible);
   const listRef = useRef<FlatList<string>>(null);
+
+  // Reset to the tapped photo only when the caller opens the viewer. App lock can
+  // hide and re-show the modal; that must return to the photo being viewed.
+  if (visible !== opened) {
+    setOpened(visible);
+    if (visible) setIndex(initialIndex);
+  }
 
   useEffect(() => {
     if (!visible) return;
@@ -54,10 +64,9 @@ export function ImageViewerModal({
   }, [uris, visible, index, onClose]);
 
   const handleShow = () => {
-    setIndex(initialIndex);
-    if (initialIndex > 0) {
+    if (index > 0) {
       requestAnimationFrame(() => {
-        listRef.current?.scrollToIndex({ index: initialIndex, animated: false });
+        listRef.current?.scrollToIndex({ index, animated: false });
       });
     }
   };
@@ -86,7 +95,7 @@ export function ImageViewerModal({
 
   return (
     <Modal
-      visible={visible}
+      visible={visible && !contentHidden}
       transparent
       animationType="fade"
       onRequestClose={onClose}
@@ -100,7 +109,7 @@ export function ImageViewerModal({
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
-          initialScrollIndex={initialIndex > 0 ? initialIndex : undefined}
+          initialScrollIndex={index > 0 ? index : undefined}
           getItemLayout={(_, itemIndex) => ({
             length: SCREEN_WIDTH,
             offset: SCREEN_WIDTH * itemIndex,

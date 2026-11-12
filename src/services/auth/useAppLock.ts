@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { AppState, type AppStateStatus } from "react-native";
 
 import { analytics } from "@/config/analytics";
@@ -7,9 +7,23 @@ import { authenticate, getEnrolledAuthLevel } from "./auth";
 const UNLOCK_REASON = "Unlock your entries";
 const BACKGROUND_LOCK_THRESHOLD_MS = 60 * 1000; // 1 minute in background before re-locking
 
+const ContentHiddenContext = createContext(false);
+
+export const ContentHiddenProvider = ContentHiddenContext.Provider;
+
+/**
+ * True while app lock is hiding content. Native modals draw in their own window
+ * above the lock surface, so they must stop rendering for as long as this holds.
+ */
+export function useContentHidden(): boolean {
+  return useContext(ContentHiddenContext);
+}
+
 /**
  * Owns the app-lock gate:
  *   - opens locked and prompts while the lock is enabled
+ *   - hides content whenever the app is not active, so the app switcher
+ *     snapshot never shows it
  *   - re-locks after > 60 seconds in background
  *   - opens directly when the device has no unlock method left, so the user
  *     is never trapped outside their data (the enabled preference is kept and
@@ -18,6 +32,7 @@ const BACKGROUND_LOCK_THRESHOLD_MS = 60 * 1000; // 1 minute in background before
 export function useAppLock(enabled: boolean) {
   const [locked, setLocked] = useState(enabled);
   const [prompting, setPrompting] = useState(false);
+  const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState);
 
   const lockedRef = useRef(locked);
   const promptingRef = useRef(false);
@@ -62,6 +77,7 @@ export function useAppLock(enabled: boolean) {
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState: AppStateStatus) => {
+      setAppState(nextState);
       if (!enabledRef.current) return;
 
       if (nextState === "background") {
@@ -85,5 +101,9 @@ export function useAppLock(enabled: boolean) {
     };
   }, [unlock]);
 
-  return { locked, prompting, unlock };
+  // The re-lock decision lands in the same update as "active", so content never
+  // shows for a frame between the cover lifting and the lock screen appearing.
+  const contentHidden = enabled && (locked || appState === "inactive" || appState === "background");
+
+  return { locked, contentHidden, prompting, unlock };
 }
