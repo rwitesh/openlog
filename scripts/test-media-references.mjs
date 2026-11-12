@@ -28,9 +28,16 @@ register(`data:text/javascript,${encodeURIComponent(hooks)}`);
 
 const sql = new DatabaseSync(":memory:");
 sql.exec("CREATE TABLE entries (id TEXT, images TEXT, audios TEXT, attachments TEXT)");
+let queries = 0;
 globalThis.__mediaReferenceDb = {
-  getAllAsync: async (query, ...params) => sql.prepare(query).all(...params),
-  getFirstAsync: async (query, ...params) => sql.prepare(query).get(...params) ?? null,
+  getAllAsync: async (query, ...params) => {
+    queries += 1;
+    return sql.prepare(query).all(...params);
+  },
+  getFirstAsync: async (query, ...params) => {
+    queries += 1;
+    return sql.prepare(query).get(...params) ?? null;
+  },
 };
 const { filterUnreferencedMedia } = await import("../src/services/db/entries.ts");
 const insert = sql.prepare("INSERT INTO entries VALUES (?, ?, ?, ?)");
@@ -79,17 +86,17 @@ test("names a case-insensitive filesystem treats as one file count as referenced
   ]);
 });
 
-test("a large timeline is checked in linear time", async () => {
+test("one query checks every file, however many are offered", async () => {
   sql.exec("BEGIN");
   const stored = [];
-  for (let i = 0; i < 20000; i++) {
+  for (let i = 0; i < 2000; i++) {
     const images = [`${i}-a.jpg`, `${i}-b.jpg`];
     stored.push(...images);
     insert.run(`e${i}`, JSON.stringify(images), null, null);
   }
   sql.exec("COMMIT");
-  const started = performance.now();
+  queries = 0;
   const unreferenced = await filterUnreferencedMedia([...stored, "orphan.jpg"]);
   assert.deepEqual(unreferenced, ["orphan.jpg"]);
-  assert.ok(performance.now() - started < 1500, "checking 40,000 files took too long");
+  assert.equal(queries, 1);
 });

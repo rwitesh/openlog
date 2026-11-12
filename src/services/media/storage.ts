@@ -27,8 +27,11 @@ export function createMediaFilename(ext: string): string {
   return `${uuid}.${cleanExt}`;
 }
 
-// A file copied in this session may belong to a save whose entry has not committed yet.
-const copiedThisSession = new Set<string>();
+const COPY_ATTEMPTS = 3;
+
+// Copies whose entry has not committed. Cleanup skips them until `markMediaCommitted`: the
+// committed row then protects the file, and a failed save's copy waits for the next launch's sweep.
+const uncommittedCopies = new Set<string>();
 
 /**
  * Copies a picked or recorded file into the durable media directory and returns
@@ -48,11 +51,18 @@ export async function persistMedia(sourceUri: string, ext: string): Promise<stri
   }
 
   const filename = createMediaFilename(ext);
-  copiedThisSession.add(filename);
+  uncommittedCopies.add(filename);
   const target = new File(dir, filename);
-  for (let attempt = 0; attempt < 3; attempt++) {
-    dir.create({ idempotent: true, intermediates: true });
-    await new File(sourceUri).copy(target);
+  for (let attempt = 1; attempt <= COPY_ATTEMPTS; attempt++) {
+    const generation = backupGateGeneration();
+    try {
+      dir.create({ idempotent: true, intermediates: true });
+      await new File(sourceUri).copy(target);
+    } catch (error) {
+      if (target.exists) target.delete();
+      // Only a backup that started meanwhile, such as a restore pruning the copy, earns a retry.
+      if (attempt === COPY_ATTEMPTS || generation === backupGateGeneration()) throw error;
+    }
     // A restore that began during the copy prunes files its timeline does not reference.
     await waitForImportGate();
     if (target.exists) return filename;
@@ -69,13 +79,18 @@ export async function assertCopiedMediaPresent(filenames: readonly string[]): Pr
   await waitForImportGate();
   const dir = mediaDirectory();
   for (const filename of filenames) {
-    if (copiedThisSession.has(filename) && !new File(dir, filename).exists) {
+    if (uncommittedCopies.has(filename) && !new File(dir, filename).exists) {
       throw new Error("A restore removed media from this entry. Add it again and save.");
     }
   }
 }
 
-export function listMediaFiles(): string[] {
+/** Call after the entry that references these files has committed. */
+export function markMediaCommitted(filenames: readonly string[]): void {
+  for (const filename of filenames) uncommittedCopies.delete(filename);
+}
+
+function listMediaFiles(): string[] {
   const dir = mediaDirectory();
   if (!dir.exists) return [];
   return dir
@@ -111,13 +126,15 @@ export async function deleteMediaFiles(select: () => Promise<readonly string[]>)
 
 /**
  * Deletes stored media that `filterUnreferenced` reports no entry uses, such as files left by an
- * interrupted save or restore. Files copied in this session are kept: their save may still be running.
+ * interrupted save or restore. Uncommitted copies are kept: their save may still be running.
+ * They are listed before `filterUnreferenced` reads the database, so a copy whose entry commits
+ * in between is either still skipped here or already referenced there.
  */
 export function deleteUnreferencedMedia(
   filterUnreferenced: (filenames: string[]) => Promise<string[]>
 ): Promise<void> {
   return deleteMediaFiles(async () => {
-    const candidates = listMediaFiles().filter((filename) => !copiedThisSession.has(filename));
+    const candidates = listMediaFiles().filter((filename) => !uncommittedCopies.has(filename));
     return candidates.length > 0 ? filterUnreferenced(candidates) : [];
   });
 }

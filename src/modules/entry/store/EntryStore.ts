@@ -16,7 +16,7 @@ import {
   assertCopiedMediaPresent,
   deleteMediaFiles,
   deleteUnreferencedMedia,
-  listMediaFiles,
+  markMediaCommitted,
 } from "@/services/media";
 import type { Entry } from "@/shared/types";
 import { addDays, addMonths, startOfDay, startOfMonth } from "@/shared/utils/dates";
@@ -61,7 +61,8 @@ async function cleanupMedia(filenames: string[]): Promise<void> {
 /** Deletes media files no entry references; runs once per launch. */
 export async function sweepUnreferencedMedia(): Promise<void> {
   await deleteUnreferencedMedia(async (filenames) => {
-    // An empty timeline may be a lost or reset database; its media could be the only copy left.
+    // An empty timeline deletes nothing: a lost or reset database must not take the only copy
+    // of its media with it. Files an interrupted "Delete all" left wait until an entry exists.
     const { entries } = await getPagedEntries({ limit: 1 });
     return entries.length > 0 ? filterUnreferencedMedia(filenames) : [];
   });
@@ -76,8 +77,10 @@ function inputMedia(input: NewEntryInput | UpdateEntryInput): string[] {
 }
 
 export async function addEntry(input: NewEntryInput): Promise<Entry> {
-  await assertCopiedMediaPresent(inputMedia(input));
+  const media = inputMedia(input);
+  await assertCopiedMediaPresent(media);
   const entry = await createEntry(input);
+  markMediaCommitted(media);
   entryCache.set(entry.id, entry);
   notifyMutation({ type: "add", entry });
   return entry;
@@ -85,8 +88,10 @@ export async function addEntry(input: NewEntryInput): Promise<Entry> {
 
 export async function patchEntry(id: string, input: UpdateEntryInput): Promise<Entry> {
   const existing = entryCache.get(id) ?? (await getEntryById(id));
-  await assertCopiedMediaPresent(inputMedia(input));
+  const media = inputMedia(input);
+  await assertCopiedMediaPresent(media);
   const entry = await updateEntry(id, input);
+  markMediaCommitted(media);
   entryCache.set(entry.id, entry);
   notifyMutation({ type: "update", entry });
 
@@ -126,8 +131,9 @@ export async function clearAll(): Promise<void> {
   await discardAllDrafts().catch((error) => reportError("entry:discardDrafts", error));
   entryCache.clear();
   notifyMutation({ type: "clear" });
-  // Checked against the database, so media a restore published after the clear is kept.
-  await deleteMediaFiles(() => filterUnreferencedMedia(listMediaFiles()));
+  // Checked against the database, so media a restore published after the clear is kept, and a
+  // save still in flight keeps its copy.
+  await deleteUnreferencedMedia(filterUnreferencedMedia);
 }
 
 export async function fetchEntry(id: string): Promise<Entry | null> {

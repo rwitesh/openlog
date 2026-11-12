@@ -6,7 +6,7 @@ import { runDb } from "./database";
 import { buildPagedEntryQuery, type EntryCursor, type PagedEntriesOptions } from "./pagination";
 import { MAX_TAGS_PER_ENTRY } from "./tags";
 import { parseAttachments, parseUris } from "./uris";
-import { extractMediaFilenameFromUri } from "./validation";
+import { extractMediaFilenameFromUri, mediaNameKey } from "./validation";
 
 export interface EntryRecord {
   id: string;
@@ -358,34 +358,21 @@ export async function deleteEntry(id: string): Promise<string[]> {
   });
 }
 
-/** Removes every entry and returns the file URIs that should be deleted on disk. */
-export async function deleteAllEntries(): Promise<string[]> {
-  return runDb(async (db) => {
-    const rows = await db.getAllAsync<MediaRow>(`SELECT images, audios, attachments FROM entries`);
-
-    await db.withTransactionAsync(async () => {
+/** Removes every entry and tag; media files are deleted separately, against the committed state. */
+export async function deleteAllEntries(): Promise<void> {
+  await runDb((db) =>
+    db.withTransactionAsync(async () => {
       await db.runAsync(`DELETE FROM entries`);
       await db.runAsync(`DELETE FROM tags`);
-    });
-
-    const mediaUris: string[] = [];
-    for (const row of rows) {
-      mediaUris.push(...extractMediaUrisFromRow(row));
-    }
-    return mediaUris;
-  });
+    })
+  );
 }
 
 /**
- * Normalizes media references to unreferenced filenames by checking that no entry
- * column still contains the quoted filename. Protects media shared across
- * entries, e.g. restored from a backup.
+ * Returns the given media filenames that no entry stores. Every quoted string in the media
+ * columns counts as a reference, compared by `mediaNameKey`, so shared, legacy, escaped, and
+ * case-variant names keep their files.
  */
-/** Names a case-insensitive filesystem (the iOS default) treats as one file share a key, as on import. */
-function mediaNameKey(filename: string): string {
-  return filename.normalize("NFC").toLocaleLowerCase("en-US");
-}
-
 export async function filterUnreferencedMedia(uris: string[]): Promise<string[]> {
   if (!uris.length) return [];
 
