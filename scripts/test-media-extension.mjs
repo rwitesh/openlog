@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
 import test from "node:test";
 
-// fromDraft runs against the real attachments.ts; only native modules and the
-// file copy are replaced, and the copy records the extension it was given.
+// fromDraft and shareImage run against the real media modules; only native modules
+// and the file copy are replaced, and the stubs record what they were given.
 const SRC = new URL("../src/", import.meta.url);
 const STUBS = {
   "@/services/media": `
@@ -15,8 +15,11 @@ const STUBS = {
       globalThis.persisted.push({ uri, ext });
       return "stored." + ext;
     }`,
-  "@/shared/utils/devLog": "export function logDevWarning() {}",
-  "react-native": "export const Alert = {};",
+  "@/shared/utils/devLog": "export function logDevWarning() {} export function reportError() {}",
+  "react-native": "export const Alert = { alert() {} };",
+  "expo-sharing": `
+    export async function isAvailableAsync() { return true; }
+    export async function shareAsync(uri, options) { globalThis.shared.push(options.mimeType); }`,
   "react-native-file-viewer-turbo": "export function open() {}",
   "expo-document-picker": "export {};",
 };
@@ -38,6 +41,7 @@ registerHooks({
 });
 
 const { fromDraft } = await import("../src/modules/compose/utils/DraftTransform.ts");
+const { shareImage } = await import("../src/services/media/share.ts");
 
 async function persistedImageExtensions(images) {
   globalThis.persisted = [];
@@ -87,4 +91,21 @@ test("audio and attachments keep their existing extensions", async () => {
     globalThis.persisted.map(({ ext }) => ext),
     ["m4a", "pdf"]
   );
+});
+
+test("a photo kept in its original format is shared with its own MIME type", async () => {
+  globalThis.shared = [];
+  for (const name of ["a.gif", "b.AVIF", "c.bmp", "d.png", "e.webp", "f.heic", "g.jpg", "h.jpeg"]) {
+    await shareImage(`file:///media/${name}`);
+  }
+  assert.deepEqual(globalThis.shared, [
+    "image/gif",
+    "image/avif",
+    "image/bmp",
+    "image/png",
+    "image/webp",
+    "image/heic",
+    "image/jpeg",
+    "image/jpeg",
+  ]);
 });
