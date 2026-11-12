@@ -193,12 +193,13 @@ export function PrivacySettingsScreen() {
         void dismissBackupProgressNotification();
         return;
       }
-      reportError("backup:export", error);
+      const missingMedia = error instanceof MissingBackupMediaError;
+      // The export already reported missing media with its count.
+      if (!missingMedia) reportError("backup:export", error);
       analytics.capture("backup_export_failed");
-      const message =
-        error instanceof MissingBackupMediaError
-          ? error.message
-          : "Couldn’t save your backup. Check your storage and try again.";
+      const message = missingMedia
+        ? error.message
+        : "Couldn’t save your backup. Check your storage and try again.";
       void notifyBackupError("Backup failed", message);
       Alert.alert("Backup failed", message);
     } finally {

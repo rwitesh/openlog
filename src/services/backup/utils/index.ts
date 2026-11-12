@@ -230,6 +230,9 @@ export const BACKUP_LIMITS = {
   media: 100_000,
 } as const;
 
+/** Archive reads pause for the UI after this many bytes so progress renders and Cancel can land. */
+export const BACKUP_YIELD_BYTES = 2 * 1024 * 1024;
+
 export const IMPORT_SAFETY_BUFFER_BYTES = 50 * 1024 * 1024;
 
 export interface ExportSizeLimitsInput {

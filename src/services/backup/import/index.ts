@@ -15,6 +15,7 @@ import {
   assertBackupMediaReferences,
   assertBackupTimelineData,
   BACKUP_LIMITS,
+  BACKUP_YIELD_BYTES,
   calculateRequiredImportBytes,
   extractMediaFilename,
   releaseImportGate,
@@ -28,9 +29,6 @@ import {
   TIMELINE_DATA_FILENAME,
 } from "../utils/types";
 import { replaceTimelineData } from "./timeline";
-
-/** Reading pauses for the UI after this many archive bytes so progress renders and Cancel can land. */
-const YIELD_BYTES = 2 * 1024 * 1024;
 
 function getExistingTimelineDiskBytes(): number {
   let bytes = 0;
@@ -327,7 +325,7 @@ export async function importBackupArchive(
         options?.onProgress?.(read, size);
         unzipper.push(chunk, read === size);
         bytesSinceYield += chunk.length;
-        if (bytesSinceYield >= YIELD_BYTES) {
+        if (bytesSinceYield >= BACKUP_YIELD_BYTES) {
           bytesSinceYield = 0;
           await new Promise((resolve) => setTimeout(resolve, 0));
         }
