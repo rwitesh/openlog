@@ -27,13 +27,13 @@ import {
   type InspectBackupResult,
   importBackupArchive,
   inspectBackupArchive,
+  MissingBackupMediaError,
   pickBackupArchiveFile,
   pickBackupDestinationDirectory,
   setExportController,
   setImportController,
   useBackupStatus,
 } from "@/services/backup";
-import { deleteMediaFiles } from "@/services/media";
 import {
   dismissBackupProgressNotification,
   notifyBackupError,
@@ -50,7 +50,7 @@ const IMPORT_FAILURE_MESSAGE =
 
 /**
  * Privacy & data category screen — everything about trust: the biometric
- * app lock under SECURITY, backup/export under BACKUP & EXPORT,
+ * app lock under SECURITY, backup/export under DATA BACKUP,
  * and storage management under STORAGE.
  */
 export function PrivacySettingsScreen() {
@@ -192,9 +192,13 @@ export function PrivacySettingsScreen() {
         void dismissBackupProgressNotification();
         return;
       }
-      reportError("backup:export", error);
+      const missingMedia = error instanceof MissingBackupMediaError;
+      // The export already reported the missing media.
+      if (!missingMedia) reportError("backup:export", error);
       analytics.capture("backup_export_failed");
-      const message = "Couldn’t save your backup. Check your storage and try again.";
+      const message = missingMedia
+        ? error.message
+        : "Couldn’t save your backup. Check your storage and try again.";
       void notifyBackupError("Backup failed", message);
       Alert.alert("Backup failed", message);
     } finally {
@@ -219,8 +223,15 @@ export function PrivacySettingsScreen() {
     void notifyBackupProgress("Importing backup", "Extracting files...");
 
     try {
+      let lastPercent = -1;
       const result = await importBackupArchive(fileUri, {
         signal: controller.signal,
+        onProgress: (processedBytes, totalBytes) => {
+          const percent = totalBytes > 0 ? Math.floor((processedBytes / totalBytes) * 100) : 100;
+          if (percent === lastPercent) return;
+          lastPercent = percent;
+          void notifyBackupProgress("Importing backup", `Extracting files (${percent}%)`);
+        },
         counts,
         uncompressedBytes,
         expectedArchiveBytes,
@@ -314,7 +325,10 @@ export function PrivacySettingsScreen() {
         // ignore
       }
       analytics.capture("backup_inspect_failed", { byte_size: byteSize ?? null });
-      Alert.alert("Can’t open backup", "This backup file appears to be corrupted or incomplete.");
+      Alert.alert(
+        "Can’t open backup",
+        "This backup file appears to be corrupted or incomplete. Select a different backup file."
+      );
       try {
         new File(fileUri).delete();
       } catch {
@@ -363,7 +377,7 @@ export function PrivacySettingsScreen() {
       "Delete all entries?",
       "This permanently removes every entry and its attached media. This cannot be undone.",
       "Delete",
-      async () => deleteMediaFiles(await clearAll())
+      clearAll
     );
 
   return (

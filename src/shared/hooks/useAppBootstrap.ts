@@ -19,6 +19,8 @@ export interface AppBootstrapState {
   backgroundColor: string;
   userName: string | null;
   onboardingCompleted: boolean;
+  /** The database could not be opened; nothing that reads or writes it may mount. */
+  databaseUnavailable: boolean;
 }
 
 /** Loads fonts, preferences, profile, and the device-bound lock state before the first interactive screen. */
@@ -28,6 +30,7 @@ export function useAppBootstrap(): AppBootstrapState {
   const [userName, setUserName] = useState<string | null>(null);
   const [onboardingCompleted, setOnboardingCompleted] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
+  const [databaseUnavailable, setDatabaseUnavailable] = useState(false);
   const [fontsLoaded, fontError] = useFonts({
     SourceSans3_400Regular,
     SourceSans3_500Medium,
@@ -64,6 +67,7 @@ export function useAppBootstrap(): AppBootstrapState {
           reportError("bootstrap:loadPreferences", error);
           if (active) {
             setPreferences(DEFAULT_PREFERENCES);
+            setDatabaseUnavailable(true);
           }
         })
         .finally(() => {
@@ -92,5 +96,6 @@ export function useAppBootstrap(): AppBootstrapState {
     backgroundColor,
     userName,
     onboardingCompleted,
+    databaseUnavailable,
   };
 }

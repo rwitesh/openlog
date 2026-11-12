@@ -358,7 +358,7 @@ const accentStyles = StyleSheet.create({
 });
 
 function fontDownloadFailedMessage(fontName: FontName): string {
-  return `Unable to download "${fontName}". Please check your internet connection and try again.`;
+  return `Unable to download "${fontName}". Check your internet connection and try again.`;
 }
 
 export function TypographySettingsScreen() {
@@ -593,6 +593,10 @@ export function TypographySettingsScreen() {
               <View style={typoStyles.list}>
                 {availableFonts.map((fontName) => renderFontRow(fontName, false))}
               </View>
+              <ThemedText style={[typoStyles.sectionNote, { color: colors.textSecondary }]}>
+                Choosing a font downloads it from jsDelivr and keeps it on this device. No entry
+                content is sent.
+              </ThemedText>
             </View>
           ) : null}
 
@@ -651,6 +655,11 @@ const typoStyles = StyleSheet.create({
   },
   sectionCount: {
     fontSize: 11,
+  },
+  sectionNote: {
+    fontSize: 12,
+    lineHeight: 16,
+    paddingTop: space.xs,
   },
   list: {
     gap: 6,

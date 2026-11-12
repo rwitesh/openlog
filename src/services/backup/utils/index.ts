@@ -80,7 +80,7 @@ export function assertBackupManifest(data: unknown): asserts data is BackupManif
     throw new Error(`Invalid backup file: unsupported archive version (${String(obj.version)}).`);
   }
   if (obj.version > ARCHIVE_SCHEMA_VERSION) {
-    throw new Error(`Unsupported backup version (${obj.version}). Please update OpenLog.`);
+    throw new Error(`Unsupported backup version (${obj.version}). Update OpenLog.`);
   }
   if (typeof obj.createdAt !== "number" || !Number.isFinite(obj.createdAt)) {
     throw new Error("Invalid backup manifest: createdAt is missing or invalid.");
@@ -166,12 +166,17 @@ export function assertBackupTimelineData(data: unknown): asserts data is BackupT
       if (!Array.isArray(e.attachments)) {
         throw new Error("Invalid backup entry: attachments must be an array.");
       }
-      for (const attachment of e.attachments) {
-        if (!attachment || typeof attachment !== "object" || !isBareFilename(attachment.uri)) {
+      for (const item of e.attachments as unknown[]) {
+        const attachment =
+          item && typeof item === "object" ? (item as Record<string, unknown>) : null;
+        if (!attachment || !isBareFilename(attachment.uri)) {
           throw new Error("Invalid backup entry: attachment uris must be media filenames.");
         }
         if (typeof attachment.name !== "string") {
           throw new Error("Invalid backup entry: attachment names must be strings.");
+        }
+        if (attachment.mimeType !== undefined && typeof attachment.mimeType !== "string") {
+          throw new Error("Invalid backup entry: attachment types must be strings.");
         }
       }
     }
@@ -227,6 +232,9 @@ export const BACKUP_LIMITS = {
   media: 100_000,
 } as const;
 
+/** Archive reads pause for the UI after this many bytes so progress renders and Cancel can land. */
+export const BACKUP_YIELD_BYTES = 2 * 1024 * 1024;
+
 export const IMPORT_SAFETY_BUFFER_BYTES = 50 * 1024 * 1024;
 
 export interface ExportSizeLimitsInput {
@@ -274,7 +282,7 @@ export interface StoragePreflightParams {
 }
 
 /**
- * Calculates the required free disk storage before beginning a import.
+ * Calculates the required free disk storage before an import begins.
  * Uses exact uncompressedBytes when the archive size matches expectedArchiveBytes;
  * otherwise conservatively reserves the full allowed expansion capacity up to BACKUP_LIMITS.uncompressedBytes.
  */
@@ -297,9 +305,10 @@ export function calculateRequiredImportBytes({
 
 /**
  * Validates that an archive path adheres to the expected format:
+ * - "manifest.json"
  * - "timeline.json"
  * - "media/<filename>" (non-empty, single segment, no traversal or backslashes)
- * Enforces no path traversal, duplicate path rejection, and unexpected path rejection.
+ * Rejects path traversal, duplicate paths, and unexpected paths.
  */
 export function validateArchivePath(name: string, seenPaths?: Set<string>): void {
   if (name.startsWith("/") || name.startsWith("\\") || name.includes("..") || name.includes("\\")) {
@@ -341,30 +350,32 @@ export function extractMediaFilename(path: string): string {
   return path.slice("media/".length);
 }
 
-let activeGatePromise: Promise<void> | null = null;
-let resolveActiveGate: (() => void) | null = null;
+let activeExports = 0;
+let exportsDone: Promise<void> | null = null;
+let resolveExportsDone: (() => void) | null = null;
+let gateGeneration = 0;
 
+/** Exports may overlap, so the gate stays closed until the last one releases it. */
 export function acquireExportGate(): void {
-  if (resolveActiveGate) {
-    resolveActiveGate();
-  }
-  activeGatePromise = new Promise<void>((resolve) => {
-    resolveActiveGate = resolve;
+  if (resolveImportGate) throw new Error("An import is in progress.");
+  gateGeneration += 1;
+  activeExports += 1;
+  exportsDone ??= new Promise<void>((resolve) => {
+    resolveExportsDone = resolve;
   });
 }
 
 export function releaseExportGate(): void {
-  if (resolveActiveGate) {
-    resolveActiveGate();
-    resolveActiveGate = null;
-  }
-  activeGatePromise = null;
+  if (activeExports === 0) return;
+  activeExports -= 1;
+  if (activeExports > 0) return;
+  resolveExportsDone?.();
+  resolveExportsDone = null;
+  exportsDone = null;
 }
 
 export async function waitForExportGate(): Promise<void> {
-  if (activeGatePromise) {
-    await activeGatePromise;
-  }
+  while (exportsDone) await exportsDone;
 }
 
 let activeImportGatePromise: Promise<void> | null = null;
@@ -372,6 +383,8 @@ let resolveImportGate: (() => void) | null = null;
 
 export function acquireImportGate(): void {
   if (resolveImportGate) throw new Error("An import is already in progress.");
+  if (activeExports > 0) throw new Error("An export is in progress.");
+  gateGeneration += 1;
   activeImportGatePromise = new Promise<void>((resolve) => {
     resolveImportGate = resolve;
   });
@@ -384,5 +397,22 @@ export function releaseImportGate(): void {
 }
 
 export async function waitForImportGate(): Promise<void> {
-  if (activeImportGatePromise) await activeImportGatePromise;
+  while (activeImportGatePromise) await activeImportGatePromise;
+}
+
+/** Changes whenever an export or import acquires its gate. */
+export function backupGateGeneration(): number {
+  return gateGeneration;
+}
+
+/**
+ * Resolves once neither gate is held, with the generation at that moment. A caller whose
+ * generation still matches later knows no export or import has started since.
+ */
+export async function waitForBackupGates(): Promise<number> {
+  for (;;) {
+    if (exportsDone) await exportsDone;
+    else if (activeImportGatePromise) await activeImportGatePromise;
+    else return gateGeneration;
+  }
 }

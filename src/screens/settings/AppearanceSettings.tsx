@@ -40,7 +40,7 @@ export function AppearanceSettingsScreen({ navigation }: Props) {
   const handleReset = () =>
     confirmDestructive(
       "Reset Appearance?",
-      `This will restore ${APP_NAME}'s default theme, accent, and typography back to their canonical defaults.`,
+      `This will restore ${APP_NAME}'s default theme, accent, and typography.`,
       "Reset to Defaults",
       async () => resetAppearanceDefaults()
     );

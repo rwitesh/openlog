@@ -7,7 +7,12 @@ function mimeTypeForUri(uri: string): string {
   const lower = uri.split("?")[0].toLowerCase();
   if (lower.endsWith(".png")) return "image/png";
   if (lower.endsWith(".webp")) return "image/webp";
-  if (lower.endsWith(".heic") || lower.endsWith(".heif")) return "image/heic";
+  if (lower.endsWith(".heic")) return "image/heic";
+  if (lower.endsWith(".heif")) return "image/heif";
+  if (lower.endsWith(".gif")) return "image/gif";
+  if (lower.endsWith(".avif")) return "image/avif";
+  if (lower.endsWith(".bmp")) return "image/bmp";
+  if (lower.endsWith(".tif") || lower.endsWith(".tiff")) return "image/tiff";
   return "image/jpeg";
 }
 
@@ -23,6 +28,6 @@ export async function shareImage(uri: string): Promise<void> {
     await Sharing.shareAsync(uri, { mimeType: mimeTypeForUri(uri) });
   } catch (error) {
     reportError("media:shareImage", error);
-    Alert.alert("Could not share", "Please try again.");
+    Alert.alert("Could not share", "Try again.");
   }
 }

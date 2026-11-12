@@ -1,3 +1,4 @@
+import { FONTSOURCE_VERSIONS } from "./catalog.ts";
 import type { FontName, FontSource } from "./types";
 
 /**
@@ -15,8 +16,10 @@ export function fontNameToSlug(fontName: string): string {
  * Resolves a font family name to its remote downloadable TTF source.
  */
 export function resolveFontSource(fontName: FontName): FontSource {
+  const version = FONTSOURCE_VERSIONS.get(fontName);
+  if (!version) throw new Error(`No pinned font source for "${fontName}"`);
   const slug = fontNameToSlug(fontName);
-  const url = `https://cdn.jsdelivr.net/fontsource/fonts/${slug}@latest/latin-400-normal.ttf`;
+  const url = `https://cdn.jsdelivr.net/fontsource/fonts/${slug}@${version}/latin-400-normal.ttf`;
   return {
     family: fontName,
     url,

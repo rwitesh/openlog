@@ -19,7 +19,7 @@ export async function pickBackupArchiveFile(): Promise<string | null> {
   const asset = result.assets[0];
   const name = (asset.name || asset.uri).toLowerCase();
   if (!name.endsWith(ARCHIVE_EXTENSION) && !name.endsWith(`${ARCHIVE_EXTENSION}.zip`)) {
-    throw new Error(`Please select a valid ${ARCHIVE_EXTENSION} backup file.`);
+    throw new Error(`Select a valid ${ARCHIVE_EXTENSION} backup file.`);
   }
 
   return asset.uri;
