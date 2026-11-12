@@ -4,8 +4,10 @@
  * Mounted once at the root, after bootstrap has resolved the device-bound lock
  * state, so it starts with the correct armed value. That state lives in secure
  * device-local storage: restoring a backup on another device never arms or
- * disarms this device's lock. While enabled and the app is locked it renders
- * the themed lock screen as a full-screen overlay above the app content.
+ * disarms this device's lock. While enabled it renders the themed lock screen
+ * over the app content when locked, and a plain cover whenever the app is not
+ * active. Modals stop rendering while locked, since their native windows would
+ * otherwise sit above the lock screen.
  *
  * Children are kept continuously mounted so in-progress compose drafts,
  * media selections, and navigation states are preserved across lock cycles.
@@ -14,7 +16,8 @@
 import type { ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 
-import { useAppLock, useBiometricLock } from "@/services/auth";
+import { AppLockedProvider, useAppLock, useBiometricLock } from "@/services/auth";
+import { useTheme } from "@/theme";
 import { LockScreen } from "./LockScreen";
 
 interface AppLockGateProps {
@@ -23,25 +26,28 @@ interface AppLockGateProps {
 
 export function AppLockGate({ children }: AppLockGateProps) {
   const { enabled } = useBiometricLock();
-  const { locked, prompting, unlock } = useAppLock(enabled);
+  const { locked, contentHidden, prompting, unlock } = useAppLock(enabled);
+  const { colors } = useTheme().theme;
 
   return (
-    <View style={styles.container}>
-      <View
-        style={styles.container}
-        pointerEvents={locked ? "none" : "auto"}
-        aria-hidden={locked}
-        accessibilityElementsHidden={locked}
-        importantForAccessibility={locked ? "no-hide-descendants" : "auto"}
-      >
-        {children}
-      </View>
-      {locked ? (
-        <View style={styles.overlay}>
-          <LockScreen prompting={prompting} onUnlock={() => void unlock()} />
+    <AppLockedProvider value={locked}>
+      <View style={styles.container}>
+        <View
+          style={styles.container}
+          pointerEvents={contentHidden ? "none" : "auto"}
+          aria-hidden={contentHidden}
+          accessibilityElementsHidden={contentHidden}
+          importantForAccessibility={contentHidden ? "no-hide-descendants" : "auto"}
+        >
+          {children}
         </View>
-      ) : null}
-    </View>
+        {contentHidden ? (
+          <View style={[styles.overlay, { backgroundColor: colors.background }]}>
+            {locked ? <LockScreen prompting={prompting} onUnlock={() => void unlock()} /> : null}
+          </View>
+        ) : null}
+      </View>
+    </AppLockedProvider>
   );
 }
 

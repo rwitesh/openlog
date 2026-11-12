@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { useAppLocked } from "@/services/auth";
 import { radius, space, useTheme } from "@/theme";
 import { useKeyboardInset } from "./Layout";
 
@@ -45,6 +46,7 @@ export function Sheet({
   const window = useWindowDimensions();
   const isBottom = placement === "bottom";
   const keyboard = useKeyboardInset();
+  const appLocked = useAppLocked();
 
   const resolvedAnimation = animationType ?? (isBottom ? "slide" : "fade");
   const docksToKeyboard = isBottom && keyboardBehavior === "dock" && keyboard.visible;
@@ -57,7 +59,7 @@ export function Sheet({
 
   return (
     <Modal
-      visible={visible}
+      visible={visible && !appLocked}
       transparent
       animationType={resolvedAnimation}
       onRequestClose={onClose}

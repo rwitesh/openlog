@@ -1,5 +1,6 @@
 import { Modal, Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from "react-native";
 
+import { useAppLocked } from "@/services/auth";
 import { radius, space, useTheme } from "@/theme";
 
 interface PopoverProps {
@@ -22,10 +23,11 @@ export function Popover({
   cardStyle,
 }: PopoverProps) {
   const { colors } = useTheme().theme;
+  const appLocked = useAppLocked();
 
   return (
     <Modal
-      visible={visible}
+      visible={visible && !appLocked}
       transparent
       animationType="fade"
       onRequestClose={onClose}
