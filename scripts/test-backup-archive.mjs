@@ -153,7 +153,7 @@ function cachedBackups() {
 }
 
 /** Starts `run` with a signal that a zero-delay timer aborts; the timer only fires if `run` yields. */
-async function runWithTimerCancel(run) {
+function runWithTimerCancel(run) {
   const controller = new AbortController();
   let timerFired = false;
   let settledBeforeTimer = false;
@@ -210,7 +210,7 @@ test("export yields while reading media, so a cancel lands before it finishes", 
   addMedia("large.jpg", LARGE);
   addEntry("entry-1", ["large.jpg"]);
 
-  const run = await runWithTimerCancel((signal) => exportBackupArchive({ signal }));
+  const run = runWithTimerCancel((signal) => exportBackupArchive({ signal }));
   await assert.rejects(run.result, /Backup cancelled/);
   assert.equal(run.wasSettledBeforeTimer(), false);
   assert.deepEqual(cachedBackups(), []);
@@ -227,7 +227,7 @@ async function exportLargeBackup() {
 test("inspect yields while reading the archive, so a cancel lands before it finishes", async () => {
   const fileUri = await exportLargeBackup();
 
-  const run = await runWithTimerCancel((signal) => inspectBackupArchive(fileUri, { signal }));
+  const run = runWithTimerCancel((signal) => inspectBackupArchive(fileUri, { signal }));
   await assert.rejects(run.result, /Inspection cancelled/);
   assert.equal(run.wasSettledBeforeTimer(), false);
 });
@@ -237,7 +237,7 @@ test("import yields while reading, and a cancel there leaves no media handle ope
   sql.exec("DELETE FROM entries;");
   fs.files.delete("file:///documents/media/large.jpg");
 
-  const run = await runWithTimerCancel((signal) => importBackupArchive(fileUri, { signal }));
+  const run = runWithTimerCancel((signal) => importBackupArchive(fileUri, { signal }));
   await assert.rejects(run.result, /Import cancelled/);
   assert.equal(run.wasSettledBeforeTimer(), false);
   assert.equal(fs.openHandles.size, 0, "a staged media file was left open");
