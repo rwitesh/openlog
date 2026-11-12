@@ -16,7 +16,7 @@ import {
   assertCopiedMediaPresent,
   deleteMediaFiles,
   deleteUnreferencedMedia,
-  markMediaCommitted,
+  releaseMediaCopies,
 } from "@/services/media";
 import type { Entry } from "@/shared/types";
 import { addDays, addMonths, startOfDay, startOfMonth } from "@/shared/utils/dates";
@@ -78,9 +78,13 @@ function inputMedia(input: NewEntryInput | UpdateEntryInput): string[] {
 
 export async function addEntry(input: NewEntryInput): Promise<Entry> {
   const media = inputMedia(input);
-  await assertCopiedMediaPresent(media);
-  const entry = await createEntry(input);
-  markMediaCommitted(media);
+  let entry: Entry;
+  try {
+    await assertCopiedMediaPresent(media);
+    entry = await createEntry(input);
+  } finally {
+    releaseMediaCopies(media);
+  }
   entryCache.set(entry.id, entry);
   notifyMutation({ type: "add", entry });
   return entry;
@@ -89,9 +93,13 @@ export async function addEntry(input: NewEntryInput): Promise<Entry> {
 export async function patchEntry(id: string, input: UpdateEntryInput): Promise<Entry> {
   const existing = entryCache.get(id) ?? (await getEntryById(id));
   const media = inputMedia(input);
-  await assertCopiedMediaPresent(media);
-  const entry = await updateEntry(id, input);
-  markMediaCommitted(media);
+  let entry: Entry;
+  try {
+    await assertCopiedMediaPresent(media);
+    entry = await updateEntry(id, input);
+  } finally {
+    releaseMediaCopies(media);
+  }
   entryCache.set(entry.id, entry);
   notifyMutation({ type: "update", entry });
 

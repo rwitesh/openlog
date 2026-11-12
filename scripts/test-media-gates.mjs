@@ -343,7 +343,11 @@ for (const save of ["addEntry", "patchEntry"]) {
 
 test("delete all removes every unreferenced file, including ones saved this session", async () => {
   const saved = await persistFresh("saved.jpg");
-  await store.addEntry({ images: [saved] });
+  const { id } = await store.addEntry({ images: [saved] });
+  const edited = await persistFresh("edited.jpg");
+  await store.patchEntry(id, { images: [saved, edited] });
+  const failed = await persistFresh("failed.jpg");
+  await assert.rejects(store.patchEntry("missing-entry", { images: [failed] }));
   addMediaFile("orphan.jpg");
 
   await store.clearAll();

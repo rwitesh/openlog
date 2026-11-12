@@ -29,8 +29,8 @@ export function createMediaFilename(ext: string): string {
 
 const COPY_ATTEMPTS = 3;
 
-// Copies whose entry has not committed. Cleanup skips them until `markMediaCommitted`: the
-// committed row then protects the file, and a failed save's copy waits for the next launch's sweep.
+// Copies whose save has not settled. Cleanup skips them until `releaseMediaCopies`: a committed
+// row then protects the file, and a failed save's copy is an orphan any cleanup may delete.
 const uncommittedCopies = new Set<string>();
 
 /**
@@ -85,8 +85,8 @@ export async function assertCopiedMediaPresent(filenames: readonly string[]): Pr
   }
 }
 
-/** Call after the entry that references these files has committed. */
-export function markMediaCommitted(filenames: readonly string[]): void {
+/** Call once the save that references these files has committed or failed. */
+export function releaseMediaCopies(filenames: readonly string[]): void {
   for (const filename of filenames) uncommittedCopies.delete(filename);
 }
 
