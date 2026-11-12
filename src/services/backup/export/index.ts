@@ -99,11 +99,13 @@ export async function exportBackupArchive(
   const exportFile = new File(Paths.cache, filename);
   exportFile.create({ overwrite: true });
   const output = exportFile.open(FileMode.WriteOnly);
-  // Acquired after the file opens: a throw above would otherwise hold the gate for the session.
-  acquireExportGate();
   let succeeded = false;
+  let gateHeld = false;
 
   try {
+    // Exports are counted, so only an acquire this call made may be released.
+    acquireExportGate();
+    gateHeld = true;
     const { tags, entries, settings } = await runDb(async (db) => {
       const tagRows = await db.getAllAsync<{
         id: string;
@@ -280,7 +282,7 @@ export async function exportBackupArchive(
     };
   } finally {
     output.close();
-    releaseExportGate();
+    if (gateHeld) releaseExportGate();
     if (!succeeded && exportFile.exists) exportFile.delete();
   }
 }
