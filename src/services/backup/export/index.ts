@@ -10,6 +10,7 @@ import {
   acquireExportGate,
   assertBackupArchiveSize,
   assertBackupExportSizeLimits,
+  BACKUP_YIELD_BYTES,
   releaseExportGate,
   waitForImportGate,
 } from "../utils";
@@ -29,9 +30,6 @@ import {
 } from "../utils/types";
 
 const CHUNK_SIZE = 256 * 1024;
-
-/** Reading pauses for the UI after this many bytes so progress renders and Cancel can land. */
-const YIELD_BYTES = 2 * 1024 * 1024;
 
 export class MissingBackupMediaError extends Error {
   readonly missingCount: number;
@@ -110,7 +108,7 @@ async function addFileToArchive({
       read += chunk.length;
       archiveFile.push(chunk, read === size);
       progress.bytesSinceYield += chunk.length;
-      if (progress.bytesSinceYield >= YIELD_BYTES) {
+      if (progress.bytesSinceYield >= BACKUP_YIELD_BYTES) {
         progress.bytesSinceYield = 0;
         await new Promise((resolve) => setTimeout(resolve, 0));
       }
