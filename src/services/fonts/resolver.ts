@@ -1,20 +1,5 @@
+import { FONTSOURCE_VERSIONS } from "./catalog.ts";
 import type { FontName, FontSource } from "./types";
-
-/**
- * Exact Fontsource package versions, so every new download of a font gets the same files.
- * Cached fonts are keyed by slug only, so raising a version does not refresh existing caches.
- */
-const FONTSOURCE_VERSIONS: ReadonlyMap<FontName, string> = new Map([
-  ["Inter", "5.3.0"],
-  ["Plus Jakarta Sans", "5.3.0"],
-  ["Work Sans", "5.3.0"],
-  ["Source Serif 4", "5.3.1"],
-  ["Merriweather", "5.3.0"],
-  ["EB Garamond", "5.3.0"],
-  ["Fraunces", "5.3.0"],
-  ["JetBrains Mono", "5.3.0"],
-  ["IBM Plex Mono", "5.3.0"],
-]);
 
 /**
  * Converts a canonical font family name into a package slug for CDN lookup.

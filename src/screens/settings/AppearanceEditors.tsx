@@ -593,6 +593,9 @@ export function TypographySettingsScreen() {
               <View style={typoStyles.list}>
                 {availableFonts.map((fontName) => renderFontRow(fontName, false))}
               </View>
+              <ThemedText style={[typoStyles.sectionNote, { color: colors.textSecondary }]}>
+                Choosing a font downloads it once from jsDelivr. No entry content is sent.
+              </ThemedText>
             </View>
           ) : null}
 
@@ -651,6 +654,11 @@ const typoStyles = StyleSheet.create({
   },
   sectionCount: {
     fontSize: 11,
+  },
+  sectionNote: {
+    fontSize: 12,
+    lineHeight: 16,
+    paddingTop: space.xs,
   },
   list: {
     gap: 6,
