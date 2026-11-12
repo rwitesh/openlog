@@ -1,3 +1,4 @@
+import type { Attachment } from "@/shared/types";
 import type { BackupTimelineData } from "../utils/types";
 
 export interface ImportDatabase {
@@ -41,7 +42,18 @@ export async function replaceTimelineData(
         entry.text ?? null,
         entry.images?.length ? JSON.stringify(entry.images) : null,
         entry.audios?.length ? JSON.stringify(entry.audios) : null,
-        entry.attachments?.length ? JSON.stringify(entry.attachments) : null,
+        entry.attachments?.length
+          ? JSON.stringify(
+              entry.attachments.map(
+                ({ uri, name, size, mimeType }): Attachment => ({
+                  uri,
+                  name,
+                  mime: mimeType,
+                  size,
+                })
+              )
+            )
+          : null,
         entry.location?.latitude ?? null,
         entry.location?.longitude ?? null,
         entry.location?.name ?? null

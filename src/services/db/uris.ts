@@ -24,7 +24,13 @@ export function parseAttachments(json: string | null | undefined): Attachment[] 
       .map((item) => ({
         uri: typeof item.uri === "string" ? item.uri : "",
         name: typeof item.name === "string" && item.name ? item.name : "File",
-        mime: typeof item.mime === "string" ? item.mime : undefined,
+        // Restores before the archive field was mapped stored it as `mimeType`.
+        mime:
+          typeof item.mime === "string"
+            ? item.mime
+            : typeof item.mimeType === "string"
+              ? item.mimeType
+              : undefined,
         size: typeof item.size === "number" ? item.size : undefined,
       }))
       .filter((attachment) => attachment.uri.length > 0);

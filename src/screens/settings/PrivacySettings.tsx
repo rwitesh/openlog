@@ -27,6 +27,7 @@ import {
   type InspectBackupResult,
   importBackupArchive,
   inspectBackupArchive,
+  MissingBackupMediaError,
   pickBackupArchiveFile,
   pickBackupDestinationDirectory,
   setExportController,
@@ -194,7 +195,10 @@ export function PrivacySettingsScreen() {
       }
       reportError("backup:export", error);
       analytics.capture("backup_export_failed");
-      const message = "Couldn’t save your backup. Check your storage and try again.";
+      const message =
+        error instanceof MissingBackupMediaError
+          ? error.message
+          : "Couldn’t save your backup. Check your storage and try again.";
       void notifyBackupError("Backup failed", message);
       Alert.alert("Backup failed", message);
     } finally {

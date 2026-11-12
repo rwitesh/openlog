@@ -29,6 +29,9 @@ import {
 } from "../utils/types";
 import { replaceTimelineData } from "./timeline";
 
+/** Reading pauses for the UI after this many archive bytes so progress renders and Cancel can land. */
+const YIELD_BYTES = 2 * 1024 * 1024;
+
 function getExistingTimelineDiskBytes(): number {
   let bytes = 0;
   try {
@@ -314,6 +317,7 @@ export async function importBackupArchive(
     try {
       const size = input.size ?? 0;
       let read = 0;
+      let bytesSinceYield = 0;
       while (read < size) {
         if (failure) throw failure;
         if (options?.signal?.aborted) throw new Error("Import cancelled");
@@ -322,6 +326,11 @@ export async function importBackupArchive(
         read += chunk.length;
         options?.onProgress?.(read, size);
         unzipper.push(chunk, read === size);
+        bytesSinceYield += chunk.length;
+        if (bytesSinceYield >= YIELD_BYTES) {
+          bytesSinceYield = 0;
+          await new Promise((resolve) => setTimeout(resolve, 0));
+        }
       }
     } finally {
       input.close();

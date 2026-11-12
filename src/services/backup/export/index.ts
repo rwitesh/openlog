@@ -30,7 +30,27 @@ import {
 
 const CHUNK_SIZE = 256 * 1024;
 
-/** Media files the timeline references; unreferenced files on disk are never exported. */
+/** Reading pauses for the UI after this many bytes so progress renders and Cancel can land. */
+const YIELD_BYTES = 2 * 1024 * 1024;
+
+export class MissingBackupMediaError extends Error {
+  readonly missingCount: number;
+
+  constructor(missingCount: number) {
+    const files = missingCount === 1 ? "1 file" : `${missingCount.toLocaleString()} files`;
+    const verb = missingCount === 1 ? "is" : "are";
+    super(
+      `${files} attached to your entries ${verb} missing from this device. A backup without them couldn’t be restored, so it wasn’t saved.`
+    );
+    this.name = "MissingBackupMediaError";
+    this.missingCount = missingCount;
+  }
+}
+
+/**
+ * Media files the timeline references; unreferenced files on disk are never exported.
+ * Import rejects an archive whose timeline references absent media, so a missing file fails the export.
+ */
 function referencedMediaFiles(entries: readonly BackupEntry[]): File[] {
   const dir = mediaDirectory();
   const filenames = new Set(
@@ -41,24 +61,36 @@ function referencedMediaFiles(entries: readonly BackupEntry[]): File[] {
     ])
   );
   const files = [...filenames].map((filename) => new File(dir, filename));
-  const present = files.filter((file) => file.exists);
-  if (present.length < files.length) {
+  const missingCount = files.filter((file) => !file.exists).length;
+  if (missingCount > 0) {
     reportError("backup:exportMissingMedia", new Error("Referenced media is missing."), {
-      missing_count: files.length - present.length,
+      missing_count: missingCount,
     });
+    throw new MissingBackupMediaError(missingCount);
   }
-  return present;
+  return files;
 }
 
-function addFileToArchive(
-  zip: Zip,
-  archivePath: string,
-  sourceFile: File,
-  signal?: AbortSignal
-): boolean {
+interface ArchiveReadProgress {
+  bytesSinceYield: number;
+}
+
+async function addFileToArchive({
+  zip,
+  archivePath,
+  sourceFile,
+  progress,
+  signal,
+}: {
+  zip: Zip;
+  archivePath: string;
+  sourceFile: File;
+  progress: ArchiveReadProgress;
+  signal?: AbortSignal;
+}): Promise<void> {
   if (!sourceFile.exists) {
     reportError("backup:exportMissingMedia", new Error("Media disappeared during backup."));
-    return false;
+    throw new MissingBackupMediaError(1);
   }
   const archiveFile = new ZipPassThrough(archivePath);
   zip.add(archiveFile);
@@ -77,9 +109,13 @@ function addFileToArchive(
       }
       read += chunk.length;
       archiveFile.push(chunk, read === size);
+      progress.bytesSinceYield += chunk.length;
+      if (progress.bytesSinceYield >= YIELD_BYTES) {
+        progress.bytesSinceYield = 0;
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
     }
     if (size === 0) archiveFile.push(new Uint8Array(0), true);
-    return true;
   } finally {
     source.close();
   }
@@ -254,12 +290,17 @@ export async function exportBackupArchive(
     zip.add(timelineJsonFile);
     timelineJsonFile.push(timelineBytes, true);
 
-    let exportedMediaCount = 0;
+    const progress: ArchiveReadProgress = { bytesSinceYield: 0 };
     for (let index = 0; index < mediaFiles.length; index++) {
       if (options?.signal?.aborted) throw new Error("Backup cancelled");
       const mediaFile = mediaFiles[index];
-      const added = addFileToArchive(zip, `media/${mediaFile.name}`, mediaFile, options?.signal);
-      if (added) exportedMediaCount++;
+      await addFileToArchive({
+        zip,
+        archivePath: `media/${mediaFile.name}`,
+        sourceFile: mediaFile,
+        progress,
+        signal: options?.signal,
+      });
       options?.onProgress?.(index + 1, mediaFiles.length, "media");
     }
 
@@ -273,7 +314,7 @@ export async function exportBackupArchive(
       counts: {
         entry: entries.length,
         tag: tags.length,
-        media: exportedMediaCount,
+        media: mediaFiles.length,
       },
       byteSize: archiveBytes,
     };
