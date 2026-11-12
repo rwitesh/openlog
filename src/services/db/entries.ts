@@ -381,6 +381,11 @@ export async function deleteAllEntries(): Promise<string[]> {
  * column still contains the quoted filename. Protects media shared across
  * entries, e.g. restored from a backup.
  */
+/** Names a case-insensitive filesystem (the iOS default) treats as one file share a key, as on import. */
+function mediaNameKey(filename: string): string {
+  return filename.normalize("NFC").toLocaleLowerCase("en-US");
+}
+
 export async function filterUnreferencedMedia(uris: string[]): Promise<string[]> {
   if (!uris.length) return [];
 
@@ -392,13 +397,13 @@ export async function filterUnreferencedMedia(uris: string[]): Promise<string[]>
       for (const column of [row.images, row.audios, row.attachments]) {
         if (typeof column !== "string") continue;
         for (const [literal] of column.matchAll(/"(?:[^"\\]|\\.)*"/g)) {
-          referenced.add(literal.slice(1, -1));
+          referenced.add(mediaNameKey(literal.slice(1, -1)));
           try {
             const value: unknown = JSON.parse(literal);
             if (typeof value !== "string") continue;
-            referenced.add(value);
+            referenced.add(mediaNameKey(value));
             const filename = extractMediaFilenameFromUri(value);
-            if (filename) referenced.add(filename);
+            if (filename) referenced.add(mediaNameKey(filename));
           } catch {
             // The raw text above is already recorded.
           }
@@ -412,7 +417,7 @@ export async function filterUnreferencedMedia(uris: string[]): Promise<string[]>
       const filename = extractMediaFilenameFromUri(uri) ?? uri.trim();
       if (!filename || seen.has(filename)) continue;
       seen.add(filename);
-      if (!referenced.has(filename)) unreferenced.push(filename);
+      if (!referenced.has(mediaNameKey(filename))) unreferenced.push(filename);
     }
 
     return unreferenced;

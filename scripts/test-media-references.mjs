@@ -72,6 +72,13 @@ test("a malformed or legacy row still protects the files it names", async () => 
   ]);
 });
 
+test("names a case-insensitive filesystem treats as one file count as referenced", async () => {
+  insert.run("e1", JSON.stringify(["Photo.JPG", "e\u0301.jpg"]), null, null);
+  assert.deepEqual(await filterUnreferencedMedia(["photo.jpg", "\u00e9.jpg", "other.jpg"]), [
+    "other.jpg",
+  ]);
+});
+
 test("a large timeline is checked in linear time", async () => {
   sql.exec("BEGIN");
   const stored = [];
