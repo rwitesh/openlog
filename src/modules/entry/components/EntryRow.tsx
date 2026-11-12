@@ -84,7 +84,7 @@ function EntryRowBase({ entry, animate, activeTagId }: EntryRowProps) {
   const handleDelete = () => {
     removeEntry(entry.id).catch((error) => {
       reportError("entry:delete", error);
-      Alert.alert("Could not delete", "Please try again.");
+      Alert.alert("Could not delete", "Try again.");
     });
   };
 
@@ -136,7 +136,7 @@ function EntryRowBase({ entry, animate, activeTagId }: EntryRowProps) {
       })
       .catch((error) => {
         reportError("entry:deleteImage", error);
-        Alert.alert("Could not delete", "Please try again.");
+        Alert.alert("Could not delete", "Try again.");
       });
   };
 

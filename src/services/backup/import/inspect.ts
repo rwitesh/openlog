@@ -1,6 +1,11 @@
 import { File, FileMode } from "expo-file-system";
 import { strFromU8, Unzip, UnzipInflate, UnzipPassThrough } from "fflate";
-import { assertBackupManifest, BACKUP_LIMITS, validateArchivePath } from "../utils";
+import {
+  assertBackupManifest,
+  BACKUP_LIMITS,
+  BACKUP_YIELD_BYTES,
+  validateArchivePath,
+} from "../utils";
 import {
   ARCHIVE_EXTENSION,
   type InspectBackupOptions,
@@ -117,6 +122,7 @@ export async function inspectBackupArchive(
   try {
     const fileSize = readHandle.size ?? 0;
     let bytesRead = 0;
+    let bytesSinceYield = 0;
     while (bytesRead < fileSize) {
       if (failure) throw failure;
       if (options?.signal?.aborted) throw new Error("Inspection cancelled");
@@ -127,6 +133,11 @@ export async function inspectBackupArchive(
         unzipper.push(chunk, bytesRead >= fileSize);
       } catch {
         throw new Error(`Invalid file: Not a valid ${ARCHIVE_EXTENSION} archive.`);
+      }
+      bytesSinceYield += chunk.length;
+      if (bytesSinceYield >= BACKUP_YIELD_BYTES) {
+        bytesSinceYield = 0;
+        await new Promise((resolve) => setTimeout(resolve, 0));
       }
     }
   } finally {

@@ -358,7 +358,7 @@ const accentStyles = StyleSheet.create({
 });
 
 function fontDownloadFailedMessage(fontName: FontName): string {
-  return `Unable to download "${fontName}". Please check your internet connection and try again.`;
+  return `Unable to download "${fontName}". Check your internet connection and try again.`;
 }
 
 export function TypographySettingsScreen() {

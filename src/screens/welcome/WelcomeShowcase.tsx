@@ -48,7 +48,7 @@ const SHOWCASE_SLIDES = [
     key: "privacy",
     title: "A calm, private space",
     subtitle:
-      "Your writing stays on your device. Never shared, never sold, and always in your control.",
+      "Your entries stay on your device. Never shared, never sold, and always in your control.",
   },
 ] as const;
 

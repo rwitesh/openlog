@@ -28,6 +28,6 @@ export async function shareImage(uri: string): Promise<void> {
     await Sharing.shareAsync(uri, { mimeType: mimeTypeForUri(uri) });
   } catch (error) {
     reportError("media:shareImage", error);
-    Alert.alert("Could not share", "Please try again.");
+    Alert.alert("Could not share", "Try again.");
   }
 }
