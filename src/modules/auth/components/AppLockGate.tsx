@@ -6,8 +6,8 @@
  * device-local storage: restoring a backup on another device never arms or
  * disarms this device's lock. While enabled it renders the themed lock screen
  * over the app content when locked, and a plain cover whenever the app is not
- * active. Modals read the same state and stop rendering, since their native
- * windows would otherwise sit above both surfaces.
+ * active. Modals stop rendering while locked, since their native windows would
+ * otherwise sit above the lock screen.
  *
  * Children are kept continuously mounted so in-progress compose drafts,
  * media selections, and navigation states are preserved across lock cycles.
@@ -16,7 +16,7 @@
 import type { ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 
-import { ContentHiddenProvider, useAppLock, useBiometricLock } from "@/services/auth";
+import { AppLockedProvider, useAppLock, useBiometricLock } from "@/services/auth";
 import { useTheme } from "@/theme";
 import { LockScreen } from "./LockScreen";
 
@@ -30,7 +30,7 @@ export function AppLockGate({ children }: AppLockGateProps) {
   const { colors } = useTheme().theme;
 
   return (
-    <ContentHiddenProvider value={contentHidden}>
+    <AppLockedProvider value={locked}>
       <View style={styles.container}>
         <View
           style={styles.container}
@@ -41,15 +41,13 @@ export function AppLockGate({ children }: AppLockGateProps) {
         >
           {children}
         </View>
-        {locked ? (
-          <View style={styles.overlay}>
-            <LockScreen prompting={prompting} onUnlock={() => void unlock()} />
+        {contentHidden ? (
+          <View style={[styles.overlay, { backgroundColor: colors.background }]}>
+            {locked ? <LockScreen prompting={prompting} onUnlock={() => void unlock()} /> : null}
           </View>
-        ) : contentHidden ? (
-          <View style={[styles.overlay, { backgroundColor: colors.background }]} />
         ) : null}
       </View>
-    </ContentHiddenProvider>
+    </AppLockedProvider>
   );
 }
 

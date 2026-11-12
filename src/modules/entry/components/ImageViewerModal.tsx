@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useContentHidden } from "@/services/auth";
+import { useAppLocked } from "@/services/auth";
 import { shareImage } from "@/services/media/share";
 import { ThemedText } from "@/shared/components/ThemedText";
 import { metrics, space } from "@/theme";
@@ -40,15 +40,15 @@ export function ImageViewerModal({
   onDelete,
 }: ImageViewerModalProps) {
   const insets = useSafeAreaInsets();
-  const contentHidden = useContentHidden();
+  const appLocked = useAppLocked();
   const [index, setIndex] = useState(initialIndex);
-  const [opened, setOpened] = useState(visible);
+  const [prevVisible, setPrevVisible] = useState(visible);
   const listRef = useRef<FlatList<string>>(null);
 
-  // Reset to the tapped photo only when the caller opens the viewer. App lock can
-  // hide and re-show the modal; that must return to the photo being viewed.
-  if (visible !== opened) {
-    setOpened(visible);
+  // Reset to the tapped photo only when the caller opens the viewer. App lock
+  // hides and re-shows the modal; that must return to the photo being viewed.
+  if (visible !== prevVisible) {
+    setPrevVisible(visible);
     if (visible) setIndex(initialIndex);
   }
 
@@ -95,7 +95,7 @@ export function ImageViewerModal({
 
   return (
     <Modal
-      visible={visible && !contentHidden}
+      visible={visible && !appLocked}
       transparent
       animationType="fade"
       onRequestClose={onClose}

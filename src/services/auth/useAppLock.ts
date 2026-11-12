@@ -7,23 +7,25 @@ import { authenticate, getEnrolledAuthLevel } from "./auth";
 const UNLOCK_REASON = "Unlock your entries";
 const BACKGROUND_LOCK_THRESHOLD_MS = 60 * 1000; // 1 minute in background before re-locking
 
-const ContentHiddenContext = createContext(false);
+const AppLockedContext = createContext(false);
 
-export const ContentHiddenProvider = ContentHiddenContext.Provider;
+export const AppLockedProvider = AppLockedContext.Provider;
 
 /**
- * True while app lock is hiding content. Native modals draw in their own window
- * above the lock surface, so they must stop rendering for as long as this holds.
+ * True while the app is locked. Native modals draw in their own window above the
+ * lock screen, so they must stop rendering while this holds. They deliberately
+ * stay up through brief inactive states: dismissing a modal there interrupts
+ * anything it presented (share sheet, permission alert) and resets its content.
  */
-export function useContentHidden(): boolean {
-  return useContext(ContentHiddenContext);
+export function useAppLocked(): boolean {
+  return useContext(AppLockedContext);
 }
 
 /**
  * Owns the app-lock gate:
  *   - opens locked and prompts while the lock is enabled
- *   - hides content whenever the app is not active, so the app switcher
- *     snapshot never shows it
+ *   - hides content whenever the app is not active; this renders from JS, so
+ *     the OS may take its app-switcher snapshot before the cover lands
  *   - re-locks after > 60 seconds in background
  *   - opens directly when the device has no unlock method left, so the user
  *     is never trapped outside their data (the enabled preference is kept and
