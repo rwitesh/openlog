@@ -26,6 +26,17 @@ Do not describe, name, or design OpenLog as only a journal, task manager, social
 - Preserve local-first behavior. For mutations spanning SQLite and files, commit the database state before destructive cleanup and make recovery deterministic after interruption.
 - Make archive, import, and media code defensive: validate untrusted input before mutation, bound resource use, and leave the existing data recoverable on failure.
 
+## Writing standards
+
+The repository includes two writing skills in `.agents/skills/` (linked into `.claude/skills/`). Use them for all text that you write or change: code comments, documentation, UI text, error messages, the website, and release notes.
+
+- For technical text, use `simple-english` in pragmatic mode. Technical text includes code comments, READMEs, `docs/`, error messages, and agent instructions.
+- For text with a voice, use `plain-english`. This includes the website, store listings, and the changelog.
+- Never apply both skills to the same text.
+- Before you write, read the `SKILL.md` of the skill. Follow its rules, not your own preferences.
+- Change only the text that breaks a rule. Do not rewrite correct text for style.
+- Do not change code, identifiers, quoted errors, or product names to obey a writing rule.
+
 ## Change discipline
 
 - Keep a feature change small and cohesive. Do not use a broad refactor to solve an unrelated problem.
