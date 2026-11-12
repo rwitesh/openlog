@@ -8,9 +8,10 @@ const SRC = new URL("../src/", import.meta.url);
 const STUBS = {
   "@/services/media": `
     export { fileExtension, persistAttachment } from "${new URL("services/media/attachments.ts", SRC)}";
-    export { persistMedia } from "stub:storage";`,
+    export { persistMedia, releaseMediaCopies } from "stub:storage";`,
   "./storage": `export { persistMedia } from "stub:storage";`,
   "stub:storage": `
+    export function releaseMediaCopies() {}
     export async function persistMedia(uri, ext) {
       globalThis.persisted.push({ uri, ext });
       return "stored." + ext;

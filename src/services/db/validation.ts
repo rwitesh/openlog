@@ -19,3 +19,8 @@ export function extractMediaFilenameFromUri(rawUri: string): string | null {
   }
   return filename;
 }
+
+/** Names that a case-insensitive filesystem (the iOS default) treats as one file share a key. */
+export function mediaNameKey(filename: string): string {
+  return filename.normalize("NFC").toLocaleLowerCase("en-US");
+}

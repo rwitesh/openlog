@@ -12,7 +12,12 @@ import {
   updateEntry,
 } from "@/services/db/entries";
 import { discardAllDrafts, discardDraft } from "@/services/drafts/store";
-import { deleteMediaFiles } from "@/services/media";
+import {
+  assertCopiedMediaPresent,
+  deleteMediaFiles,
+  deleteUnreferencedMedia,
+  releaseMediaCopies,
+} from "@/services/media";
 import type { Entry } from "@/shared/types";
 import { addDays, addMonths, startOfDay, startOfMonth } from "@/shared/utils/dates";
 import { reportError } from "@/shared/utils/devLog";
@@ -49,22 +54,54 @@ export function subscribeMutations(listener: (mutation: EntryMutation) => void) 
 const entryCache = new Map<string, Entry>();
 
 async function cleanupMedia(filenames: string[]): Promise<void> {
-  const unreferenced = await filterUnreferencedMedia(filenames);
-  if (unreferenced.length > 0) {
-    await deleteMediaFiles(unreferenced);
-  }
+  if (!filenames.length) return;
+  await deleteMediaFiles({ select: () => filterUnreferencedMedia(filenames) });
+}
+
+/** Deletes media files no entry references. */
+export async function sweepUnreferencedMedia(): Promise<void> {
+  await deleteUnreferencedMedia(async (filenames) => {
+    // An empty timeline deletes nothing: after a lost, reset, or unreadable database these files
+    // may be the only copy left. The cost is that files left by an interrupted "Delete all", or
+    // by a save that failed while the timeline was empty, stay until an entry exists.
+    const { entries } = await getPagedEntries({ limit: 1 });
+    return entries.length > 0 ? filterUnreferencedMedia(filenames) : [];
+  });
+}
+
+function inputMedia(input: NewEntryInput | UpdateEntryInput): string[] {
+  return [
+    ...(input.images ?? []),
+    ...(input.audios ?? []),
+    ...(input.attachments ?? []).map((attachment) => attachment.uri),
+  ];
 }
 
 export async function addEntry(input: NewEntryInput): Promise<Entry> {
-  const entry = await createEntry(input);
+  const media = inputMedia(input);
+  let entry: Entry;
+  try {
+    await assertCopiedMediaPresent(media);
+    entry = await createEntry(input);
+  } finally {
+    releaseMediaCopies(media);
+  }
   entryCache.set(entry.id, entry);
   notifyMutation({ type: "add", entry });
   return entry;
 }
 
 export async function patchEntry(id: string, input: UpdateEntryInput): Promise<Entry> {
-  const existing = entryCache.get(id) ?? (await getEntryById(id));
-  const entry = await updateEntry(id, input);
+  const media = inputMedia(input);
+  let existing: Entry | null;
+  let entry: Entry;
+  try {
+    existing = entryCache.get(id) ?? (await getEntryById(id));
+    await assertCopiedMediaPresent(media);
+    entry = await updateEntry(id, input);
+  } finally {
+    releaseMediaCopies(media);
+  }
   entryCache.set(entry.id, entry);
   notifyMutation({ type: "update", entry });
 
@@ -99,12 +136,14 @@ export async function removeAudio(entryId: string, audioIndex: number): Promise<
   return patchEntry(entryId, { audios: nextAudios });
 }
 
-export async function clearAll(): Promise<string[]> {
-  const uris = await deleteAllEntries();
+export async function clearAll(): Promise<void> {
+  await deleteAllEntries();
   await discardAllDrafts().catch((error) => reportError("entry:discardDrafts", error));
   entryCache.clear();
   notifyMutation({ type: "clear" });
-  return uris;
+  // Checked against the database, so media a restore published after the clear is kept, and a
+  // save still in flight keeps its copy.
+  await deleteUnreferencedMedia(filterUnreferencedMedia);
 }
 
 export async function fetchEntry(id: string): Promise<Entry | null> {

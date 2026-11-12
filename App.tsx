@@ -9,6 +9,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { analytics } from "@/config/analytics";
 import { posthog } from "@/config/posthog";
 import { AppLockGate } from "@/modules/auth";
+import { sweepUnreferencedMedia } from "@/modules/entry";
 import { ProfileProvider } from "@/modules/profile";
 import type { RootStackParamList } from "@/navigation";
 import { Compose } from "@/screens/compose";
@@ -31,23 +32,28 @@ import { Welcome } from "@/screens/welcome";
 import { AudioProvider } from "@/services/audio";
 import { Layout, ThemedText } from "@/shared/components";
 import { useAppBootstrap } from "@/shared/hooks";
-import { logDevWarning } from "@/shared/utils";
+import { logDevWarning, reportError } from "@/shared/utils";
 import { AppProviders, space, useNavigationTheme, useTheme } from "@/theme";
 
 /** Holds the splash screen until local bootstrap (fonts + preferences) finishes. */
 function BootstrapGate({
   ready,
+  databaseUnavailable,
   backgroundColor,
   children,
 }: {
   ready: boolean;
+  databaseUnavailable: boolean;
   backgroundColor: string;
   children: ReactNode;
 }) {
   useEffect(() => {
     if (!ready) return;
     SplashScreen.hideAsync().catch((error) => logDevWarning("bootstrap:hideSplash", error));
-  }, [ready]);
+    // The unavailable-database screen promises nothing is touched, so cleanup waits for a working one.
+    if (databaseUnavailable) return;
+    sweepUnreferencedMedia().catch((error) => reportError("bootstrap:sweepMedia", error));
+  }, [ready, databaseUnavailable]);
 
   if (!ready) return <View style={{ flex: 1, backgroundColor }} />;
   return <>{children}</>;
@@ -222,7 +228,11 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <BootstrapGate ready={ready} backgroundColor={backgroundColor}>
+      <BootstrapGate
+        ready={ready}
+        databaseUnavailable={databaseUnavailable}
+        backgroundColor={backgroundColor}
+      >
         <Layout>
           <AppProviders initialPreferences={preferences}>
             {databaseUnavailable ? (
