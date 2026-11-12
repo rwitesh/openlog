@@ -94,12 +94,13 @@ export async function exportBackupArchive(
   if (options?.signal?.aborted) throw new Error("Backup cancelled");
 
   await waitForImportGate();
-  acquireExportGate();
   const createdAt = Date.now();
   const filename = `openlog-backup-${new Date(createdAt).toISOString().replace(/[:.]/g, "-")}${ARCHIVE_EXTENSION}`;
   const exportFile = new File(Paths.cache, filename);
   exportFile.create({ overwrite: true });
   const output = exportFile.open(FileMode.WriteOnly);
+  // Acquired after the file opens: a throw above would otherwise hold the gate for the session.
+  acquireExportGate();
   let succeeded = false;
 
   try {

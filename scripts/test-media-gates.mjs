@@ -87,6 +87,9 @@ async function isSettled(promise) {
 }
 
 test.beforeEach(() => {
+  // A failed test must not leave a gate held for the tests after it.
+  gates.releaseImportGate();
+  for (let i = 0; i < 4; i++) gates.releaseExportGate();
   fs.files.clear();
   fs.dirs.clear();
   fs.beforeCopyEnds = null;
@@ -94,8 +97,8 @@ test.beforeEach(() => {
 
 test("an import keeps waiting until every overlapping export releases the gate", async () => {
   gates.acquireExportGate();
-  gates.acquireExportGate();
   const importWait = gates.waitForExportGate();
+  gates.acquireExportGate();
 
   gates.releaseExportGate();
   assert.equal(await isSettled(importWait), false, "released by the second export's acquire");
@@ -204,4 +207,40 @@ test("a failed reference check deletes nothing", async () => {
     })
   );
   assert.equal(fs.files.has(mediaUri("orphan.jpg")), true);
+});
+
+test("a save is refused when a restore pruned media it copied before the entry committed", async () => {
+  fs.files.add("file:///cache/late.jpg");
+  const copied = await storage.persistMedia("file:///cache/late.jpg", "jpg");
+  addMediaFile("older.jpg");
+  await storage.assertCopiedMediaPresent([copied, "older.jpg"]);
+
+  gates.acquireImportGate();
+  const check = storage.assertCopiedMediaPresent([copied]);
+  assert.equal(await isSettled(check), false, "checked while a restore was running");
+  fs.files.delete(mediaUri(copied));
+  gates.releaseImportGate();
+  await assert.rejects(check, /restore removed media/);
+
+  // Files this session did not copy are the entry's existing media; their absence is not a race.
+  fs.files.delete(mediaUri("older.jpg"));
+  await storage.assertCopiedMediaPresent(["older.jpg"]);
+});
+
+test("an export that starts while references are checked makes the check run again", async () => {
+  addMediaFile("read.jpg");
+  let checks = 0;
+
+  const deletion = storage.deleteMediaFiles(async () => {
+    checks += 1;
+    if (checks === 1) gates.acquireExportGate();
+    return ["read.jpg"];
+  });
+  assert.equal(await isSettled(deletion), false, "deleted a file the export may be reading");
+  assert.equal(fs.files.has(mediaUri("read.jpg")), true);
+
+  gates.releaseExportGate();
+  await deletion;
+  assert.equal(checks, 2);
+  assert.equal(fs.files.has(mediaUri("read.jpg")), false);
 });

@@ -385,6 +385,12 @@ export async function filterUnreferencedMedia(uris: string[]): Promise<string[]>
   if (!uris.length) return [];
 
   return runDb(async (db) => {
+    // One scan serves every filename, so a launch-time sweep of many files stays linear.
+    const rows = await db.getAllAsync<MediaRow>(`SELECT images, audios, attachments FROM entries`);
+    const stored = rows
+      .flatMap((row) => [row.images, row.audios, row.attachments])
+      .filter((column): column is string => typeof column === "string")
+      .join("\n");
     const unreferenced: string[] = [];
     const seen = new Set<string>();
 
@@ -392,20 +398,8 @@ export async function filterUnreferencedMedia(uris: string[]): Promise<string[]>
       const filename = extractMediaFilenameFromUri(uri) ?? uri.trim();
       if (!filename || seen.has(filename)) continue;
       seen.add(filename);
-
-      const needle = `"${filename}"`;
-      const referenced = await db.getFirstAsync(
-        `SELECT 1 FROM entries
-          WHERE instr(images, ?) > 0
-             OR instr(audios, ?) > 0
-             OR instr(attachments, ?) > 0
-          LIMIT 1`,
-        needle,
-        needle,
-        needle
-      );
-
-      if (!referenced) {
+      // Columns hold JSON, so a name with characters JSON escapes is stored escaped.
+      if (!stored.includes(`"${filename}"`) && !stored.includes(JSON.stringify(filename))) {
         unreferenced.push(filename);
       }
     }

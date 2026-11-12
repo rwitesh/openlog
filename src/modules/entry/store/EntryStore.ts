@@ -12,7 +12,12 @@ import {
   updateEntry,
 } from "@/services/db/entries";
 import { discardAllDrafts, discardDraft } from "@/services/drafts/store";
-import { deleteMediaFiles, deleteUnreferencedMedia, listMediaFiles } from "@/services/media";
+import {
+  assertCopiedMediaPresent,
+  deleteMediaFiles,
+  deleteUnreferencedMedia,
+  listMediaFiles,
+} from "@/services/media";
 import type { Entry } from "@/shared/types";
 import { addDays, addMonths, startOfDay, startOfMonth } from "@/shared/utils/dates";
 import { reportError } from "@/shared/utils/devLog";
@@ -62,7 +67,16 @@ export async function sweepUnreferencedMedia(): Promise<void> {
   });
 }
 
+function inputMedia(input: NewEntryInput | UpdateEntryInput): string[] {
+  return [
+    ...(input.images ?? []),
+    ...(input.audios ?? []),
+    ...(input.attachments ?? []).map((attachment) => attachment.uri),
+  ];
+}
+
 export async function addEntry(input: NewEntryInput): Promise<Entry> {
+  await assertCopiedMediaPresent(inputMedia(input));
   const entry = await createEntry(input);
   entryCache.set(entry.id, entry);
   notifyMutation({ type: "add", entry });
@@ -71,6 +85,7 @@ export async function addEntry(input: NewEntryInput): Promise<Entry> {
 
 export async function patchEntry(id: string, input: UpdateEntryInput): Promise<Entry> {
   const existing = entryCache.get(id) ?? (await getEntryById(id));
+  await assertCopiedMediaPresent(inputMedia(input));
   const entry = await updateEntry(id, input);
   entryCache.set(entry.id, entry);
   notifyMutation({ type: "update", entry });
@@ -111,8 +126,8 @@ export async function clearAll(): Promise<void> {
   await discardAllDrafts().catch((error) => reportError("entry:discardDrafts", error));
   entryCache.clear();
   notifyMutation({ type: "clear" });
-  // The rows are gone, so every stored file goes too, including ones no entry referenced.
-  await deleteMediaFiles(async () => listMediaFiles());
+  // Checked against the database, so media a restore published after the clear is kept.
+  await deleteMediaFiles(() => filterUnreferencedMedia(listMediaFiles()));
 }
 
 export async function fetchEntry(id: string): Promise<Entry | null> {

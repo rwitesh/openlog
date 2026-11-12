@@ -60,7 +60,21 @@ export async function persistMedia(sourceUri: string, ext: string): Promise<stri
   throw new Error("The media file could not be saved.");
 }
 
-/** Lists the filenames stored in the media directory. */
+/**
+ * Waits out a running restore, then rejects if it pruned a file this session copied for a save.
+ * Call it right before the entry's database write: that write is then queued ahead of any
+ * later restore's replacement, so the restore either keeps the file or replaces the entry.
+ */
+export async function assertCopiedMediaPresent(filenames: readonly string[]): Promise<void> {
+  await waitForImportGate();
+  const dir = mediaDirectory();
+  for (const filename of filenames) {
+    if (copiedThisSession.has(filename) && !new File(dir, filename).exists) {
+      throw new Error("A restore removed media from this entry. Add it again and save.");
+    }
+  }
+}
+
 export function listMediaFiles(): string[] {
   const dir = mediaDirectory();
   if (!dir.exists) return [];
@@ -102,7 +116,8 @@ export async function deleteMediaFiles(select: () => Promise<readonly string[]>)
 export function deleteUnreferencedMedia(
   filterUnreferenced: (filenames: string[]) => Promise<string[]>
 ): Promise<void> {
-  return deleteMediaFiles(() =>
-    filterUnreferenced(listMediaFiles().filter((filename) => !copiedThisSession.has(filename)))
-  );
+  return deleteMediaFiles(async () => {
+    const candidates = listMediaFiles().filter((filename) => !copiedThisSession.has(filename));
+    return candidates.length > 0 ? filterUnreferenced(candidates) : [];
+  });
 }
