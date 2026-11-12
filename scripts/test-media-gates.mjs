@@ -89,7 +89,7 @@ async function isSettled(promise) {
 test.beforeEach(() => {
   // A failed test must not leave a gate held for the tests after it.
   gates.releaseImportGate();
-  for (let i = 0; i < 4; i++) gates.releaseExportGate();
+  for (let i = 0; i < 100; i++) gates.releaseExportGate();
   fs.files.clear();
   fs.dirs.clear();
   fs.beforeCopyEnds = null;

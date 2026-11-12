@@ -385,23 +385,34 @@ export async function filterUnreferencedMedia(uris: string[]): Promise<string[]>
   if (!uris.length) return [];
 
   return runDb(async (db) => {
-    // One scan serves every filename, so a launch-time sweep of many files stays linear.
     const rows = await db.getAllAsync<MediaRow>(`SELECT images, audios, attachments FROM entries`);
-    const stored = rows
-      .flatMap((row) => [row.images, row.audios, row.attachments])
-      .filter((column): column is string => typeof column === "string")
-      .join("\n");
+    // Every quoted string counts, even in a malformed column, so a damaged row still protects its files.
+    const referenced = new Set<string>();
+    for (const row of rows) {
+      for (const column of [row.images, row.audios, row.attachments]) {
+        if (typeof column !== "string") continue;
+        for (const [literal] of column.matchAll(/"(?:[^"\\]|\\.)*"/g)) {
+          referenced.add(literal.slice(1, -1));
+          try {
+            const value: unknown = JSON.parse(literal);
+            if (typeof value !== "string") continue;
+            referenced.add(value);
+            const filename = extractMediaFilenameFromUri(value);
+            if (filename) referenced.add(filename);
+          } catch {
+            // The raw text above is already recorded.
+          }
+        }
+      }
+    }
+
     const unreferenced: string[] = [];
     const seen = new Set<string>();
-
     for (const uri of uris) {
       const filename = extractMediaFilenameFromUri(uri) ?? uri.trim();
       if (!filename || seen.has(filename)) continue;
       seen.add(filename);
-      // Columns hold JSON, so a name with characters JSON escapes is stored escaped.
-      if (!stored.includes(`"${filename}"`) && !stored.includes(JSON.stringify(filename))) {
-        unreferenced.push(filename);
-      }
+      if (!referenced.has(filename)) unreferenced.push(filename);
     }
 
     return unreferenced;

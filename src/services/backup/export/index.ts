@@ -281,8 +281,8 @@ export async function exportBackupArchive(
       byteSize: archiveBytes,
     };
   } finally {
-    output.close();
     if (gateHeld) releaseExportGate();
+    output.close();
     if (!succeeded && exportFile.exists) exportFile.delete();
   }
 }
