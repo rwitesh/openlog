@@ -10,6 +10,7 @@ import {
   acquireExportGate,
   assertBackupArchiveSize,
   assertBackupExportSizeLimits,
+  BACKUP_YIELD_BYTES,
   releaseExportGate,
   waitForImportGate,
 } from "../utils";
@@ -30,7 +31,21 @@ import {
 
 const CHUNK_SIZE = 256 * 1024;
 
-/** Media files the timeline references; unreferenced files on disk are never exported. */
+export class MissingBackupMediaError extends Error {
+  constructor(missingCount: number) {
+    const missing =
+      missingCount === 1
+        ? "1 file attached to your entries is missing from this device. A backup without it"
+        : `${missingCount.toLocaleString()} files attached to your entries are missing from this device. A backup without them`;
+    super(`${missing} couldn’t be restored, so it wasn’t saved.`);
+    this.name = "MissingBackupMediaError";
+  }
+}
+
+/**
+ * Media files the timeline references; unreferenced files on disk are never exported.
+ * Import rejects an archive whose timeline references absent media, so a missing file fails the export.
+ */
 function referencedMediaFiles(entries: readonly BackupEntry[]): File[] {
   const dir = mediaDirectory();
   const filenames = new Set(
@@ -41,24 +56,36 @@ function referencedMediaFiles(entries: readonly BackupEntry[]): File[] {
     ])
   );
   const files = [...filenames].map((filename) => new File(dir, filename));
-  const present = files.filter((file) => file.exists);
-  if (present.length < files.length) {
+  const missingCount = files.filter((file) => !file.exists).length;
+  if (missingCount > 0) {
     reportError("backup:exportMissingMedia", new Error("Referenced media is missing."), {
-      missing_count: files.length - present.length,
+      missing_count: missingCount,
     });
+    throw new MissingBackupMediaError(missingCount);
   }
-  return present;
+  return files;
 }
 
-function addFileToArchive(
-  zip: Zip,
-  archivePath: string,
-  sourceFile: File,
-  signal?: AbortSignal
-): boolean {
+interface ArchiveReadProgress {
+  bytesSinceYield: number;
+}
+
+async function addFileToArchive({
+  zip,
+  archivePath,
+  sourceFile,
+  progress,
+  signal,
+}: {
+  zip: Zip;
+  archivePath: string;
+  sourceFile: File;
+  progress: ArchiveReadProgress;
+  signal?: AbortSignal;
+}): Promise<void> {
   if (!sourceFile.exists) {
     reportError("backup:exportMissingMedia", new Error("Media disappeared during backup."));
-    return false;
+    throw new MissingBackupMediaError(1);
   }
   const archiveFile = new ZipPassThrough(archivePath);
   zip.add(archiveFile);
@@ -71,15 +98,19 @@ function addFileToArchive(
       const chunk = source.readBytes(Math.min(CHUNK_SIZE, size - read));
       if (chunk.length === 0) {
         if (read < size) {
-          throw new Error(`Cannot read ${sourceFile.name} while backing up.`);
+          throw new Error("A media file changed while it was being backed up.");
         }
         break;
       }
       read += chunk.length;
       archiveFile.push(chunk, read === size);
+      progress.bytesSinceYield += chunk.length;
+      if (progress.bytesSinceYield >= BACKUP_YIELD_BYTES) {
+        progress.bytesSinceYield = 0;
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
     }
     if (size === 0) archiveFile.push(new Uint8Array(0), true);
-    return true;
   } finally {
     source.close();
   }
@@ -257,15 +288,21 @@ export async function exportBackupArchive(
     zip.add(timelineJsonFile);
     timelineJsonFile.push(timelineBytes, true);
 
-    let exportedMediaCount = 0;
+    const progress: ArchiveReadProgress = { bytesSinceYield: 0 };
     for (let index = 0; index < mediaFiles.length; index++) {
       if (options?.signal?.aborted) throw new Error("Backup cancelled");
       const mediaFile = mediaFiles[index];
-      const added = addFileToArchive(zip, `media/${mediaFile.name}`, mediaFile, options?.signal);
-      if (added) exportedMediaCount++;
+      await addFileToArchive({
+        zip,
+        archivePath: `media/${mediaFile.name}`,
+        sourceFile: mediaFile,
+        progress,
+        signal: options?.signal,
+      });
       options?.onProgress?.(index + 1, mediaFiles.length, "media");
     }
 
+    if (options?.signal?.aborted) throw new Error("Backup cancelled");
     zip.end();
     if (archiveError) throw archiveError;
     succeeded = true;
@@ -276,7 +313,7 @@ export async function exportBackupArchive(
       counts: {
         entry: entries.length,
         tag: tags.length,
-        media: exportedMediaCount,
+        media: mediaFiles.length,
       },
       byteSize: archiveBytes,
     };
