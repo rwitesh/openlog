@@ -173,6 +173,9 @@ export function assertBackupTimelineData(data: unknown): asserts data is BackupT
         if (typeof attachment.name !== "string") {
           throw new Error("Invalid backup entry: attachment names must be strings.");
         }
+        if (attachment.mimeType !== undefined && typeof attachment.mimeType !== "string") {
+          throw new Error("Invalid backup entry: attachment types must be strings.");
+        }
       }
     }
     if (e.tagIds !== undefined) {
