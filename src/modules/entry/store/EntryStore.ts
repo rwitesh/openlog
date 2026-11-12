@@ -12,7 +12,7 @@ import {
   updateEntry,
 } from "@/services/db/entries";
 import { discardAllDrafts, discardDraft } from "@/services/drafts/store";
-import { deleteMediaFiles } from "@/services/media";
+import { deleteMediaFiles, deleteUnreferencedMedia, listMediaFiles } from "@/services/media";
 import type { Entry } from "@/shared/types";
 import { addDays, addMonths, startOfDay, startOfMonth } from "@/shared/utils/dates";
 import { reportError } from "@/shared/utils/devLog";
@@ -49,10 +49,17 @@ export function subscribeMutations(listener: (mutation: EntryMutation) => void) 
 const entryCache = new Map<string, Entry>();
 
 async function cleanupMedia(filenames: string[]): Promise<void> {
-  const unreferenced = await filterUnreferencedMedia(filenames);
-  if (unreferenced.length > 0) {
-    await deleteMediaFiles(unreferenced);
-  }
+  if (!filenames.length) return;
+  await deleteMediaFiles(() => filterUnreferencedMedia(filenames));
+}
+
+/** Deletes media files no entry references; runs once per launch. */
+export async function sweepUnreferencedMedia(): Promise<void> {
+  await deleteUnreferencedMedia(async (filenames) => {
+    // An empty timeline may be a lost or reset database; its media could be the only copy left.
+    const { entries } = await getPagedEntries({ limit: 1 });
+    return entries.length > 0 ? filterUnreferencedMedia(filenames) : [];
+  });
 }
 
 export async function addEntry(input: NewEntryInput): Promise<Entry> {
@@ -99,12 +106,13 @@ export async function removeAudio(entryId: string, audioIndex: number): Promise<
   return patchEntry(entryId, { audios: nextAudios });
 }
 
-export async function clearAll(): Promise<string[]> {
-  const uris = await deleteAllEntries();
+export async function clearAll(): Promise<void> {
+  await deleteAllEntries();
   await discardAllDrafts().catch((error) => reportError("entry:discardDrafts", error));
   entryCache.clear();
   notifyMutation({ type: "clear" });
-  return uris;
+  // The rows are gone, so every stored file goes too, including ones no entry referenced.
+  await deleteMediaFiles(async () => listMediaFiles());
 }
 
 export async function fetchEntry(id: string): Promise<Entry | null> {

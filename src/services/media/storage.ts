@@ -1,6 +1,10 @@
 import { Directory, File, Paths } from "expo-file-system";
 
-import { waitForExportGate, waitForImportGate } from "@/services/backup/utils";
+import {
+  backupGateGeneration,
+  waitForBackupGates,
+  waitForImportGate,
+} from "@/services/backup/utils";
 import { reportError } from "@/shared/utils/devLog";
 
 /** The app's single durable media directory; the database stores bare filenames relative to it. */
@@ -23,6 +27,9 @@ export function createMediaFilename(ext: string): string {
   return `${uuid}.${cleanExt}`;
 }
 
+// A file copied in this session may belong to a save whose entry has not committed yet.
+const copiedThisSession = new Set<string>();
+
 /**
  * Copies a picked or recorded file into the durable media directory and returns
  * its stored filename. Cache and picker URIs are ephemeral, so only durable
@@ -41,25 +48,61 @@ export async function persistMedia(sourceUri: string, ext: string): Promise<stri
   }
 
   const filename = createMediaFilename(ext);
-  await new File(sourceUri).copy(new File(dir, filename));
-  return filename;
+  copiedThisSession.add(filename);
+  const target = new File(dir, filename);
+  for (let attempt = 0; attempt < 3; attempt++) {
+    dir.create({ idempotent: true, intermediates: true });
+    await new File(sourceUri).copy(target);
+    // A restore that began during the copy prunes files its timeline does not reference.
+    await waitForImportGate();
+    if (target.exists) return filename;
+  }
+  throw new Error("The media file could not be saved.");
 }
 
-/** Deletes stored media files by filename. Missing files are ignored. */
-export async function deleteMediaFiles(filenames: string[]): Promise<void> {
-  if (!filenames.length) return;
-  await waitForExportGate();
-  await waitForImportGate();
-
+/** Lists the filenames stored in the media directory. */
+export function listMediaFiles(): string[] {
   const dir = mediaDirectory();
-  await Promise.all(
-    filenames.map(async (filename) => {
+  if (!dir.exists) return [];
+  return dir
+    .list()
+    .filter((item) => item instanceof File)
+    .map((item) => item.name);
+}
+
+/**
+ * Deletes the stored media files `select` names. `select` runs and the files are deleted
+ * while no export reads or import replaces media; if one starts in between, `select` runs again.
+ * Missing files are ignored.
+ */
+export async function deleteMediaFiles(select: () => Promise<readonly string[]>): Promise<void> {
+  for (;;) {
+    const generation = await waitForBackupGates();
+    const filenames = await select();
+    if (generation !== backupGateGeneration()) continue;
+
+    // Synchronous deletes keep a backup from starting between the check above and the last delete.
+    const dir = mediaDirectory();
+    for (const filename of filenames) {
       try {
         const file = new File(dir, filename);
         if (file.exists) file.delete();
       } catch (error) {
         reportError("media:deleteFiles", error);
       }
-    })
+    }
+    return;
+  }
+}
+
+/**
+ * Deletes stored media that `filterUnreferenced` reports no entry uses, such as files left by an
+ * interrupted save or restore. Files copied in this session are kept: their save may still be running.
+ */
+export function deleteUnreferencedMedia(
+  filterUnreferenced: (filenames: string[]) => Promise<string[]>
+): Promise<void> {
+  return deleteMediaFiles(() =>
+    filterUnreferenced(listMediaFiles().filter((filename) => !copiedThisSession.has(filename)))
   );
 }

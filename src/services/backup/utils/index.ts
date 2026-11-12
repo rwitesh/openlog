@@ -341,37 +341,40 @@ export function extractMediaFilename(path: string): string {
   return path.slice("media/".length);
 }
 
-let activeGatePromise: Promise<void> | null = null;
-let resolveActiveGate: (() => void) | null = null;
+let activeExports = 0;
+let exportsDone: Promise<void> | null = null;
+let resolveExportsDone: (() => void) | null = null;
+let activeImportGatePromise: Promise<void> | null = null;
+let resolveImportGate: (() => void) | null = null;
+let gateGeneration = 0;
 
+/** Exports may overlap, so the gate stays closed until the last one releases it. */
 export function acquireExportGate(): void {
-  if (resolveActiveGate) {
-    resolveActiveGate();
-  }
-  activeGatePromise = new Promise<void>((resolve) => {
-    resolveActiveGate = resolve;
+  if (resolveImportGate) throw new Error("An import is in progress.");
+  gateGeneration += 1;
+  activeExports += 1;
+  exportsDone ??= new Promise<void>((resolve) => {
+    resolveExportsDone = resolve;
   });
 }
 
 export function releaseExportGate(): void {
-  if (resolveActiveGate) {
-    resolveActiveGate();
-    resolveActiveGate = null;
-  }
-  activeGatePromise = null;
+  if (activeExports === 0) return;
+  activeExports -= 1;
+  if (activeExports > 0) return;
+  resolveExportsDone?.();
+  resolveExportsDone = null;
+  exportsDone = null;
 }
 
 export async function waitForExportGate(): Promise<void> {
-  if (activeGatePromise) {
-    await activeGatePromise;
-  }
+  while (exportsDone) await exportsDone;
 }
-
-let activeImportGatePromise: Promise<void> | null = null;
-let resolveImportGate: (() => void) | null = null;
 
 export function acquireImportGate(): void {
   if (resolveImportGate) throw new Error("An import is already in progress.");
+  if (activeExports > 0) throw new Error("An export is in progress.");
+  gateGeneration += 1;
   activeImportGatePromise = new Promise<void>((resolve) => {
     resolveImportGate = resolve;
   });
@@ -384,5 +387,22 @@ export function releaseImportGate(): void {
 }
 
 export async function waitForImportGate(): Promise<void> {
-  if (activeImportGatePromise) await activeImportGatePromise;
+  while (activeImportGatePromise) await activeImportGatePromise;
+}
+
+/** Changes whenever an export or import acquires its gate. */
+export function backupGateGeneration(): number {
+  return gateGeneration;
+}
+
+/**
+ * Resolves once neither gate is held, with the generation at that moment. A caller whose
+ * generation still matches later knows no export or import has started since.
+ */
+export async function waitForBackupGates(): Promise<number> {
+  for (;;) {
+    if (exportsDone) await exportsDone;
+    else if (activeImportGatePromise) await activeImportGatePromise;
+    else return gateGeneration;
+  }
 }
