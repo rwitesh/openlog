@@ -4,7 +4,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { PostHogErrorBoundary, PostHogProvider } from "posthog-react-native";
 import { type ReactNode, useEffect, useRef } from "react";
-import { View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { analytics } from "@/config/analytics";
 import { posthog } from "@/config/posthog";
@@ -29,10 +29,10 @@ import { Tag } from "@/screens/tag";
 import { Timeline } from "@/screens/timeline";
 import { Welcome } from "@/screens/welcome";
 import { AudioProvider } from "@/services/audio";
-import { Layout } from "@/shared/components";
+import { Layout, ThemedText } from "@/shared/components";
 import { useAppBootstrap } from "@/shared/hooks";
 import { logDevWarning } from "@/shared/utils";
-import { AppProviders, useNavigationTheme, useTheme } from "@/theme";
+import { AppProviders, space, useNavigationTheme, useTheme } from "@/theme";
 
 /** Holds the splash screen until local bootstrap (fonts + preferences) finishes. */
 function BootstrapGate({
@@ -59,6 +59,31 @@ SplashScreen.preventAutoHideAsync().catch((error) => {
 });
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+/** Stands in for the whole app when the database cannot open; it reads and writes nothing. */
+function DatabaseUnavailable() {
+  const { theme, mode } = useTheme();
+
+  return (
+    <View style={[styles.unavailable, { backgroundColor: theme.colors.background }]}>
+      <StatusBar style={mode === "dark" ? "light" : "dark"} />
+      <ThemedText
+        weight="semibold"
+        accessibilityRole="header"
+        style={[theme.typography.emptyTitle, styles.centered, { color: theme.colors.text }]}
+      >
+        OpenLog can't open your timeline
+      </ThemedText>
+      <ThemedText
+        style={[theme.typography.emptyBody, styles.centered, { color: theme.colors.textSecondary }]}
+      >
+        Nothing has been changed or deleted. Close OpenLog completely and open it again. If this
+        keeps happening, update OpenLog to the latest version. Please don't uninstall it, as that
+        would remove everything stored on this device.
+      </ThemedText>
+    </View>
+  );
+}
 
 function AppContent({ showWelcome }: { showWelcome: boolean }) {
   const { theme, mode } = useTheme();
@@ -184,7 +209,14 @@ function AppNavigator({
 }
 
 export default function App() {
-  const { ready, preferences, backgroundColor, userName, onboardingCompleted } = useAppBootstrap();
+  const {
+    ready,
+    preferences,
+    backgroundColor,
+    userName,
+    onboardingCompleted,
+    databaseUnavailable,
+  } = useAppBootstrap();
   // Welcome shows only when onboarding was never finished or skipped.
   const showWelcome = !userName && !onboardingCompleted;
 
@@ -193,16 +225,31 @@ export default function App() {
       <BootstrapGate ready={ready} backgroundColor={backgroundColor}>
         <Layout>
           <AppProviders initialPreferences={preferences}>
-            <ProfileProvider initialName={userName}>
-              <AudioProvider>
-                <AppLockGate>
-                  <AppContent showWelcome={showWelcome} />
-                </AppLockGate>
-              </AudioProvider>
-            </ProfileProvider>
+            {databaseUnavailable ? (
+              <DatabaseUnavailable />
+            ) : (
+              <ProfileProvider initialName={userName}>
+                <AudioProvider>
+                  <AppLockGate>
+                    <AppContent showWelcome={showWelcome} />
+                  </AppLockGate>
+                </AudioProvider>
+              </ProfileProvider>
+            )}
           </AppProviders>
         </Layout>
       </BootstrapGate>
     </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  unavailable: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: space.xxxl,
+    gap: space.md,
+  },
+  centered: { textAlign: "center" },
+});
