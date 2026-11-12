@@ -1,5 +1,10 @@
 import { type DraftSnapshot, draftSignature } from "@/services/drafts/snapshot";
-import { persistAttachment, persistMedia, releaseMediaCopies } from "@/services/media";
+import {
+  fileExtension,
+  persistAttachment,
+  persistMedia,
+  releaseMediaCopies,
+} from "@/services/media";
 import type { Entry, NewEntryInput } from "@/shared/types";
 import type { Draft } from "../types";
 
@@ -33,6 +38,15 @@ export function isDraftWorthKeeping({
   return entry
     ? draftSignature(draft) !== draftSignature(entrySnapshot(entry))
     : canSaveDraft(draft);
+}
+
+/**
+ * Photos within the size limit keep their original encoding; only downscaled ones are JPEG.
+ * Draft copies of a file with no usable extension are named `.bin`, so that also means JPEG.
+ */
+function photoExtension(uri: string): string {
+  const ext = fileExtension(uri.split(/[?#]/)[0]);
+  return ext === "bin" ? "jpg" : ext;
 }
 
 /**
@@ -70,7 +84,7 @@ export async function fromDraft(draft: Draft): Promise<NewEntryInput | null> {
   const made: string[] = [];
   const asFilename = (filename: string) => filename;
   const images = await settleCopies(
-    (draft.images ?? []).map((imageUri) => persistMedia(imageUri, "jpg")),
+    (draft.images ?? []).map((imageUri) => persistMedia(imageUri, photoExtension(imageUri))),
     { filename: asFilename, made }
   );
   const audios = await settleCopies(
