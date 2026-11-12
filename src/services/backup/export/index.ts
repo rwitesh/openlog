@@ -32,8 +32,6 @@ import {
 const CHUNK_SIZE = 256 * 1024;
 
 export class MissingBackupMediaError extends Error {
-  readonly missingCount: number;
-
   constructor(missingCount: number) {
     const files = missingCount === 1 ? "1 file" : `${missingCount.toLocaleString()} files`;
     const verb = missingCount === 1 ? "is" : "are";
@@ -41,7 +39,6 @@ export class MissingBackupMediaError extends Error {
       `${files} attached to your entries ${verb} missing from this device. A backup without them couldn’t be restored, so it wasn’t saved.`
     );
     this.name = "MissingBackupMediaError";
-    this.missingCount = missingCount;
   }
 }
 
@@ -101,7 +98,8 @@ async function addFileToArchive({
       const chunk = source.readBytes(Math.min(CHUNK_SIZE, size - read));
       if (chunk.length === 0) {
         if (read < size) {
-          throw new Error(`Cannot read ${sourceFile.name} while backing up.`);
+          reportError("backup:exportMissingMedia", new Error("Media shrank during backup."));
+          throw new MissingBackupMediaError(1);
         }
         break;
       }

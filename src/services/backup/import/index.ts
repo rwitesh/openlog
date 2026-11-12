@@ -203,6 +203,8 @@ export async function importBackupArchive(
   let timelineBytes = 0;
   let mediaCount = 0;
   let stagingDir: Directory | null = null;
+  // A cancelled or failed read stops before the member's final chunk, so its handle is closed here.
+  const openMediaHandles = new Set<ReturnType<File["open"]>>();
   const paths = new Set<string>();
   const mediaNames = new Set<string>();
   const normalizedMediaNames = new Set<string>();
@@ -239,6 +241,12 @@ export async function importBackupArchive(
 
       let mediaHandle: ReturnType<File["open"]> | null = null;
       let memberBytes = 0;
+      const closeMediaHandle = () => {
+        if (!mediaHandle) return;
+        openMediaHandles.delete(mediaHandle);
+        mediaHandle.close();
+        mediaHandle = null;
+      };
 
       try {
         if (member.name.startsWith("media/")) {
@@ -256,6 +264,7 @@ export async function importBackupArchive(
           const destination = new File(stagingMediaDir, filename);
           destination.create({ overwrite: true });
           mediaHandle = destination.open(FileMode.WriteOnly);
+          openMediaHandles.add(mediaHandle);
         }
       } catch (error) {
         failure = error instanceof Error ? error : new Error(String(error));
@@ -265,12 +274,12 @@ export async function importBackupArchive(
       member.ondata = (error, chunk, final) => {
         if (error) {
           failure = error instanceof Error ? error : new Error(String(error));
-          mediaHandle?.close();
+          closeMediaHandle();
           return;
         }
         if (options?.signal?.aborted) {
           failure = new Error("Import cancelled");
-          mediaHandle?.close();
+          closeMediaHandle();
           return;
         }
         memberBytes += chunk.length;
@@ -280,7 +289,7 @@ export async function importBackupArchive(
           totalUncompressed > BACKUP_LIMITS.uncompressedBytes
         ) {
           failure = new Error("Invalid backup file: archive expands beyond the import limit.");
-          mediaHandle?.close();
+          closeMediaHandle();
           return;
         }
 
@@ -301,11 +310,11 @@ export async function importBackupArchive(
             mediaHandle.writeBytes(chunk);
           }
           if (final) {
-            mediaHandle?.close();
+            closeMediaHandle();
           }
         } catch (writeError) {
           failure = writeError instanceof Error ? writeError : new Error(String(writeError));
-          mediaHandle?.close();
+          closeMediaHandle();
         }
       };
       member.start();
@@ -392,6 +401,13 @@ export async function importBackupArchive(
   } catch (error) {
     throw error instanceof Error ? error : new Error("The import could not be completed.");
   } finally {
+    for (const handle of openMediaHandles) {
+      try {
+        handle.close();
+      } catch (error) {
+        logDevWarning("backup:importMediaHandle", error);
+      }
+    }
     if (stagingDir?.exists) {
       try {
         stagingDir.delete();
