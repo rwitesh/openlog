@@ -194,7 +194,7 @@ export function PrivacySettingsScreen() {
         return;
       }
       const missingMedia = error instanceof MissingBackupMediaError;
-      // The export already reported missing media with its count.
+      // The export already reported the missing media.
       if (!missingMedia) reportError("backup:export", error);
       analytics.capture("backup_export_failed");
       const message = missingMedia
