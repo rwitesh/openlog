@@ -50,7 +50,7 @@ const IMPORT_FAILURE_MESSAGE =
 
 /**
  * Privacy & data category screen — everything about trust: the biometric
- * app lock under SECURITY, backup/export under BACKUP & EXPORT,
+ * app lock under SECURITY, backup/export under DATA BACKUP,
  * and storage management under STORAGE.
  */
 export function PrivacySettingsScreen() {
@@ -325,7 +325,10 @@ export function PrivacySettingsScreen() {
         // ignore
       }
       analytics.capture("backup_inspect_failed", { byte_size: byteSize ?? null });
-      Alert.alert("Can’t open backup", "This backup file appears to be corrupted or incomplete.");
+      Alert.alert(
+        "Can’t open backup",
+        "This backup file appears to be corrupted or incomplete. Select a different backup file."
+      );
       try {
         new File(fileUri).delete();
       } catch {

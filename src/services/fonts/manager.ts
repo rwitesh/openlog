@@ -24,7 +24,7 @@ class FontManager {
   }
 
   /**
-   * The default, reliably bundled bootstrap font.
+   * The default bootstrap font, bundled with the app.
    */
   getDefaultFont(): FontName {
     return DEFAULT_FONT;

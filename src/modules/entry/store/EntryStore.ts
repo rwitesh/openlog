@@ -369,7 +369,7 @@ export function useEntry(id?: string): Entry | null | undefined {
   return entry;
 }
 
-/** Backward compatibility / actions helper. */
+/** The entry store actions, grouped in one object. */
 export function useEntries() {
   return {
     addEntry,

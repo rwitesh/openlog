@@ -80,7 +80,7 @@ export function assertBackupManifest(data: unknown): asserts data is BackupManif
     throw new Error(`Invalid backup file: unsupported archive version (${String(obj.version)}).`);
   }
   if (obj.version > ARCHIVE_SCHEMA_VERSION) {
-    throw new Error(`Unsupported backup version (${obj.version}). Please update OpenLog.`);
+    throw new Error(`Unsupported backup version (${obj.version}). Update OpenLog.`);
   }
   if (typeof obj.createdAt !== "number" || !Number.isFinite(obj.createdAt)) {
     throw new Error("Invalid backup manifest: createdAt is missing or invalid.");
@@ -282,7 +282,7 @@ export interface StoragePreflightParams {
 }
 
 /**
- * Calculates the required free disk storage before beginning a import.
+ * Calculates the required free disk storage before an import begins.
  * Uses exact uncompressedBytes when the archive size matches expectedArchiveBytes;
  * otherwise conservatively reserves the full allowed expansion capacity up to BACKUP_LIMITS.uncompressedBytes.
  */
@@ -305,9 +305,10 @@ export function calculateRequiredImportBytes({
 
 /**
  * Validates that an archive path adheres to the expected format:
+ * - "manifest.json"
  * - "timeline.json"
  * - "media/<filename>" (non-empty, single segment, no traversal or backslashes)
- * Enforces no path traversal, duplicate path rejection, and unexpected path rejection.
+ * Rejects path traversal, duplicate paths, and unexpected paths.
  */
 export function validateArchivePath(name: string, seenPaths?: Set<string>): void {
   if (name.startsWith("/") || name.startsWith("\\") || name.includes("..") || name.includes("\\")) {

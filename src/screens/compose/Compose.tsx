@@ -385,7 +385,7 @@ function ComposeContent({ navigation, route, existing, restored }: ComposeConten
               await removeEntry(existing.id);
             } catch (error) {
               reportError("entry:delete", error);
-              Alert.alert("Could not delete", "Please try again.");
+              Alert.alert("Could not delete", "Try again.");
               return;
             }
             analytics.capture("entry_deleted", {
