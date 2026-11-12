@@ -5,6 +5,7 @@ import { strFromU8, Unzip, UnzipInflate, UnzipPassThrough } from "fflate";
 
 import { notifyStoreReload } from "@/modules/entry/store/EntryStore";
 import { runDb } from "@/services/db/database";
+import { mediaNameKey } from "@/services/db/validation";
 import { discardAllDrafts } from "@/services/drafts/store";
 import { mediaDirectory } from "@/services/media/storage";
 import { logDevWarning, reportError } from "@/shared/utils/devLog";
@@ -69,11 +70,6 @@ function concat(chunks: Uint8Array[]): Uint8Array {
     offset += chunk.length;
   }
   return result;
-}
-
-/** Names that a case-insensitive filesystem treats as one file share a key. */
-function mediaNameKey(filename: string): string {
-  return filename.normalize("NFC").toLocaleLowerCase("en-US");
 }
 
 function deleteLiveMedia(filenames: readonly string[]): void {
