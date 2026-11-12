@@ -1,8 +1,8 @@
 import type { FontName, FontSource } from "./types";
 
 /**
- * Exact Fontsource package versions, so a font downloaded today renders the same
- * as one downloaded later. Raise a version only after checking the new files.
+ * Exact Fontsource package versions, so every new download of a font gets the same files.
+ * Cached fonts are keyed by slug only, so raising a version does not refresh existing caches.
  */
 const FONTSOURCE_VERSIONS: ReadonlyMap<FontName, string> = new Map([
   ["Inter", "5.3.0"],

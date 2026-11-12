@@ -61,12 +61,19 @@ test("downscaled photos re-encoded as JPEG stay .jpg", async () => {
   assert.deepEqual(extensions, ["jpg"]);
 });
 
-test("a photo URI without a usable extension falls back to JPEG", async () => {
+test("a photo URI without a usable extension falls back to .jpg", async () => {
   const extensions = await persistedImageExtensions([
     "file:///data/user/0/share.openlog.mobile/cache/ImagePicker/e5",
     "content://media.provider/images/42",
+    // A restored draft names its copy of an extension-less photo `.bin`.
+    "file:///data/user/0/share.openlog.mobile/files/drafts/new/f6.bin",
   ]);
-  assert.deepEqual(extensions, ["jpeg", "jpeg"]);
+  assert.deepEqual(extensions, ["jpg", "jpg", "jpg"]);
+});
+
+test("query strings and fragments don't hide a photo's extension", async () => {
+  const extensions = await persistedImageExtensions(["file:///x/a.png?v=1", "file:///x/b.webp#f"]);
+  assert.deepEqual(extensions, ["png", "webp"]);
 });
 
 test("audio and attachments keep their existing extensions", async () => {
