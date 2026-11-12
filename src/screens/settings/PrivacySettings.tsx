@@ -223,8 +223,15 @@ export function PrivacySettingsScreen() {
     void notifyBackupProgress("Importing backup", "Extracting files...");
 
     try {
+      let lastPercent = -1;
       const result = await importBackupArchive(fileUri, {
         signal: controller.signal,
+        onProgress: (processedBytes, totalBytes) => {
+          const percent = totalBytes > 0 ? Math.floor((processedBytes / totalBytes) * 100) : 100;
+          if (percent === lastPercent) return;
+          lastPercent = percent;
+          void notifyBackupProgress("Importing backup", `Extracting files (${percent}%)`);
+        },
         counts,
         uncompressedBytes,
         expectedArchiveBytes,

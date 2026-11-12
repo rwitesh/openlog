@@ -166,8 +166,10 @@ export function assertBackupTimelineData(data: unknown): asserts data is BackupT
       if (!Array.isArray(e.attachments)) {
         throw new Error("Invalid backup entry: attachments must be an array.");
       }
-      for (const attachment of e.attachments) {
-        if (!attachment || typeof attachment !== "object" || !isBareFilename(attachment.uri)) {
+      for (const item of e.attachments as unknown[]) {
+        const attachment =
+          item && typeof item === "object" ? (item as Record<string, unknown>) : null;
+        if (!attachment || !isBareFilename(attachment.uri)) {
           throw new Error("Invalid backup entry: attachment uris must be media filenames.");
         }
         if (typeof attachment.name !== "string") {
