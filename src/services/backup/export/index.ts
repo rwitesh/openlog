@@ -86,7 +86,7 @@ function addFileToArchive(
 }
 
 /**
- * Creates a structured JSON archive containing timeline.json and media files.
+ * Creates a ZIP archive that contains manifest.json, timeline.json, and the media files.
  */
 export async function exportBackupArchive(
   options?: ExportBackupOptions

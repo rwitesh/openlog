@@ -4,7 +4,7 @@
 
 OpenLog is a local-first personal timeline. People can keep notes, journals, plans, tasks, goals, hobbies, photos, recordings, files, and anything else they choose. Every artifact belongs to one chronological entry; text is optional.
 
-Do not describe, name, or design OpenLog as only a journal, task manager, social network, productivity suite, or file manager. Use neutral terms such as **entry**, **timeline**, **content**, **media**, and **attachment** unless a narrower term is genuinely required by the feature.
+Do not describe, name, or design OpenLog as only a journal, task manager, social network, productivity suite, or file manager. Use neutral terms such as **entry**, **timeline**, **content**, **media**, and **attachment** unless the feature requires a narrower term.
 
 ## Product principles
 
@@ -26,11 +26,22 @@ Do not describe, name, or design OpenLog as only a journal, task manager, social
 - Preserve local-first behavior. For mutations spanning SQLite and files, commit the database state before destructive cleanup and make recovery deterministic after interruption.
 - Make archive, import, and media code defensive: validate untrusted input before mutation, bound resource use, and leave the existing data recoverable on failure.
 
+## Writing standards
+
+The repository includes two writing skills in `.agents/skills/` (linked into `.claude/skills/`). Use them for all text that you write or change: code comments, documentation, UI text, error messages, the website, and the changelog.
+
+- For technical text, use `simple-english` in pragmatic mode. Technical text includes code comments, READMEs, `docs/`, error messages, UI body text such as alerts and settings descriptions, and agent instructions.
+- For text with a voice, use `plain-english`. This includes the website, store listings, onboarding screens, and the changelog.
+- Never apply both skills to the same text.
+- Before you write, read the `SKILL.md` of the skill. Follow its rules, not your own preferences.
+- Change only the text that breaks a rule. Do not rewrite correct text for style.
+- Do not change code, identifiers, error text quoted from logs or tools, or product names to obey a writing rule.
+
 ## Change discipline
 
 - Keep a feature change small and cohesive. Do not use a broad refactor to solve an unrelated problem.
-- Preserve public behavior unless the request explicitly changes it. Update types, persistence, UI, and tests together when a contract changes.
-- Do not add dependencies or new architecture when a clear local solution exists. For Expo packages, use `npx expo install` so versions match the SDK.
+- Preserve public behavior unless the request explicitly changes it. When a contract changes, update types, persistence, UI, and tests together.
+- When a clear local solution exists, do not add dependencies or new architecture. For Expo packages, use `npx expo install` so versions match the SDK.
 - Do not claim a device-only behavior was verified without running it on a device or emulator.
 
 ## Release
@@ -55,7 +66,7 @@ This project uses local EAS app versions (`eas.json` sets `appVersionSource` to 
 
 ### Manual EAS builds
 
-iOS and any manual production build still go through EAS directly (`pnpm eas:prod` for Android). Commit the version values first, run `pnpm exec expo config --type public --json` immediately before building, and state the resolved `version`, `ios.buildNumber`, and `android.versionCode` before triggering it.
+iOS and any manual production build still go through EAS directly (`pnpm eas:prod` for Android). Commit the version values first. Immediately before you build, run `pnpm exec expo config --type public --json`. Before you trigger the build, state the resolved `version`, `ios.buildNumber`, and `android.versionCode`.
 
 ## Verification
 
@@ -67,4 +78,4 @@ pnpm typecheck
 pnpm exec biome check src scripts
 ```
 
-After dependency or Expo config changes, also run `pnpm expo:doctor`. Also inspect both light and dark themes for UI changes. For native filesystem, permissions, media, or interruption behavior, test on a relevant Android/iOS target when one is available and state clearly when that validation could not be run.
+After dependency or Expo config changes, also run `pnpm expo:doctor`. For UI changes, also inspect both light and dark themes. If a relevant Android/iOS target is available, test native filesystem, permissions, media, or interruption behavior on it. If you cannot run that test, state this clearly.

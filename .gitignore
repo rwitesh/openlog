@@ -40,9 +40,17 @@ yarn-error.*
 /ios
 /android
 
-# agent skills
-.claude/
-.agents/
+# agent skills (only the writing-standard skills are shared through the repository)
+.claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/plain-english
+!.claude/skills/simple-english
+.agents/*
+!.agents/skills/
+.agents/skills/*
+!.agents/skills/plain-english/
+!.agents/skills/simple-english/
 .gemini/
 skills-lock.json
 
