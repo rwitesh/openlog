@@ -57,7 +57,12 @@ const fakes = {
   "react": "export const useCallback = () => {}, useEffect = () => {}, useRef = () => ({}), useState = () => [];",
   "./database": ${JSON.stringify(fakeDatabase)},
   "@/services/drafts/store": "export async function discardDraft() {} export async function discardAllDrafts() {}",
-  "@/shared/utils/devLog": "export function reportError(scope, error) { (globalThis.__reportedErrors ??= []).push(error); }",
+  "@/shared/utils/devLog":
+    "export function reportError(scope, error) { (globalThis.__reportedErrors ??= []).push(error); } export function logDevWarning() {}",
+  "@/services/media": \`export * from "\${root}services/media/storage.ts"; export * from "\${root}services/media/attachments.ts";\`,
+  "expo-document-picker": "export {};",
+  "react-native": "export const Alert = { alert() {} };",
+  "react-native-file-viewer-turbo": "export function open() {}",
 };
 function moduleUrl(base) {
   if (existsSync(new URL(base + ".ts"))) return base + ".ts";
@@ -65,7 +70,6 @@ function moduleUrl(base) {
 }
 export async function resolve(specifier, context, next) {
   if (specifier in fakes) return { url: "fake:" + specifier, shortCircuit: true };
-  if (specifier === "@/services/media") return { url: root + "services/media/storage.ts", shortCircuit: true };
   if (specifier.startsWith("@/")) return { url: moduleUrl(root + specifier.slice(2)), shortCircuit: true };
   if (specifier.startsWith(".") && !specifier.endsWith(".ts") && context.parentURL?.startsWith(root)) {
     return { url: moduleUrl(new URL(specifier, context.parentURL).href), shortCircuit: true };
@@ -107,6 +111,7 @@ const gates = await import("../src/services/backup/utils/index.ts");
 const storage = await import("../src/services/media/storage.ts");
 const entries = await import("../src/services/db/entries.ts");
 const store = await import("../src/modules/entry/store/EntryStore.ts");
+const drafts = await import("../src/modules/compose/utils/DraftTransform.ts");
 const fs = globalThis.__fakeFs;
 const mediaUri = (name) => `file:///documents/media/${name}`;
 
@@ -172,7 +177,7 @@ test("deleting media removes the selected files once no backup holds a gate", as
   addMediaFile("kept.jpg");
 
   gates.acquireExportGate();
-  const deletion = storage.deleteMediaFiles(async () => ["old.jpg", "missing.jpg"]);
+  const deletion = storage.deleteMediaFiles({ select: async () => ["old.jpg", "missing.jpg"] });
   assert.equal(await isSettled(deletion), false, "deleted a file an export may be reading");
   assert.equal(fs.files.has(mediaUri("old.jpg")), true);
 
@@ -187,16 +192,18 @@ test("a restore that runs while references are checked keeps the media it brough
   const referenced = new Set();
   let checks = 0;
 
-  await storage.deleteMediaFiles(async () => {
-    checks += 1;
-    const unreferenced = referenced.has("shared.jpg") ? [] : ["shared.jpg"];
-    if (checks === 1) {
-      // The restore's timeline refers to the file this check found unreferenced.
-      gates.acquireImportGate();
-      referenced.add("shared.jpg");
-      gates.releaseImportGate();
-    }
-    return unreferenced;
+  await storage.deleteMediaFiles({
+    select: async () => {
+      checks += 1;
+      const unreferenced = referenced.has("shared.jpg") ? [] : ["shared.jpg"];
+      if (checks === 1) {
+        // The restore's timeline refers to the file this check found unreferenced.
+        gates.acquireImportGate();
+        referenced.add("shared.jpg");
+        gates.releaseImportGate();
+      }
+      return unreferenced;
+    },
   });
 
   assert.equal(checks, 2);
@@ -277,10 +284,12 @@ test("an export that starts while references are checked makes the check run aga
   addMediaFile("read.jpg");
   let checks = 0;
 
-  const deletion = storage.deleteMediaFiles(async () => {
-    checks += 1;
-    if (checks === 1) gates.acquireExportGate();
-    return ["read.jpg"];
+  const deletion = storage.deleteMediaFiles({
+    select: async () => {
+      checks += 1;
+      if (checks === 1) gates.acquireExportGate();
+      return ["read.jpg"];
+    },
   });
   assert.equal(await isSettled(deletion), false, "deleted a file the export may be reading");
   assert.equal(fs.files.has(mediaUri("read.jpg")), true);
@@ -346,8 +355,6 @@ test("delete all removes every unreferenced file, including ones saved this sess
   const { id } = await store.addEntry({ images: [saved] });
   const edited = await persistFresh("edited.jpg");
   await store.patchEntry(id, { images: [saved, edited] });
-  const failed = await persistFresh("failed.jpg");
-  await assert.rejects(store.patchEntry("missing-entry", { images: [failed] }));
   addMediaFile("orphan.jpg");
 
   await store.clearAll();
@@ -418,4 +425,41 @@ test("a copy that fails on its own is reported without a partial file", async ()
     [...fs.files].filter((uri) => uri.startsWith(mediaUri(""))),
     []
   );
+});
+
+function storedMedia() {
+  return [...fs.files].filter((uri) => uri.startsWith(mediaUri("")));
+}
+
+test("a failed addEntry releases its copy, so delete all removes it", async () => {
+  const copied = await persistFresh("unsaved.jpg");
+  const tooManyTags = Array.from({ length: 11 }, (_, i) => `tag-${i}`);
+  await assert.rejects(store.addEntry({ images: [copied], tagIds: tooManyTags }));
+
+  await store.clearAll();
+  assert.deepEqual(storedMedia(), []);
+});
+
+test("a failed patchEntry releases its copy, so delete all removes it", async () => {
+  const copied = await persistFresh("unpatched.jpg");
+  await assert.rejects(store.patchEntry("missing-entry", { images: [copied] }));
+
+  await store.clearAll();
+  assert.deepEqual(storedMedia(), []);
+});
+
+test("a draft whose copy fails releases the copies it already made", async () => {
+  fs.files.add("file:///cache/kept.jpg");
+  fs.files.add("file:///cache/voice.m4a");
+  await assert.rejects(
+    drafts.fromDraft({
+      images: ["file:///cache/kept.jpg"],
+      audios: ["file:///cache/voice.m4a", "file:///cache/missing.m4a"],
+    }),
+    /source missing/
+  );
+  assert.equal(storedMedia().length, 2, "copies were not made before the failure");
+
+  await store.clearAll();
+  assert.deepEqual(storedMedia(), []);
 });

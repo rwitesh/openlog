@@ -55,14 +55,15 @@ const entryCache = new Map<string, Entry>();
 
 async function cleanupMedia(filenames: string[]): Promise<void> {
   if (!filenames.length) return;
-  await deleteMediaFiles(() => filterUnreferencedMedia(filenames));
+  await deleteMediaFiles({ select: () => filterUnreferencedMedia(filenames) });
 }
 
-/** Deletes media files no entry references; runs once per launch. */
+/** Deletes media files no entry references. */
 export async function sweepUnreferencedMedia(): Promise<void> {
   await deleteUnreferencedMedia(async (filenames) => {
-    // An empty timeline deletes nothing: a lost or reset database must not take the only copy
-    // of its media with it. Files an interrupted "Delete all" left wait until an entry exists.
+    // An empty timeline deletes nothing: after a lost, reset, or unreadable database these files
+    // may be the only copy left. The cost is that files left by an interrupted "Delete all", or
+    // by a save that failed while the timeline was empty, stay until an entry exists.
     const { entries } = await getPagedEntries({ limit: 1 });
     return entries.length > 0 ? filterUnreferencedMedia(filenames) : [];
   });
@@ -91,10 +92,11 @@ export async function addEntry(input: NewEntryInput): Promise<Entry> {
 }
 
 export async function patchEntry(id: string, input: UpdateEntryInput): Promise<Entry> {
-  const existing = entryCache.get(id) ?? (await getEntryById(id));
   const media = inputMedia(input);
+  let existing: Entry | null;
   let entry: Entry;
   try {
+    existing = entryCache.get(id) ?? (await getEntryById(id));
     await assertCopiedMediaPresent(media);
     entry = await updateEntry(id, input);
   } finally {

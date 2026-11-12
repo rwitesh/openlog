@@ -344,8 +344,6 @@ export function extractMediaFilename(path: string): string {
 let activeExports = 0;
 let exportsDone: Promise<void> | null = null;
 let resolveExportsDone: (() => void) | null = null;
-let activeImportGatePromise: Promise<void> | null = null;
-let resolveImportGate: (() => void) | null = null;
 let gateGeneration = 0;
 
 /** Exports may overlap, so the gate stays closed until the last one releases it. */
@@ -370,6 +368,9 @@ export function releaseExportGate(): void {
 export async function waitForExportGate(): Promise<void> {
   while (exportsDone) await exportsDone;
 }
+
+let activeImportGatePromise: Promise<void> | null = null;
+let resolveImportGate: (() => void) | null = null;
 
 export function acquireImportGate(): void {
   if (resolveImportGate) throw new Error("An import is already in progress.");

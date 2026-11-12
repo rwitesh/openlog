@@ -61,12 +61,16 @@ export async function persistMedia(sourceUri: string, ext: string): Promise<stri
     } catch (error) {
       if (target.exists) target.delete();
       // Only a backup that started meanwhile, such as a restore pruning the copy, earns a retry.
-      if (attempt === COPY_ATTEMPTS || generation === backupGateGeneration()) throw error;
+      if (attempt === COPY_ATTEMPTS || generation === backupGateGeneration()) {
+        uncommittedCopies.delete(filename);
+        throw error;
+      }
     }
     // A restore that began during the copy prunes files its timeline does not reference.
     await waitForImportGate();
     if (target.exists) return filename;
   }
+  uncommittedCopies.delete(filename);
   throw new Error("The media file could not be saved.");
 }
 
@@ -99,12 +103,17 @@ function listMediaFiles(): string[] {
     .map((item) => item.name);
 }
 
+interface DeleteMediaFilesInput {
+  /** Picks the filenames to delete; it may run more than once and must read current state. */
+  select: () => Promise<readonly string[]>;
+}
+
 /**
  * Deletes the stored media files `select` names. `select` runs and the files are deleted
  * while no export reads or import replaces media; if one starts in between, `select` runs again.
  * Missing files are ignored.
  */
-export async function deleteMediaFiles(select: () => Promise<readonly string[]>): Promise<void> {
+export async function deleteMediaFiles({ select }: DeleteMediaFilesInput): Promise<void> {
   for (;;) {
     const generation = await waitForBackupGates();
     const filenames = await select();
@@ -133,8 +142,10 @@ export async function deleteMediaFiles(select: () => Promise<readonly string[]>)
 export function deleteUnreferencedMedia(
   filterUnreferenced: (filenames: string[]) => Promise<string[]>
 ): Promise<void> {
-  return deleteMediaFiles(async () => {
-    const candidates = listMediaFiles().filter((filename) => !uncommittedCopies.has(filename));
-    return candidates.length > 0 ? filterUnreferenced(candidates) : [];
+  return deleteMediaFiles({
+    select: async () => {
+      const candidates = listMediaFiles().filter((filename) => !uncommittedCopies.has(filename));
+      return candidates.length > 0 ? filterUnreferenced(candidates) : [];
+    },
   });
 }
