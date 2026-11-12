@@ -9,6 +9,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { analytics } from "@/config/analytics";
 import { posthog } from "@/config/posthog";
 import { AppLockGate } from "@/modules/auth";
+import { sweepUnreferencedMedia } from "@/modules/entry";
 import { ProfileProvider } from "@/modules/profile";
 import type { RootStackParamList } from "@/navigation";
 import { Compose } from "@/screens/compose";
@@ -31,7 +32,7 @@ import { Welcome } from "@/screens/welcome";
 import { AudioProvider } from "@/services/audio";
 import { Layout } from "@/shared/components";
 import { useAppBootstrap } from "@/shared/hooks";
-import { logDevWarning } from "@/shared/utils";
+import { logDevWarning, reportError } from "@/shared/utils";
 import { AppProviders, useNavigationTheme, useTheme } from "@/theme";
 
 /** Holds the splash screen until local bootstrap (fonts + preferences) finishes. */
@@ -47,6 +48,7 @@ function BootstrapGate({
   useEffect(() => {
     if (!ready) return;
     SplashScreen.hideAsync().catch((error) => logDevWarning("bootstrap:hideSplash", error));
+    sweepUnreferencedMedia().catch((error) => reportError("bootstrap:sweepMedia", error));
   }, [ready]);
 
   if (!ready) return <View style={{ flex: 1, backgroundColor }} />;
