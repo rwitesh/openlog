@@ -13,7 +13,7 @@ import {
 } from "@/services/db/entries";
 import { discardAllDrafts, discardDraft } from "@/services/drafts/store";
 import {
-  assertCopiedMediaPresent,
+  assertMediaPresent,
   deleteMediaFiles,
   deleteUnreferencedMedia,
   releaseMediaCopies,
@@ -81,7 +81,7 @@ export async function addEntry(input: NewEntryInput): Promise<Entry> {
   const media = inputMedia(input);
   let entry: Entry;
   try {
-    await assertCopiedMediaPresent(media);
+    await assertMediaPresent(media);
     entry = await createEntry(input);
   } finally {
     releaseMediaCopies(media);
@@ -97,7 +97,7 @@ export async function patchEntry(id: string, input: UpdateEntryInput): Promise<E
   let entry: Entry;
   try {
     existing = entryCache.get(id) ?? (await getEntryById(id));
-    await assertCopiedMediaPresent(media);
+    await assertMediaPresent(media);
     entry = await updateEntry(id, input);
   } finally {
     releaseMediaCopies(media);

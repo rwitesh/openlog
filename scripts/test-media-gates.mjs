@@ -266,18 +266,21 @@ test("a save is refused when a restore pruned media it copied before the entry c
   fs.files.add("file:///cache/late.jpg");
   const copied = await storage.persistMedia("file:///cache/late.jpg", "jpg");
   addMediaFile("older.jpg");
-  await storage.assertCopiedMediaPresent([copied, "older.jpg"]);
+  await storage.assertMediaPresent([copied, "older.jpg"]);
 
   gates.acquireImportGate();
-  const check = storage.assertCopiedMediaPresent([copied]);
+  const check = storage.assertMediaPresent([copied]);
   assert.equal(await isSettled(check), false, "checked while a restore was running");
   fs.files.delete(mediaUri(copied));
   gates.releaseImportGate();
-  await assert.rejects(check, /restore removed media/);
+  await assert.rejects(check, /media in this entry is missing/i);
 
-  // Files this session did not copy are the entry's existing media; their absence is not a race.
+  // Media the entry already had gets the same check: a restore can prune it too.
   fs.files.delete(mediaUri("older.jpg"));
-  await storage.assertCopiedMediaPresent(["older.jpg"]);
+  await assert.rejects(
+    storage.assertMediaPresent(["older.jpg"]),
+    /media in this entry is missing/i
+  );
 });
 
 test("an export that starts while references are checked makes the check run again", async () => {
@@ -344,11 +347,30 @@ for (const save of ["addEntry", "patchEntry"]) {
     fs.files.delete(mediaUri(copied));
     gates.releaseImportGate();
 
-    await assert.rejects(saving, /restore removed media/);
+    await assert.rejects(saving, /media in this entry is missing/i);
     const dangling = sql.prepare("SELECT id FROM entries WHERE instr(images, ?) > 0").all(copied);
     assert.deepEqual(dangling, []);
   });
 }
+
+test("patchEntry refuses an edit when a restore removed media the entry already had", async () => {
+  addMediaFile("photo.jpg");
+  const { id } = await store.addEntry({ images: ["photo.jpg"] });
+
+  // The restore of an older backup keeps the entry but prunes its photo.
+  gates.acquireImportGate();
+  fs.files.delete(mediaUri("photo.jpg"));
+  gates.releaseImportGate();
+
+  // The save sends the full draft, as the compose screen does after a text-only edit.
+  await assert.rejects(
+    store.patchEntry(id, { text: "edited", images: ["photo.jpg"] }),
+    /media in this entry is missing/i
+  );
+  const row = sql.prepare("SELECT text, images FROM entries WHERE id = ?").get(id);
+  assert.equal(row.text, null);
+  assert.equal(row.images, JSON.stringify(["photo.jpg"]));
+});
 
 test("delete all removes every unreferenced file, including ones saved this session", async () => {
   const saved = await persistFresh("saved.jpg");
