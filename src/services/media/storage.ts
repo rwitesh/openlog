@@ -74,17 +74,23 @@ export async function persistMedia(sourceUri: string, ext: string): Promise<stri
   throw new Error("The media file could not be saved.");
 }
 
+/** Thrown when a save references a media file that is not on disk. The UI shows the message. */
+export class MissingMediaError extends Error {}
+
 /**
- * Waits out a running restore, then rejects if it pruned a file this session copied for a save.
- * Call it right before the entry's database write: that write is then queued ahead of any
- * later restore's replacement, so the restore either keeps the file or replaces the entry.
+ * Waits out a running restore, then rejects if a media file of the entry is missing. The save
+ * must not commit a reference to a file that does not exist. Call it right before the entry's
+ * database write: that write is then queued ahead of any later restore's replacement, so the
+ * restore either keeps the file or replaces the entry.
  */
-export async function assertCopiedMediaPresent(filenames: readonly string[]): Promise<void> {
+export async function assertMediaPresent(filenames: readonly string[]): Promise<void> {
   await waitForImportGate();
   const dir = mediaDirectory();
   for (const filename of filenames) {
-    if (uncommittedCopies.has(filename) && !new File(dir, filename).exists) {
-      throw new Error("A restore removed media from this entry. Add it again and save.");
+    if (!new File(dir, filename).exists) {
+      throw new MissingMediaError(
+        "Media in this entry is missing. Remove it or add it again, then save."
+      );
     }
   }
 }

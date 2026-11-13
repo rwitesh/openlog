@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import type { RootStackParamList } from "@/navigation/types";
 import { locationPlaceTitle } from "@/services/location/location";
+import { MissingMediaError } from "@/services/media";
 import { ThemedText } from "@/shared/components/ThemedText";
 import type { Entry } from "@/shared/types";
 import { formatTime } from "@/shared/utils/dates";
@@ -136,7 +137,8 @@ function EntryRowBase({ entry, animate, activeTagId }: EntryRowProps) {
       })
       .catch((error) => {
         reportError("entry:deleteImage", error);
-        Alert.alert("Could not delete", "Try again.");
+        const message = error instanceof MissingMediaError ? error.message : "Try again.";
+        Alert.alert("Could not delete", message);
       });
   };
 

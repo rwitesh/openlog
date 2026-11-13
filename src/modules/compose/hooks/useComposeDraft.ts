@@ -6,6 +6,7 @@ import { getTag, getTags, MAX_TAGS_PER_ENTRY } from "@/services/db/tags";
 import { type DraftSnapshot, draftSignature } from "@/services/drafts/snapshot";
 import { discardDraft, NEW_ENTRY_DRAFT, writeDraft } from "@/services/drafts/store";
 import { getCachedPlace, useLocation } from "@/services/location";
+import { MissingMediaError } from "@/services/media";
 import type { Attachment, Entry, Tag } from "@/shared/types";
 import { getInitialWhen } from "@/shared/utils/dates";
 import { reportError } from "@/shared/utils/devLog";
@@ -213,7 +214,9 @@ export function useComposeDraft({
       return existing ? "updated" : "created";
     } catch (error) {
       reportError("compose:save", error);
-      Alert.alert("Couldn't save", "Try again.");
+      // A missing media file never succeeds on a retry, so its error carries the way out.
+      const message = error instanceof MissingMediaError ? error.message : "Try again.";
+      Alert.alert("Couldn't save", message);
       return "aborted";
     } finally {
       setSaving(false);
