@@ -1,0 +1,43 @@
+{
+  "cli_version": "0.12.2",
+  "checkpoint_id": "01M79Y33AH4NG0V5YV6PQVW4DD",
+  "session_id": "01a1d3d5-b0b9-7060-8fd5-f6ad84d43af9",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-13T07:48:57.14872Z",
+  "branch": "fix/android-backup-rules",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "DEVELOPMENT.md",
+    "app.json",
+    "docs/review-findings.md",
+    "plugins/withAndroidBackupRules.js"
+  ],
+  "agent": "Pi",
+  "model": "kimi-k3",
+  "turn_id": "02c4d14201b2",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 287474,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 1302099,
+    "output_tokens": 29252,
+    "api_call_count": 43
+  },
+  "redaction": {
+    "replacements": 0,
+    "layers": {
+      "betterleaks": 0,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 0,
+      "credentialed_uri": 0,
+      "entropy": 0,
+      "key_context": 0,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  },
+  "session_metrics": {
+    "turn_count": 1
+  }
+}

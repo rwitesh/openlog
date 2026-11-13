@@ -1,0 +1,17 @@
+Read /docs findings, make sure to use skills if required. you have to create new branches for each indvidual fixes. yes we are allowing backup. tell me what to do with this P3-6. An edit can keep a reference to media that a restore removed
+Where: assertCopiedMediaPresent in src/services/media/storage.ts and patchEntry in src/modules/entry/store/EntryStore.ts.
+
+assertCopiedMediaPresent examines only the files that the current save copied. It does not examine media that the entry had before the edit.
+
+The problem occurs in this sequence:
+
+A person opens an entry that has a photo.
+A restore of an older backup removes that photo.
+The person saves the edit.
+Then the saved entry refers to a file that does not exist. This problem existed before PR #10.
+
+Fix: After the restore gate opens, make sure that each media file of the entry exists. If a file does not exist, reject the save. before changing.
+
+---
+
+do the best possbile fixes. and create PRs for first and last both fixes. not the second one findings. from doc. in seperate branches with concise writing. make sure you coded clean.
