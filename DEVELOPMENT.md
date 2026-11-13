@@ -60,6 +60,10 @@ pnpm expo:doctor
 
 Check UI changes in light and dark themes. Validate native behavior on an Android device or emulator. Report anything that you cannot test.
 
+## Android backups
+
+Android Auto Backup stays on, but it must never carry private content off the device. The app owns the backup rules: `plugins/withAndroidBackupRules.js` writes the rule files during prebuild and sets them in the manifest. The rules back up shared preferences only, without the encrypted `SecureStore` preferences. They exclude the database directory (`SQLite/`), `media/`, and `drafts/`. The `expo-secure-store` plugin runs with `configureAndroidBackup: false`, so no other plugin can replace these rules silently.
+
 ## Releases
 
 Android releases are published by GitHub Actions. Merge the version bump and changelog entry to `main`. Then push a matching tag, such as `v1.3.12`. The workflow builds on EAS and submits to Google Play. The full release rules are in [AGENTS.md](AGENTS.md#release).

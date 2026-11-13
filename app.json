@@ -24,6 +24,7 @@
     },
     "android": {
       "versionCode": 19,
+      "allowBackup": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundColor": "#3264e6",
@@ -104,8 +105,14 @@
         }
       ],
       "expo-sqlite",
-      "expo-secure-store",
-      "expo-localization"
+      [
+        "expo-secure-store",
+        {
+          "configureAndroidBackup": false
+        }
+      ],
+      "expo-localization",
+      "./plugins/withAndroidBackupRules"
     ],
     "extra": {
       "eas": {

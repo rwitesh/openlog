@@ -6,24 +6,9 @@ PRs #10, #11, and #12 fixed P1-2, P1-3, P2-2 to P2-6, P3-1, P3-2, and P3-4. Thos
 
 | ID | Priority | Area | Finding |
 | --- | --- | --- | --- |
-| P3-3 | P3 | Privacy | `android:allowBackup` uses the platform default |
 | P3-5 | P3 | Privacy | The privacy policy does not mention reverse geocoding |
 
 ## P3
-
-### P3-3. `android:allowBackup` uses the platform default
-
-`app.json` does not set `allowBackup`. The resolved manifest has `allowBackup="true"`. The backup rules come from the `expo-secure-store` plugin and include only shared preferences. Thus Android does not back up `app.db` or `media/` today.
-
-This protection is fragile. If a different plugin adds backup rules, `expo-secure-store` does not apply its own rules. Then Android backs up all app data again.
-
-The owner must select one option:
-
-- Disable `allowBackup`.
-- Add backup rules that exclude the database and the files.
-- Keep the current behavior and document it.
-
-PR #12 describes the trade-off.
 
 ### P3-5. The privacy policy does not mention reverse geocoding
 
