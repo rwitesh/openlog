@@ -18,93 +18,137 @@
       <article class="legal">
         <p class="eyebrow">OpenLog / Privacy Policy</p>
         <h1>Privacy Policy</h1>
-        <p class="updated">Last updated: 12 November 2026</p>
+        <p class="updated">Last updated: 13 November 2026</p>
         <p class="lede">
-          This policy explains how OpenLog stores your content, what information is shared, and
-          which permissions are requested.
+          OpenLog is an open-source, non-commercial Android app maintained by Rwitesh Bera. This
+          policy covers the app and public website.
         </p>
 
-        <div class="callout">
-          <strong>Your entries stay on your device.</strong> OpenLog does not upload your writing,
-          photos, recordings, locations, or attached files to us.
-        </div>
-
-        <h2>What OpenLog stores locally</h2>
+        <h2>Information stored on your device</h2>
         <p>
-          Your entries, entry text, photos, voice recordings, documents and other attachments,
-          locations, preferences, and local profile name are stored on your device. The app works
-          offline. You can export these contents to a backup file you choose and import them again
-          later.
+          OpenLog does not require an account or provide cloud sync. It stores your timeline on your
+          device so you can create, search, and view entries. Stored information includes entry
+          text, dates, tags, locations, photos, recordings, attachments, your optional profile name,
+          app preferences, and unsaved drafts.
         </p>
         <p>
-          When you choose a downloadable font, OpenLog fetches that font file from the jsDelivr CDN
-          and keeps it on your device. No entry content is sent with that request.
+          Some photos stay as original files. They can contain metadata such as capture time or
+          location. OpenLog stores selected media in app storage.
         </p>
 
-        <h2>How your data is stored</h2>
+        <h2>Analytics and error reports</h2>
         <p>
-          OpenLog stores your timeline, attachments, and profile settings on your device. The
-          current app does not provide account sign-in or cloud sync, so no registration is
-          required.
+          OpenLog uses PostHog for analytics and error reports in the Android app. Events record
+          screen names, app activity, entry actions, media counts, recording duration, backup counts
+          and size, location use, app-lock changes, and notification choices. The app does not ask
+          for analytics consent or provide an in-app way to turn analytics off.
+        </p>
+        <p>
+          PostHog receives a generated installation ID, app and device details, and the IP address
+          of each request. These details include app version, device model, operating system,
+          language, and time zone. The ID does not contain your name, but PostHog can link events
+          from the same installation. The IP address can indicate an approximate region. This data
+          is not anonymous. PostHog processes analytics in the United States.
+        </p>
+        <p>
+          Regular usage events do not contain your profile name, email address, entry text, photos,
+          recordings, attachment names, or exact location coordinates. Error reports can contain
+          technical details. An app-open event can include a link that opened the app. Do not put
+          private information in an app link. OpenLog does not record screen video or taps.
+          PostHog's retention period follows its service settings. Contact us for the current period.
+        </p>
+        <p>
+          Read the <a href="https://posthog.com/privacy" rel="noopener noreferrer">PostHog privacy policy</a>.
         </p>
 
-        <h2>Anonymous product analytics</h2>
+        <h2>Location</h2>
         <p>
-          When analytics are enabled for a build, OpenLog uses
-          <a href="https://posthog.com" rel="noopener">PostHog</a> for coarse product events and
-          diagnostics. Events can include screen names, feature use, media counts, recording
-          durations, backup byte or entry counts, app version, device information, language, time
-          zone, and a random installation identifier.
-        </p>
-        <p>
-          Analytics do not include entry text, attachment names, photos, recordings, locations, or
-          profile values. We do not use this data for advertising. See
-          <a href="https://posthog.com/privacy" rel="noopener">PostHog’s privacy policy</a>.
+          When you choose to add or refresh a location, Android gets your current or recent location
+          and uses its geocoding service to return a place label. That service can receive your
+          coordinates. OpenLog saves the coordinates and place label with your entry or draft. The
+          app does not track your location in the background. Analytics record location use, not your
+          coordinates.
         </p>
 
-        <h2>Permissions</h2>
-        <p>OpenLog asks only when a feature needs access:</p>
+        <h2>Fonts and website</h2>
+        <p>
+          If you choose an optional font, OpenLog downloads it from the jsDelivr CDN. The request
+          includes the font file and standard connection information, such as your IP address. It
+          does not include entry content. The app keeps the font on your device until you remove it
+          or remove the app.
+        </p>
+        <p>
+          GitHub Pages hosts the OpenLog website. The site uses system fonts and has no analytics or
+          cookie code. GitHub receives normal page request information, such as your IP address.
+          Read the
+          <a
+            href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement"
+            rel="noopener noreferrer"
+          >
+            GitHub privacy statement
+          </a>. The site also links to external services. Their privacy policies apply when you open
+          those links.
+        </p>
+
+        <h2>Permissions and notifications</h2>
         <ul>
-          <li>
-            <strong>Photos and files:</strong> choose media or documents to attach, or save an image
-            when you ask.
-          </li>
-          <li><strong>Microphone:</strong> record a voice note.</li>
-          <li><strong>Location:</strong> add your current place to an entry when you choose.</li>
-          <li>
-            <strong>Notifications:</strong> show progress and completion updates for backup and
-            restore actions.
-          </li>
+          <li>OpenLog requests photo access when you choose an image.</li>
+          <li>It requests microphone access when you start a recording.</li>
+          <li>It requests foreground location when you choose to add or refresh a place.</li>
+          <li>The system file picker lets you choose attachments and backups.</li>
         </ul>
-
-        <h2>Backups and deletion</h2>
         <p>
-          Backups are created, selected, and stored by you. OpenLog does not receive them. Delete
-          entries or attachments in the app to remove them from local storage. Uninstalling the app
-          removes its local data according to your device’s operating system. Keep a backup before
-          resetting or replacing a device.
+          OpenLog asks for notification permission shortly after the timeline opens. If you allow it,
+          the app shows local backup and import updates. A completion notice can show an entry count
+          and backup size. Your device settings control whether these notices appear on the lock
+          screen. OpenLog does not send remote push notifications.
         </p>
 
-        <h2>What we do not do</h2>
-        <ul>
-          <li>We do not sell your data or show advertising.</li>
-          <li>We do not read or share your entry content.</li>
-          <li>
-            We do not collect location, media, attachment names, or profile values for analytics.
-          </li>
-        </ul>
-
-        <h2>Children and changes</h2>
+        <h2>Backups and sharing</h2>
         <p>
-          OpenLog is not directed at children under 13. We may update this policy as the app
-          changes. For a material change to data handling, we will provide notice in the app or on
-          the website where practical, and publish the current policy here with a new revision date
-          before the change takes effect.
+          An exported backup contains your entries, tags, locations, profile name, preferences,
+          attachments, and media. OpenLog compresses the archive but does not encrypt it. You choose
+          where to save or share it. The chosen folder, service, or app receives the copy.
+        </p>
+        <p>
+          Android system backup can copy some app preferences. OpenLog's backup rules exclude the
+          timeline database, media, and drafts. System backup settings control whether included
+          preferences are copied. When you share a photo or open a file in another app, that app
+          receives the selected file.
         </p>
 
-        <h2>Contact</h2>
+        <h2>Retention and deletion</h2>
         <p>
-          Questions about privacy? <a href="mailto:rwiteshbera@gmail.com">Email Rwitesh Bera</a>.
+          Saved entries and media stay on your device until you delete them or remove the app.
+          Unsaved drafts stay until you save or discard them. Delete all entries removes entries,
+          tags, and drafts. It also tries to remove media that no remaining entry uses. It does not
+          remove your profile name or preferences.
+        </p>
+        <p>
+          Exported backups, shared files, and system backup copies remain until you or their storage
+          provider deletes them. The app does not promise secure erasure of deleted database data.
+        </p>
+
+        <h2>Security</h2>
+        <p>
+          The optional app lock uses your device's biometric or passcode prompt. It does not encrypt
+          entries, media, drafts, or backup files. Protection also depends on your device and its
+          settings.
+        </p>
+
+        <h2>Children and privacy requests</h2>
+        <p>OpenLog is not directed to children under 13.</p>
+        <p>
+          Privacy rights depend on where you live. Contact us to ask about a privacy request. OpenLog
+          has no account and keeps no central copy of your timeline.
+        </p>
+
+        <h2>Contact and changes</h2>
+        <p>
+          OpenLog is maintained by Rwitesh Bera as an independent project. For privacy questions,
+          email <a href="mailto:rwiteshbera@gmail.com">rwiteshbera@gmail.com</a>. Google handles
+          email through Gmail. We use your message to reply. We will update this page when our data
+          practices change.
         </p>
       </article>
       <footer>
