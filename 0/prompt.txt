@@ -1,0 +1,17 @@
+1. Dont commit the findings doc. it should kept local and sgould not be public. 2 its a solo prject and open sourced too. 3. notm maing any profit. so should not need any much detialed verbose policy i gess i might be wrong, the policy and terms and conditio wriitn must bes imple stylingthatm athcing other pacge. lets update css amke it s imple boring than highlihted heading with bigger text, it mustbe boring. lets not make verbose or to odetailed that it questions me. you can check csv for few rprot from donwloads. i am not sure how geto country serve data but akk i can sya its serving almost all coutnry except few butdontention if u dont know. Does the production EAS environment contain EXPO_PUBLIC_POSTHOG_PROJECT_TOKEN? yes, keep ony what matter . et  not public sometihn interal developeme token realated or code related deteailed. prviacy polciy should be for public people orsecyrty analyst not like interal ssecyrutiyrealted things, posthog stores in the us, it doesnt matter, because users data by nature not identifiable at all. there is no ios or web, only adnroid launched so far.the is started by solo devleopers. so no business registration. make it good simple following english skills.
+
+---
+
+ok also just saying  iam telling u to make it short, but not the goal is not to make short. the goal is explain things clealy using english skills that exists with upto date dwitals. thats it
+
+---
+
+yes
+
+---
+
+better to close this branch and PR and create f resh right that juglling?
+
+---
+
+An app-open event can include a link that opened the app. Do not put private information in an app link. OpenLog does not record screen video or taps. PostHog's retention period follows its service settings. C its make us shaddy dont add such detail Contact us for the current period. not required to mentio theydon add any extra fluff but ayaa they can quesiton , i have alreayd merged so u can reactre new PR based on clean fix
