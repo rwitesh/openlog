@@ -6,7 +6,7 @@
     "runtimeVersion": {
       "policy": "fingerprint"
     },
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "scheme": "openlog",
