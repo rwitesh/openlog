@@ -7,16 +7,13 @@ const {
   withDangerousMod,
 } = require("expo/config-plugins");
 
-// The rules keep Auto Backup on but limit it to shared preferences, without the encrypted
-// SecureStore preferences. The excludes keep the database, media, and drafts out even when a
-// later change adds a broader include.
+// An include element limits Auto Backup to the named items, so the sharedpref include is what
+// keeps the database, media, and drafts out. Do not add an exclude for a domain that the rules
+// do not include: Android Lint fails the release build with FullBackupContent.
 const BACKUP_RULES_XML = `<?xml version="1.0" encoding="utf-8"?>
 <full-backup-content>
   <include domain="sharedpref" path="."/>
   <exclude domain="sharedpref" path="SecureStore"/>
-  <exclude domain="file" path="SQLite/"/>
-  <exclude domain="file" path="media/"/>
-  <exclude domain="file" path="drafts/"/>
 </full-backup-content>
 `;
 
@@ -25,16 +22,10 @@ const EXTRACTION_RULES_XML = `<?xml version="1.0" encoding="utf-8"?>
   <cloud-backup>
     <include domain="sharedpref" path="."/>
     <exclude domain="sharedpref" path="SecureStore"/>
-    <exclude domain="file" path="SQLite/"/>
-    <exclude domain="file" path="media/"/>
-    <exclude domain="file" path="drafts/"/>
   </cloud-backup>
   <device-transfer>
     <include domain="sharedpref" path="."/>
     <exclude domain="sharedpref" path="SecureStore"/>
-    <exclude domain="file" path="SQLite/"/>
-    <exclude domain="file" path="media/"/>
-    <exclude domain="file" path="drafts/"/>
   </device-transfer>
 </data-extraction-rules>
 `;

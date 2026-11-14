@@ -63,7 +63,7 @@ Check UI changes in light and dark themes. Validate native behavior on an Androi
 
 ## Android backups
 
-Android Auto Backup stays on, but it must never carry private content off the device. The app owns the backup rules: `plugins/withAndroidBackupRules.js` writes the rule files during prebuild and sets them in the manifest. The rules back up shared preferences only, without the encrypted `SecureStore` preferences. They exclude the database directory (`SQLite/`), `media/`, and `drafts/`. The `expo-secure-store` plugin runs with `configureAndroidBackup: false`, so no other plugin can replace these rules silently.
+Android Auto Backup stays on, but it must never carry private content off the device. The app owns the backup rules: `plugins/withAndroidBackupRules.js` writes the rule files during prebuild and sets them in the manifest. The rules include shared preferences only, without the encrypted `SecureStore` preferences. Because shared preferences are the only include, Android leaves the database, `media/`, and `drafts/` alone. Do not add an exclude for a domain that the rules do not include, because Android Lint fails the release build with `FullBackupContent`. The `expo-secure-store` plugin runs with `configureAndroidBackup: false`, so no other plugin can replace these rules silently.
 
 ## Releases
 
