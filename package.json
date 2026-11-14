@@ -65,6 +65,7 @@
     "adb:logs": "adb logcat '*:S' ReactNativeJS:V ReactNative:V Expo:V",
     "eas:dev": "pnpm dlx --allow-build=dtrace-provider --allow-build=protobufjs eas-cli@latest build --platform android --profile development",
     "eas:prod": "pnpm dlx --allow-build=dtrace-provider --allow-build=protobufjs eas-cli@latest build --platform android --profile production",
+    "eas:preview": "pnpm dlx --allow-build=dtrace-provider --allow-build=protobufjs eas-cli@latest build --platform android --profile preview",
     "expo:doctor": "pnpm dlx expo-doctor",
     "expo:fix": "pnpm expo install --fix",
     "typecheck": "tsc --noEmit",

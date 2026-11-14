@@ -45,6 +45,7 @@ For a USB-connected device, run `pnpm adb:reverse` first to connect port 8081 to
 | `pnpm format`         | Format app source                                 |
 | `pnpm format:check`   | Check app source formatting                       |
 | `pnpm eas:dev`        | Build an Android development APK with EAS         |
+| `pnpm eas:preview`    | Build a standalone Android APK with EAS           |
 | `pnpm eas:prod`       | Build a production Android App Bundle with EAS    |
 
 Use `start:clear` for stale Metro code and `android:clean` for stale native builds. For package changes, use `npx expo install` to match the project’s Expo SDK.
