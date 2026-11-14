@@ -37,6 +37,30 @@ The repository includes two writing skills in `.agents/skills/` (linked into `.c
 - Change only the text that breaks a rule. Do not rewrite correct text for style.
 - Do not change code, identifiers, error text quoted from logs or tools, or product names to obey a writing rule.
 
+### Changelog and store notes
+
+`webpage/changelog.html` holds the changelog. The newest `<h2>` section is also the Google Play "What's new" text. Give each version section this shape:
+
+```html
+<h2>1.3.14</h2>
+
+<ul>
+  <li>
+    <span class="changelog-tag changelog-improved">Improved</span> You can stop a backup or
+    restore while it runs, and the app shows what it is doing.
+  </li>
+</ul>
+```
+
+- Write two or three items. Make each item one or two short sentences.
+- Start each item with the result for the reader. Do not start with the work that produced it. Write "You can stop a backup while it runs", not "Aligned the backup packages".
+- Describe what a person sees, does, or gets. If a reader cannot notice the change, do not list it. Put it in the commit message.
+- Do not repeat an item that an earlier version lists.
+- Do not name files, functions, libraries, packages, plugins, or store mechanics.
+- Use one of these tag classes: `changelog-added`, `changelog-improved`, `changelog-changed`, `changelog-fixed`, `changelog-removed`. The class must exist in `webpage/style.css`.
+- Keep lines within 100 columns. The file is HTML, not Markdown.
+- Before you commit, run `node scripts/play-release-notes.mjs X.Y.Z out/`. Read the output. Each whole item must stay in Play's 500-character limit.
+
 ## Change discipline
 
 - Keep a feature change small and cohesive. Do not use a broad refactor to solve an unrelated problem.
@@ -51,7 +75,7 @@ This project uses local EAS app versions (`eas.json` sets `appVersionSource` to 
 ### Preparing a release
 
 - In one change: increment `expo.version` in `app.json` and `version` in `package.json` together, increment `expo.ios.buildNumber` and `expo.android.versionCode` by 1, and add a `<h2>X.Y.Z</h2>` section to `webpage/changelog.html`.
-- That changelog section is also the Google Play "What's new" text. Keep it to two or three short, user-facing items in plain language; do not list internal refactors. `scripts/play-release-notes.mjs` converts it and keeps whole items within Play's 500-character limit.
+- That changelog section is also the Google Play "What's new" text. Follow [Changelog and store notes](#changelog-and-store-notes) for its shape and wording. `scripts/play-release-notes.mjs` converts it and keeps whole items within Play's 500-character limit.
 - Run `pnpm expo:doctor` alongside the usual checks and resolve any mismatch before release.
 
 ### Publishing Android

@@ -1,15 +1,15 @@
-import { Feather } from "@expo/vector-icons";
+import Feather from "@expo/vector-icons/Feather";
 import { Image } from "expo-image";
 import { useEffect, useRef, useState } from "react";
 import {
   Alert,
-  Dimensions,
   FlatList,
   Modal,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   Pressable,
   StyleSheet,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -27,8 +27,6 @@ interface ImageViewerModalProps {
   onDelete?: (index: number) => void;
 }
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-
 const CHROME = "#FBFAF6";
 const DELETE = "#F4B4B4";
 
@@ -41,9 +39,11 @@ export function ImageViewerModal({
 }: ImageViewerModalProps) {
   const insets = useSafeAreaInsets();
   const appLocked = useAppLocked();
+  const { width: pageWidth } = useWindowDimensions();
   const [index, setIndex] = useState(initialIndex);
   const [prevVisible, setPrevVisible] = useState(visible);
   const listRef = useRef<FlatList<string>>(null);
+  const lastPageWidth = useRef(pageWidth);
 
   // Reset to the tapped photo only when the caller opens the viewer. App lock
   // hides and re-shows the modal; that must return to the photo being viewed.
@@ -63,6 +63,14 @@ export function ImageViewerModal({
     }
   }, [uris, visible, index, onClose]);
 
+  // Pages are one window wide, so a rotation leaves the list between two pages. Return to
+  // the photo being viewed instead.
+  useEffect(() => {
+    if (lastPageWidth.current === pageWidth || uris.length === 0) return;
+    lastPageWidth.current = pageWidth;
+    listRef.current?.scrollToIndex({ index, animated: false });
+  }, [pageWidth, index, uris.length]);
+
   const handleShow = () => {
     if (index > 0) {
       requestAnimationFrame(() => {
@@ -72,7 +80,7 @@ export function ImageViewerModal({
   };
 
   const onMomentumScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const nextIndex = Math.round(event.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+    const nextIndex = Math.round(event.nativeEvent.contentOffset.x / pageWidth);
     setIndex(nextIndex);
   };
 
@@ -110,14 +118,15 @@ export function ImageViewerModal({
           pagingEnabled
           showsHorizontalScrollIndicator={false}
           initialScrollIndex={index > 0 ? index : undefined}
+          extraData={pageWidth}
           getItemLayout={(_, itemIndex) => ({
-            length: SCREEN_WIDTH,
-            offset: SCREEN_WIDTH * itemIndex,
+            length: pageWidth,
+            offset: pageWidth * itemIndex,
             index: itemIndex,
           })}
           onMomentumScrollEnd={onMomentumScrollEnd}
           renderItem={({ item }) => (
-            <View style={styles.page}>
+            <View style={[styles.page, { width: pageWidth }]}>
               <Image
                 source={{ uri: item }}
                 style={styles.image}
@@ -195,7 +204,6 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   page: {
-    width: SCREEN_WIDTH,
     height: "100%",
     justifyContent: "center",
   },

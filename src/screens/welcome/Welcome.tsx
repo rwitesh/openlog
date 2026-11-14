@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import Feather from "@expo/vector-icons/Feather";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import {
   KeyboardAvoidingView,
