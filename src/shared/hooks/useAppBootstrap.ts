@@ -1,9 +1,7 @@
-import {
-  SourceSans3_400Regular,
-  SourceSans3_500Medium,
-  SourceSans3_600SemiBold,
-  useFonts,
-} from "@expo-google-fonts/source-sans-3";
+import { SourceSans3_400Regular } from "@expo-google-fonts/source-sans-3/400Regular";
+import { SourceSans3_500Medium } from "@expo-google-fonts/source-sans-3/500Medium";
+import { SourceSans3_600SemiBold } from "@expo-google-fonts/source-sans-3/600SemiBold";
+import { useFonts } from "@expo-google-fonts/source-sans-3/useFonts";
 import { useEffect, useState } from "react";
 import { useColorScheme } from "react-native";
 import { getBiometricLockEnabled } from "@/services/auth";

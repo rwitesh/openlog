@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import Feather from "@expo/vector-icons/Feather";
 import { Pressable, type StyleProp, StyleSheet, View, type ViewStyle } from "react-native";
 import { ThemedText } from "@/shared/components";
 import type { Tag } from "@/shared/types";
